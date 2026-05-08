@@ -23,7 +23,7 @@ def build_default_tool_registry() -> ToolRegistry:
     registry.register(
         "get_current_datetime",
         get_current_datetime,
-        "获取当前日期时间和常用相对日期范围。",
+        "获取当前日期时间和常用相对日期范围。只用于纯日期时间问题，或作为其他业务工具的内部时间解析依赖。",
         "low",
         input_schema=get_tool_input_schema("get_current_datetime"),
         examples=[
@@ -34,7 +34,7 @@ def build_default_tool_registry() -> ToolRegistry:
     registry.register(
         "query_attendance_summary",
         query_attendance_summary,
-        "读取本地 CSV 并统计企业考勤情况。",
+        "读取本地 CSV 并统计企业考勤情况；适用于出勤、迟到、缺勤、请假统计等问题。",
         "medium",
         input_schema=get_tool_input_schema("query_attendance_summary"),
         examples=[
@@ -64,7 +64,7 @@ def build_default_tool_registry() -> ToolRegistry:
     registry.register(
         "manage_company_calendar",
         manage_company_calendar,
-        "查询、新增、更新或删除本地 JSON 公司日程。",
+        "查询、新增、更新或删除本地 JSON 公司日程；适用于公司活动、会议、培训、发薪日、放假、团建等日程问题。",
         "medium",
         input_schema=get_tool_input_schema("manage_company_calendar"),
         examples=[

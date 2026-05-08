@@ -39,7 +39,7 @@ from mini_rag.graph.utils import (
 from mini_rag.utils import stable_hash
 from mini_rag.security.auth_store import SQLiteAuthStore
 from mini_rag.security.permissions import assert_can_access_kbs, assert_tool_permission, normalize_role
-from mini_rag.tools.daily_tools import build_default_tool_registry, select_daily_tool_by_rule
+from mini_rag.tools.daily_tools import build_default_tool_registry
 from mini_rag.tools.datetime_tool import get_current_datetime
 from mini_rag.tools.contracts import validate_tool_input
 from pydantic import ValidationError
@@ -141,15 +141,19 @@ class AgenticRAGNodes:
             if state.get("error") and state.get("route") == "reject":
                 return state
             question = state.get("question", "")
-            candidate_tool = select_daily_tool_by_rule(question)
-            state["candidate_tool"] = candidate_tool
+            # Let the LLM choose the tool from the tool contracts.
+            # We intentionally do not pre-select a candidate by keyword, because
+            # relative-time words such as “下周” can otherwise bias the planner
+            # toward get_current_datetime even when the business intent is calendar/attendance.
+            candidate_tool = None
+            state["candidate_tool"] = None
 
-            tool_contracts = self.tool_registry.format_tool_contracts_for_prompt(candidate_tool)
+            tool_contracts = self.tool_registry.format_tool_contracts_for_prompt()
             user_prompt = format_understand_user(
                 question=question,
                 summary=state.get("conversation_summary", ""),
                 history=state.get("history", []),
-                candidate_tool=candidate_tool,
+                candidate_tool=None,
                 previous_tool_context=state.get("previous_tool_context", {}),
                 available_tool_contracts=tool_contracts,
             )
@@ -189,9 +193,6 @@ class AgenticRAGNodes:
             state["risk_level"] = str(payload.get("risk_level") or "low")
             state["required_tools"] = [str(x) for x in coerce_list(payload.get("required_tools"))]
             selected_tool = str(payload.get("selected_tool") or "") or None
-            if route == "tool" and not selected_tool and candidate_tool:
-                selected_tool = candidate_tool
-                state["required_tools"] = [candidate_tool]
             state["selected_tool"] = selected_tool
             state["tool_input"] = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
             state["needs_time_resolution"] = bool(payload.get("needs_time_resolution", False))
@@ -300,6 +301,9 @@ class AgenticRAGNodes:
                     current_context = self._build_current_tool_context(tool_name, payload, result)
                     current_context["trace_id"] = state.get("trace_id")
                     state["current_tool_context"] = current_context
+                    # Tool results are already structured and deterministic; format them
+                    # directly to avoid an extra answer LLM call on daily-tool paths.
+                    state["final_answer"] = self._format_tool_result(tool_name, result)
                 state.setdefault("tool_calls", []).append(
                     {
                         "tool_name": tool_name,
@@ -817,15 +821,13 @@ class AgenticRAGNodes:
                 f"当前用户问题：{state.get('question', '')}",
                 f"独立问题：{state.get('standalone_query', state.get('question', ''))}",
                 f"selected_tool：{tool_name}",
-                "当前 tool_input 草案：\n" + self._safe_json_dumps(payload),
-                "previous_tool_context：\n" + self._safe_json_dumps(state.get("previous_tool_context", {})),
-                "当前日期时间工具结果：\n" + self._safe_json_dumps(datetime_result or {}),
+                "当前 tool_input 草案：" + self._safe_json_dumps(payload),
+                "previous_tool_context：" + self._safe_json_dumps(state.get("previous_tool_context", {})),
+                "当前日期时间工具结果：" + self._safe_json_dumps(datetime_result or {}),
                 f"relative_time：{state.get('relative_time') or ''}",
                 f"validation_error：{validation_error or '无'}",
-                "input_schema：\n" + self._safe_json_dumps(input_schema),
-                "请只输出修正后的 JSON tool_input。",
-                "必须严格符合 input_schema。",
-                "不要输出解释，不要包裹 markdown。",
+                "input_schema：" + self._safe_json_dumps(input_schema),
+                "只输出修正后的 JSON tool_input，严格符合 input_schema，不要解释。",
             ]
         )
 
@@ -849,36 +851,13 @@ class AgenticRAGNodes:
             return payload
 
         if state.get("needs_time_resolution") or state.get("relative_time"):
-            assert_tool_permission(role, "get_current_datetime", role_policies=self.auth_store.list_role_policies())
-            datetime_payload = {"timezone": "Asia/Shanghai"}
-            datetime_result = get_current_datetime(datetime_payload)
-
-            state.setdefault("tool_calls", []).append(
-                {
-                    "tool_name": "get_current_datetime",
-                    "args": datetime_payload,
-                    "ok": not bool(datetime_result.get("error")),
-                    "risk_level": "low",
-                    "purpose": "resolve_relative_date",
-                }
-            )
-            state.setdefault("observations", []).append(
-                {"type": "tool", "tool_name": "get_current_datetime", "result": datetime_result}
-            )
-            state.setdefault("audit_events", []).append(
-                {"event": "tool_call", "tool_name": "get_current_datetime", "role": role, "decision": "allowed"}
-            )
-
-            payload = self._finalize_tool_input_with_llm(
-                state=state,
-                tool_name=tool_name,
-                payload=payload,
-                datetime_result=datetime_result,
-            )
+            datetime_result = self._run_datetime_for_tool(state, role)
+            self._apply_datetime_range_if_possible(state, tool_name, payload, datetime_result)
 
         try:
             payload = validate_tool_input(tool_name, payload)
         except ValidationError as exc:
+            # Only call the second LLM when deterministic date filling + initial plan still fail.
             payload = self._finalize_tool_input_with_llm(
                 state=state,
                 tool_name=tool_name,
@@ -891,10 +870,71 @@ class AgenticRAGNodes:
         payload.update({"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role})
         return payload
 
+    def _run_datetime_for_tool(self, state: AgentState, role: str) -> dict[str, Any]:
+        assert_tool_permission(role, "get_current_datetime", role_policies=self.auth_store.list_role_policies())
+        datetime_payload = {"timezone": "Asia/Shanghai"}
+        datetime_result = get_current_datetime(datetime_payload)
+        state.setdefault("tool_calls", []).append(
+            {
+                "tool_name": "get_current_datetime",
+                "args": datetime_payload,
+                "ok": not bool(datetime_result.get("error")),
+                "risk_level": "low",
+                "purpose": "resolve_relative_date",
+            }
+        )
+        state.setdefault("observations", []).append({"type": "tool", "tool_name": "get_current_datetime", "result": datetime_result})
+        state.setdefault("audit_events", []).append({"event": "tool_call", "tool_name": "get_current_datetime", "role": role, "decision": "allowed"})
+        return datetime_result
+
+    def _apply_datetime_range_if_possible(
+        self,
+        state: AgentState,
+        tool_name: str,
+        payload: dict[str, Any],
+        datetime_result: dict[str, Any] | None,
+    ) -> None:
+        range_key = str(state.get("relative_time") or payload.get("relative_time") or "").strip()
+        if not range_key or not datetime_result:
+            return
+        selected_range = (datetime_result.get("ranges") or {}).get(range_key) or {}
+        if not selected_range:
+            return
+
+        start_date = selected_range.get("start_date")
+        end_date = selected_range.get("end_date")
+
+        if tool_name == "query_attendance_summary":
+            # The datetime tool is authoritative for relative ranges. Override
+            # placeholders such as "next_week" and stale model guesses.
+            payload["start_date"] = start_date
+            payload["end_date"] = end_date
+            payload["_relative_range"] = range_key
+            return
+
+        if tool_name == "manage_company_calendar":
+            action = str(payload.get("action") or "query").lower()
+            if action == "query":
+                # Query actions use a date range. Always use the datetime tool's
+                # resolved range for relative expressions.
+                payload["start_date"] = start_date
+                payload["end_date"] = end_date
+                payload.setdefault("event_type", "all")
+                payload.setdefault("department", "all")
+                payload["_relative_range"] = range_key
+                return
+
+            # For create/update, only single-day relative terms can be filled
+            # deterministically. More specific expressions like “下周三” are
+            # handled by the LLM finalizer using the datetime_result.
+            if action in {"create", "update"} and range_key in {"today", "yesterday", "tomorrow"}:
+                payload.setdefault("date", start_date)
+                payload["_relative_range"] = range_key
+
     @staticmethod
     def _safe_json_dumps(value: Any) -> str:
         try:
-            return json.dumps(value, ensure_ascii=False, indent=2)
+            return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
         except TypeError:
             return str(value)
 

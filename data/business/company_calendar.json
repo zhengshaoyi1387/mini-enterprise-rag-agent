@@ -30,6 +30,16 @@
     "description": ""
   },
   {
+    "event_id": "EVT-20260515-0002",
+    "date": "2026-05-15",
+    "title": "公司团建",
+    "type": "activity",
+    "department": "all",
+    "time": "16:00-18:00",
+    "location": "",
+    "description": ""
+  },
+  {
     "event_id": "EVT-20260515-0001",
     "date": "2026-05-15",
     "title": "工资发放日",
@@ -38,5 +48,25 @@
     "time": "全天",
     "location": "",
     "description": "本月工资发放"
+  },
+  {
+    "event_id": "EVT-20260516-0001",
+    "date": "2026-05-16",
+    "title": "公司团建",
+    "type": "activity",
+    "department": "all",
+    "time": "16:00-18:00",
+    "location": "",
+    "description": ""
+  },
+  {
+    "event_id": "EVT-20260516-0002",
+    "date": "2026-05-16",
+    "title": "公司团建",
+    "type": "activity",
+    "department": "all",
+    "time": "16:00-18:00",
+    "location": "",
+    "description": ""
   }
 ]

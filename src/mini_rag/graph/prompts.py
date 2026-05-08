@@ -6,48 +6,37 @@ from typing import Any
 from mini_rag.graph.utils import strip_citations_and_metadata, truncate
 
 UNDERSTAND_QUERY_SYSTEM = """
-你是企业级 Agent 的上下文理解与路由节点。你的任务是理解当前问题并判断下一步，不是回答问题。
+你是企业 Agent 的轻量工具规划节点。只输出合法 JSON，不回答问题。
 
-请只输出合法 JSON：
+你会收到 available_tool_contracts，其中列出所有可用工具的用途和输入协议。
+必须由你根据用户语义自行决定 route、selected_tool 和 tool_input；不要依赖关键词候选。
+
+输出 schema：
 {
-  "intent": "rag_fact | daily_tool | direct | reject",
-  "route": "rag | tool | direct | reject",
-  "standalone_query": "改写后的独立问题",
-  "topic": "问题主题",
+  "intent": "rag_fact|daily_tool|direct|reject",
+  "route": "rag|tool|direct|reject",
+  "standalone_query": "语义完整问题",
+  "topic": "",
   "entities": [],
-  "risk_level": "low | medium | high",
-  "selected_tool": "get_current_datetime | query_attendance_summary | manage_company_calendar | null",
+  "risk_level": "low|medium|high",
+  "selected_tool": "get_current_datetime|query_attendance_summary|manage_company_calendar|null",
   "required_tools": [],
   "tool_input": {},
   "needs_time_resolution": false,
   "relative_time": null,
   "missing_required_slots": [],
-  "reason": "简要理由"
+  "reason": "不超过25字"
 }
 
-要求：
-- 需要结合历史时，只用历史中的自然语言内容，不要把 source/title_path/chunk_id 等引用元数据当成业务实体。
-- 保留用户真实问题，不要增加用户没有要求的目标、文档类型、详细程度或分析维度；“介绍一下”不要改成“详细介绍”。
-- candidate_tool 只是规则候选提示，不是最终决定；你必须基于语义、历史和 previous_tool_context 输出最终 route、selected_tool 和 tool_input。
-- 你会收到 available_tool_contracts，其中包含每个工具的 input_schema 和 examples。
-- selected_tool 必须来自 available_tool_contracts。
-- route=rag 时 selected_tool=null，tool_input={}。
-- route=tool 时 selected_tool 必须是真实工具之一，tool_input 必须严格符合 selected_tool 的 input_schema。
-- 如果 input_schema 中某字段是 enum / const / Literal，只能输出允许值。
-- 不要输出 input_schema 中不存在的字段，例如不要把 time 拆成 start_time/end_time。
-- 如果缺少必填字段，请放入 missing_required_slots，不要编造。
-- 制度、流程、FAQ、产品说明、政策解释 route=rag，例如“公司迟到规则是什么？”“报销流程是什么？”“VPN 连不上怎么处理？”。
-- 纯日期时间问题 route=tool，selected_tool=get_current_datetime，例如“今天日期”“现在几点？”“今天星期几？”。
-- 考勤、出勤、迟到、缺勤、请假统计 route=tool，selected_tool=query_attendance_summary，例如“昨天公司的出勤情况如何？”“上周研发部门谁迟到了？”“谁迟到了？”。
-- 公司日程、会议、培训、发薪日、放假、节假日、团建 route=tool，selected_tool=manage_company_calendar，例如“下周公司有哪些安排？”“明天有没有培训？”“新增一个会议”。
-- 对 manage_company_calendar：action 只能是 query/create/update/delete。用户说“增加/添加/新增/创建”时，action=create；不要输出 action=add。
-- 对 manage_company_calendar create：必须使用 date 和 time；不要使用 start_date/end_date 表示单个事件日期；不要使用 start_time/end_time。
-- 包含相对时间表达时，不要直接猜具体日期；输出 needs_time_resolution=true，并把 relative_time 设为 today/yesterday/tomorrow/this_week/last_week/next_week/this_month/last_month/next_month。
-- 如果用户说“下周三/下周五”等相对星期，先输出 needs_time_resolution=true；如你能根据 previous_tool_context 或当前日期工具结果确定日期，则在 tool_input 中使用具体 date。
-- 多轮追问时，如果当前问题省略日期、部门、状态、事件类型等参数，必须参考 previous_tool_context 补全 tool_input。不要输出“查询上一轮内容”这种自然语言占位。
-- 如果问题是闲聊、模型身份、代码通用概念等，不需要企业知识库或业务工具时，intent 选 direct。
-- 需要企业知识库、内部文档、产品手册、项目文档证据时 route=rag。
-- 不安全请求 route=reject，risk_level=high。
+选择原则：
+- 制度、流程、FAQ、产品/项目文档、政策解释 => route=rag, selected_tool=null。
+- 如果涉及到时间或者日期，如“今天星期几/现在几点/下周日期范围”， 必须调用工具=> selected_tool=get_current_datetime。严禁自己猜时间日期。
+- 考勤、出勤、迟到、缺勤、请假统计 => selected_tool=query_attendance_summary。
+- 公司日程、活动、会议、培训、发薪日、放假、团建 => selected_tool=manage_company_calendar。
+- 相对时间值只能是 today/yesterday/tomorrow/this_week/last_week/next_week/this_month/last_month/next_month。不要猜具体日期；设置 needs_time_resolution=true 和 relative_time。
+- tool_input 必须遵守 selected_tool 的 contract。枚举值只用 contract 里的值。
+- 多轮省略的日期、部门、状态、事件，可从 previous_tool_context 补全。
+- reason 最多25字。
 """.strip()
 
 ROUTE_SYSTEM = """
@@ -142,11 +131,11 @@ MEMORY_UPDATE_SYSTEM = """
 """.strip()
 
 
-def format_history(history: list[dict[str, Any]], max_chars: int = 900) -> str:
+def format_history(history: list[dict[str, Any]], max_chars: int = 520) -> str:
     if not history:
         return "无"
     lines: list[str] = []
-    for idx, turn in enumerate(history[-3:]):
+    for idx, turn in enumerate(history[-2:]):
         answer = turn.get("memory_answer") or turn.get("answer") or ""
         answer = strip_citations_and_metadata(answer)
         lines.append(
@@ -154,7 +143,7 @@ def format_history(history: list[dict[str, Any]], max_chars: int = 900) -> str:
                 [
                     f"[{idx}] 用户：{turn.get('question', '')}",
                     f"独立问题：{turn.get('standalone_query', '')}",
-                    f"助手记忆：{truncate(answer, 260)}",
+                    f"助手记忆：{truncate(answer, 160)}",
                 ]
             )
         )
@@ -171,14 +160,12 @@ def format_understand_user(
 ) -> str:
     return "\n\n".join(
         [
-            f"会话摘要：{summary or '无'}",
-            "最近历史：\n" + format_history(history),
-            f"candidate_tool：{candidate_tool or '无'}",
-            "available_tool_contracts：\n" + available_tool_contracts,
-            "previous_tool_context：\n" + json.dumps(previous_tool_context or {}, ensure_ascii=False, indent=2),
-            "多轮补全要求：如果当前问题省略了日期、部门、状态或事件类型，请基于 previous_tool_context 补全 tool_input。",
-            "工具协议要求：tool_input 必须严格遵守 available_tool_contracts 中 selected_tool 的 input_schema，不允许输出 schema 未声明的 action 枚举或字段。",
             f"当前问题：{question}",
+            f"会话摘要：{truncate(summary or '无', 180)}",
+            "最近历史：\n" + format_history(history),
+            "previous_tool_context：" + json.dumps(previous_tool_context or {}, ensure_ascii=False, separators=(",", ":")),
+            "available_tool_contracts：" + available_tool_contracts,
+            "从 available_tool_contracts 中自行选择最合适工具，并按系统 schema 输出 JSON。",
         ]
     )
 
