@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import date, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -140,12 +141,16 @@ class AgenticRAGNodes:
             question = state.get("question", "")
             candidate_tool = select_daily_tool_by_rule(question)
             state["candidate_tool"] = candidate_tool
+
+            tool_contracts = self.tool_registry.format_tool_contracts_for_prompt(candidate_tool)
+
             user_prompt = format_understand_user(
                 question=question,
                 summary=state.get("conversation_summary", ""),
                 history=state.get("history", []),
                 candidate_tool=candidate_tool,
                 previous_tool_context=state.get("previous_tool_context", {}),
+                available_tool_contracts=tool_contracts,
             )
             payload = self._invoke_json(
                 state=state,
@@ -783,14 +788,24 @@ class AgenticRAGNodes:
     # ---------- internals ----------
     def _build_tool_payload(self, state: AgentState, tool_name: str, role: str) -> dict[str, Any]:
         payload = dict(state.get("tool_input") or {})
-        payload.update({"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role})
+
+        if tool_name == "manage_company_calendar":
+            payload = self._normalize_calendar_payload(payload)
+
+        payload.update(
+            {
+                "query": state.get("question", ""),
+                "user_id": state.get("user_id"),
+                "role": role,
+            }
+        )
 
         if tool_name == "get_current_datetime":
             payload.setdefault("timezone", "Asia/Shanghai")
             return payload
 
         if tool_name in {"query_attendance_summary", "manage_company_calendar"}:
-            payload = self._resolve_relative_time_if_needed(state, payload, role)
+            payload = self._resolve_relative_time_if_needed(state, payload, role, tool_name)
 
         if tool_name == "query_attendance_summary":
             payload.setdefault("department", "all")
@@ -798,44 +813,103 @@ class AgenticRAGNodes:
             payload.setdefault("employee_name", None)
             payload.setdefault("status_filter", None)
             payload.setdefault("include_records", False)
+
         elif tool_name == "manage_company_calendar":
+            payload = self._normalize_calendar_payload(payload)
             action = str(payload.get("action") or "query").lower()
             payload["action"] = action
-            payload.setdefault("event_type", "all")
-            payload.setdefault("department", "all")
+
             if action == "query":
                 payload.setdefault("event_type", "all")
+                payload.setdefault("department", "all")
+
             elif action == "create":
-                payload.setdefault("type", "event")
+                payload.setdefault("type", "other")
                 payload.setdefault("time", "全天")
+                payload.setdefault("department", "all")
                 payload.setdefault("location", "")
                 payload.setdefault("description", "")
-                if not payload.get("date") and payload.get("start_date"):
-                    payload["date"] = payload.get("start_date")
+
+                # create 只需要 date，不应该保留 start_date/end_date
+                payload.pop("start_date", None)
+                payload.pop("end_date", None)
+
+            elif action in {"update", "delete"}:
+                payload.setdefault("department", "all")
+
         return payload
 
-    def _resolve_relative_time_if_needed(self, state: AgentState, payload: dict[str, Any], role: str) -> dict[str, Any]:
+    def _resolve_relative_time_if_needed(
+        self,
+        state: AgentState,
+        payload: dict[str, Any],
+        role: str,
+        tool_name: str,
+    ) -> dict[str, Any]:
         range_key = str(state.get("relative_time") or payload.get("relative_time") or "").strip()
         if not range_key and not state.get("needs_time_resolution"):
             return payload
         if not range_key:
             return payload
+
         assert_tool_permission(role, "get_current_datetime", role_policies=self.auth_store.list_role_policies())
+
         datetime_payload = {"timezone": "Asia/Shanghai"}
         datetime_result = get_current_datetime(datetime_payload)
         ranges = datetime_result.get("ranges") or {}
         selected_range = ranges.get(range_key) or {}
+
         state.setdefault("tool_calls", []).append(
-            {"tool_name": "get_current_datetime", "args": datetime_payload, "ok": True, "risk_level": "low", "purpose": "resolve_relative_date"}
+            {
+                "tool_name": "get_current_datetime",
+                "args": datetime_payload,
+                "ok": not bool(datetime_result.get("error")),
+                "risk_level": "low",
+                "purpose": "resolve_relative_date",
+            }
         )
-        state.setdefault("observations", []).append({"type": "tool", "tool_name": "get_current_datetime", "result": datetime_result})
+        state.setdefault("observations", []).append(
+            {
+                "type": "tool",
+                "tool_name": "get_current_datetime",
+                "result": datetime_result,
+            }
+        )
         state.setdefault("audit_events", []).append(
-            {"event": "tool_call", "tool_name": "get_current_datetime", "role": role, "decision": "allowed"}
+            {
+                "event": "tool_call",
+                "tool_name": "get_current_datetime",
+                "role": role,
+                "decision": "allowed",
+            }
         )
-        if selected_range:
-            payload["start_date"] = selected_range.get("start_date")
-            payload["end_date"] = selected_range.get("end_date")
+
+        if not selected_range:
+            return payload
+
+        # 日程创建：相对时间要解析成单个 date，而不是 start_date/end_date
+        if tool_name == "manage_company_calendar" and payload.get("action") == "create":
+            if not payload.get("date"):
+                weekday = self._weekday_from_question_or_payload(
+                    state.get("question", ""),
+                    payload,
+                )
+
+                if weekday is not None:
+                    start = date.fromisoformat(selected_range["start_date"])
+                    payload["date"] = (start + timedelta(days=weekday)).isoformat()
+                elif selected_range.get("start_date") == selected_range.get("end_date"):
+                    payload["date"] = selected_range.get("start_date")
+
+            payload.pop("start_date", None)
+            payload.pop("end_date", None)
             payload["_relative_range"] = range_key
+            return payload
+
+        # 查询类工具：相对时间解析成范围
+        payload["start_date"] = selected_range.get("start_date")
+        payload["end_date"] = selected_range.get("end_date")
+        payload["_relative_range"] = range_key
         return payload
 
     @staticmethod

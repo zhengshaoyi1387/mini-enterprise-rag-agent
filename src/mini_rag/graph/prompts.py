@@ -30,7 +30,7 @@ UNDERSTAND_QUERY_SYSTEM = """
 - 保留用户真实问题，不要增加用户没有要求的目标、文档类型、详细程度或分析维度；“介绍一下”不要改成“详细介绍”。
 - candidate_tool 只是规则候选提示，不是最终决定；你必须基于语义、历史和 previous_tool_context 输出最终 route、selected_tool 和 tool_input。
 - route=rag 时 selected_tool=null，tool_input={}。
-- route=tool 时 selected_tool 必须是真实工具之一，tool_input 必须尽量完整，不能只给自然语言。
+- route=tool 时 selected_tool 必须是真实工具之一，tool_input 必须尽量完整且合规，没有的信息就用默认值，不能只给自然语言。
 - 制度、流程、FAQ、产品说明、政策解释 route=rag，例如“公司迟到规则是什么？”“报销流程是什么？”“VPN 连不上怎么处理？”。
 - 纯日期时间问题 route=tool，selected_tool=get_current_datetime，例如“今天日期”“现在几点？”“今天星期几？”。
 - 考勤、出勤、迟到、缺勤、请假统计 route=tool，selected_tool=query_attendance_summary，例如“昨天公司的出勤情况如何？”“上周研发部门谁迟到了？”“谁迟到了？”。
@@ -44,6 +44,16 @@ UNDERSTAND_QUERY_SYSTEM = """
 - 不安全请求 route=reject，risk_level=high。
 
 示例：如果 previous_tool_context 是 2026-05-07 的考勤汇总，用户问“谁迟到了？”，应输出 query_attendance_summary，tool_input 包含 start_date=2026-05-07、end_date=2026-05-07、group_by=employee、status_filter=late、include_records=true。
+你会收到 available_tool_contracts，其中包含每个工具的输入协议、允许枚举、必填字段、禁用字段和示例。
+
+硬性要求：
+- selected_tool 必须来自 available_tool_contracts。
+- tool_input 必须严格遵守 selected_tool 的 input_schema。
+- 如果 input_schema 中规定枚举值，只能输出枚举中的值。
+- 如果 input_schema 中规定 forbidden 字段，禁止输出这些字段。
+- 如果用户使用自然语言同义词，例如“添加/新增/增加”，必须映射成工具协议中的 canonical value，例如 manage_company_calendar.action=create。
+- 不允许输出工具不支持的 action 或字段名。
+- 如果缺少必填字段，在 missing_required_slots 中列出，不要伪造。
 """.strip()
 
 ROUTE_SYSTEM = """
@@ -172,14 +182,18 @@ def format_understand_user(
     history: list[dict[str, Any]],
     candidate_tool: str | None = None,
     previous_tool_context: dict[str, Any] | None = None,
+    available_tool_contracts: str = "[]",
 ) -> str:
     return "\n\n".join(
         [
             f"会话摘要：{summary or '无'}",
             "最近历史：\n" + format_history(history),
             f"candidate_tool：{candidate_tool or '无'}",
-            "previous_tool_context：\n" + json.dumps(previous_tool_context or {}, ensure_ascii=False, indent=2),
+            "available_tool_contracts：\n" + available_tool_contracts,
+            "previous_tool_context：\n"
+            + json.dumps(previous_tool_context or {}, ensure_ascii=False, indent=2),
             "多轮补全要求：如果当前问题省略了日期、部门、状态或事件类型，请基于 previous_tool_context 补全 tool_input。",
+            "工具协议要求：tool_input 必须严格遵守 available_tool_contracts，不允许输出未声明的 action 枚举或字段。",
             f"当前问题：{question}",
         ]
     )
