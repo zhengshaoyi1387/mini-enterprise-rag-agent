@@ -1,0 +1,527 @@
+[
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/company_faq.md",
+    "chars": 1032
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_01_company_overview.md",
+    "chars": 1472
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_02_onboarding_checklist.md",
+    "chars": 1316
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_03_office_code.md",
+    "chars": 1262
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_04_meeting_minutes_template.md",
+    "chars": 1263
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_05_business_terms.md",
+    "chars": 1229
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_06_knowledge_base_usage.md",
+    "chars": 1290
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_07_data_classification.md",
+    "chars": 1236
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_08_general_faq.md",
+    "chars": 1239
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_09_project_collaboration.md",
+    "chars": 1198
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_10_remote_work.md",
+    "chars": 1190
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_11_ai_assistant_usage.md",
+    "chars": 1228
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_12_common_templates.md",
+    "chars": 1134
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_13_emergency_contacts.md",
+    "chars": 1207
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_14_document_review.md",
+    "chars": 1161
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_15_risk_reporting.md",
+    "chars": 1137
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_16_change_announcement.md",
+    "chars": 1105
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_17_customer_communication_baseline.md",
+    "chars": 1112
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_18_quality_review.md",
+    "chars": 1070
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_19_knowledge_owner.md",
+    "chars": 1114
+  },
+  {
+    "kb_id": "public",
+    "file": "data/kbs/public/public_20_internal_search_tips.md",
+    "chars": 1143
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_01_attendance_policy.md",
+    "chars": 1255
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_02_leave_policy.md",
+    "chars": 1219
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_03_performance_okr.md",
+    "chars": 1229
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_04_probation_transfer.md",
+    "chars": 1204
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_05_recruitment_interview.md",
+    "chars": 1193
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_06_training_growth.md",
+    "chars": 1181
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_07_employee_relations.md",
+    "chars": 1195
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_08_exit_process.md",
+    "chars": 1186
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_09_benefits_policy.md",
+    "chars": 1198
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_10_internal_transfer.md",
+    "chars": 1199
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_11_labor_contract.md",
+    "chars": 1204
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_12_manager_handbook.md",
+    "chars": 1206
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_13_attendance_edge_cases.md",
+    "chars": 1082
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_14_remote_hiring.md",
+    "chars": 1073
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_15_salary_confidentiality.md",
+    "chars": 1083
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_16_shift_schedule.md",
+    "chars": 1090
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_17_disciplinary_policy.md",
+    "chars": 1094
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_18_diversity_inclusion.md",
+    "chars": 1088
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_19_intern_policy.md",
+    "chars": 1071
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_20_hr_faq_extended.md",
+    "chars": 1073
+  },
+  {
+    "kb_id": "hr",
+    "file": "data/kbs/hr/hr_policy.md",
+    "chars": 1053
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_01_reimbursement_policy.md",
+    "chars": 1226
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_02_travel_policy.md",
+    "chars": 1231
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_03_invoice_policy.md",
+    "chars": 1188
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_04_procurement_policy.md",
+    "chars": 1199
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_05_budget_management.md",
+    "chars": 1179
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_06_contract_payment.md",
+    "chars": 1172
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_07_customer_entertainment.md",
+    "chars": 1196
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_08_asset_management.md",
+    "chars": 1170
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_09_expense_exceptions.md",
+    "chars": 1185
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_10_tax_compliance.md",
+    "chars": 1189
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_11_project_costing.md",
+    "chars": 1188
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_12_finance_faq.md",
+    "chars": 1172
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_13_reimbursement_workflow_examples.md",
+    "chars": 1113
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_14_reimbursement_audit.md",
+    "chars": 1075
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_15_supplier_onboarding.md",
+    "chars": 1078
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_16_marketing_budget.md",
+    "chars": 1064
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_17_cloud_cost_policy.md",
+    "chars": 1061
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_18_payment_risk_cases.md",
+    "chars": 1070
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_19_finance_month_end.md",
+    "chars": 1068
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_20_finance_policy_glossary.md",
+    "chars": 1062
+  },
+  {
+    "kb_id": "finance",
+    "file": "data/kbs/finance/finance_policy.md",
+    "chars": 1058
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_01_account_permission.md",
+    "chars": 1218
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_02_vpn_network.md",
+    "chars": 1232
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_03_device_management.md",
+    "chars": 1198
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_04_ticket_sla.md",
+    "chars": 1242
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_05_security_baseline.md",
+    "chars": 1192
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_06_email_security.md",
+    "chars": 1187
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_07_software_request.md",
+    "chars": 1181
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_08_backup_recovery.md",
+    "chars": 1189
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_09_incident_response.md",
+    "chars": 1219
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_10_access_review.md",
+    "chars": 1176
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_11_developer_environment.md",
+    "chars": 1225
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_12_it_faq.md",
+    "chars": 1195
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_13_production_access.md",
+    "chars": 1089
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_14_secret_management.md",
+    "chars": 1098
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_15_log_management.md",
+    "chars": 1100
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_16_database_access.md",
+    "chars": 1095
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_17_monitoring_alerts.md",
+    "chars": 1086
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_18_offboarding_it_checklist.md",
+    "chars": 1085
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_19_internal_api_policy.md",
+    "chars": 1071
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_20_it_asset_faq_extended.md",
+    "chars": 1095
+  },
+  {
+    "kb_id": "it",
+    "file": "data/kbs/it/it_policy.md",
+    "chars": 1077
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_01_agent_platform_overview.md",
+    "chars": 1281
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_02_smart_customer_service.md",
+    "chars": 1218
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_03_ticket_system_manual.md",
+    "chars": 1190
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_04_rag_quality_guidelines.md",
+    "chars": 1193
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_05_admin_console.md",
+    "chars": 1229
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_06_frontend_user_guide.md",
+    "chars": 1260
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_07_tool_calling_design.md",
+    "chars": 1256
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_08_trace_observability.md",
+    "chars": 1324
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_09_eval_ablation_manual.md",
+    "chars": 1297
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_10_integration_plan.md",
+    "chars": 1209
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_11_customer_success_playbook.md",
+    "chars": 1186
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_12_sales_poc_playbook.md",
+    "chars": 1207
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_13_kb_permission_design.md",
+    "chars": 1161
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_14_langgraph_workflow_design.md",
+    "chars": 1236
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_15_react_vs_workflow.md",
+    "chars": 1186
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_16_prompt_design.md",
+    "chars": 1147
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_17_frontend_demo_script.md",
+    "chars": 1126
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_18_agent_failure_cases.md",
+    "chars": 1138
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_19_release_notes.md",
+    "chars": 1082
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_20_product_faq_extended.md",
+    "chars": 1115
+  },
+  {
+    "kb_id": "product",
+    "file": "data/kbs/product/product_manual.md",
+    "chars": 1092
+  }
+]

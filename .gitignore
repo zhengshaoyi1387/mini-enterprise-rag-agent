@@ -1,0 +1,59 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test / type check cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Local database / vector store
+data/chroma/
+data/chroma_db/
+chroma/
+chroma_db/
+.vectorstore/
+storage/
+
+# Generated intermediate files
+data/chunks.json
+*.sqlite3
+*.db
+
+# Large archives
+*.zip
+*.tar
+*.tar.gz
+
+# Jupyter
+.ipynb_checkpoints/

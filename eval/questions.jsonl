@@ -1,0 +1,4 @@
+{"question":"公司报销制度里对发票有什么要求？","expected_sources":["01_公司报销制度.txt"],"should_refuse":false}
+{"question":"智能客服平台包含哪些核心模块？","expected_sources":["06_产品使用手册_智能客服平台.md"],"should_refuse":false}
+{"question":"智能客服平台如何使用知识库检索？","expected_sources":["06_产品使用手册_智能客服平台.md"],"should_refuse":false}
+{"question":"公司是否提供海外长期派驻补贴？","expected_sources":[],"should_refuse":true}

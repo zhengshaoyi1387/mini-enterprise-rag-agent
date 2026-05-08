@@ -1,0 +1,1240 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Enterprise Chat</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --panel: #f7f7f8;
+      --panel-strong: #ececf1;
+      --sidebar: #171717;
+      --sidebar-soft: #212121;
+      --sidebar-hover: #2f2f2f;
+      --text: #202123;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --accent: #10a37f;
+      --accent-dark: #0f8f70;
+      --danger: #c2410c;
+      --blue: #2563eb;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .14);
+      --radius: 8px;
+      --sidebar-width: 300px;
+      --drawer-width: 420px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button {
+      border: 0;
+      border-radius: var(--radius);
+      min-height: 36px;
+      padding: 8px 12px;
+      background: var(--text);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 650;
+    }
+    button:hover { filter: brightness(.96); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    button.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+    button.ghost { background: transparent; color: inherit; border: 1px solid transparent; }
+    button.icon {
+      width: 36px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      font-size: 15px;
+    }
+    button.danger { background: #fff7ed; color: var(--danger); border: 1px solid #fed7aa; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--text);
+      padding: 10px 12px;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(16, 163, 127, .16);
+    }
+    label { display: block; color: var(--muted); font-size: 12px; font-weight: 750; margin: 12px 0 6px; }
+    .hidden { display: none !important; }
+    .muted { color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    .login-screen {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: radial-gradient(circle at top, #f7faf8 0, #fff 42%);
+    }
+    .login-card {
+      width: min(420px, 100%);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 28px;
+      box-shadow: 0 18px 48px rgba(17, 24, 39, .08);
+    }
+    .login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+    .brand-dot {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+    .login-brand h1 { margin: 0; font-size: 23px; letter-spacing: 0; }
+    .login-card button.primary { width: 100%; margin-top: 14px; background: var(--accent); }
+    .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+    .demo-account { min-height: 34px; font-size: 12px; }
+    .status { min-height: 20px; font-size: 13px; color: var(--muted); }
+    .status.error { color: #b42318; }
+    .status.ok { color: var(--accent-dark); }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      overflow: hidden;
+    }
+    .sidebar {
+      min-width: 0;
+      height: 100vh;
+      min-height: 0;
+      overflow: hidden;
+      background: var(--sidebar);
+      color: #f9fafb;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #0f0f0f;
+    }
+    .side-top { padding: 12px; display: grid; gap: 10px; border-bottom: 1px solid #2a2a2a; }
+    .new-chat { width: 100%; text-align: left; background: transparent; border: 1px solid #3a3a3a; color: #fff; }
+    .side-search { background: var(--sidebar-soft); border-color: #303030; color: #fff; min-height: 36px; }
+    .side-search::placeholder { color: #9ca3af; }
+    .side-scroll { overflow: auto; padding: 8px; flex: 1; }
+    .side-group-title {
+      font-size: 12px;
+      color: #9ca3af;
+      margin: 14px 8px 6px;
+      font-weight: 750;
+    }
+    .chat-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+      min-height: 42px;
+      padding: 6px 8px;
+      border-radius: var(--radius);
+      color: #ececf1;
+    }
+    .chat-row:hover, .chat-row.active { background: var(--sidebar-hover); }
+    .chat-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .chat-action {
+      width: 26px;
+      height: 26px;
+      min-height: 26px;
+      padding: 0;
+      background: transparent;
+      color: #d1d5db;
+      border: 0;
+      display: grid;
+      place-items: center;
+      visibility: hidden;
+    }
+    .chat-row:hover .chat-action, .chat-row.active .chat-action { visibility: visible; }
+    .side-bottom { border-top: 1px solid #2a2a2a; padding: 12px; display: grid; gap: 10px; }
+    .side-kbs {
+      display: grid;
+      gap: 8px;
+      padding: 10px 8px 12px;
+      border-top: 1px solid #2a2a2a;
+    }
+    .kb-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .kb-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      max-width: 100%;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #1f2937;
+      color: #e5e7eb;
+      font-size: 12px;
+      font-weight: 720;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .user-chip { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 850;
+      flex: none;
+    }
+    .user-meta { min-width: 0; }
+    .user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 780; }
+    .role-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #064e3b;
+      color: #d1fae5;
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .workspace {
+      min-width: 0;
+      min-height: 0;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+      display: grid;
+      grid-template-rows: 58px minmax(0, 1fr);
+      background: #fff;
+    }
+    .topbar {
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 18px;
+    }
+    .top-left { min-width: 0; display: flex; align-items: center; gap: 10px; }
+    .top-title { min-width: 0; }
+    .top-title h2 { margin: 0; font-size: 16px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .top-sub { font-size: 12px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .top-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+    .mobile-only { display: none; }
+    .chat-pane { min-height: 0; overflow: auto; background: #fff; }
+    .empty-state {
+      min-height: 100%;
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      padding: 42px 22px;
+    }
+    .empty-state h1 { margin: 0 0 18px; font-size: clamp(26px, 4vw, 38px); letter-spacing: 0; }
+    .prompt-grid {
+      width: min(760px, 100%);
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .prompt-card {
+      text-align: left;
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--line);
+      min-height: 72px;
+      padding: 12px;
+      font-weight: 650;
+    }
+    .prompt-card small { display: block; color: var(--muted); margin-top: 4px; line-height: 1.4; font-weight: 500; }
+    .messages {
+      width: min(820px, 100%);
+      margin: 0 auto;
+      padding: 26px 18px 190px;
+    }
+    .message {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 14px;
+      padding: 18px 0;
+      border-bottom: 1px solid #f2f2f2;
+    }
+    .message:last-child { border-bottom: 0; }
+    .message.user .avatar { background: #111827; }
+    .message.assistant .avatar { background: var(--accent); }
+    .message-body { min-width: 0; }
+    .message-role { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
+    .message-text {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      line-height: 1.72;
+      font-size: 15px;
+    }
+    .message-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      opacity: .75;
+    }
+    .message-actions button { min-height: 30px; font-size: 12px; padding: 5px 8px; }
+    .message:hover .message-actions { opacity: 1; }
+    .answer-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 23px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 720;
+      background: #eef2ff;
+      color: #1d4ed8;
+    }
+    .pill.green { background: #ecfdf5; color: #047857; }
+    .pill.gray { background: #f3f4f6; color: #4b5563; }
+    .composer-wrap {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 12;
+      background: linear-gradient(to top, #fff 72%, rgba(255,255,255,.86));
+      padding: 14px 18px 18px;
+      pointer-events: none;
+    }
+    .composer {
+      width: min(820px, 100%);
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 8px 32px rgba(0,0,0,.08);
+      padding: 10px;
+      pointer-events: auto;
+    }
+    .composer textarea {
+      min-height: 54px;
+      max-height: 190px;
+      border: 0;
+      resize: vertical;
+      padding: 8px;
+      line-height: 1.5;
+      box-shadow: none !important;
+    }
+    .composer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 6px 4px 0;
+      border-top: 1px solid #f0f0f0;
+    }
+    .composer-tools { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .kb-select { position: relative; }
+    .kb-popover {
+      position: absolute;
+      left: 0;
+      bottom: 42px;
+      width: 280px;
+      max-height: 320px;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      z-index: 10;
+    }
+    .kb-popover .kb-chip { background: #ecfdf5; color: #047857; }
+    .check-line { display: flex; gap: 8px; align-items: center; min-height: 32px; font-size: 13px; }
+    .check-line input { width: 16px; height: 16px; padding: 0; }
+    .composer-hint { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .send-group { display: flex; gap: 8px; flex: none; }
+    .send-btn { background: var(--accent); min-width: 72px; }
+
+    .drawer {
+      position: fixed;
+      inset: 0 0 0 auto;
+      width: min(var(--drawer-width), 100vw);
+      background: #fff;
+      border-left: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      z-index: 30;
+      display: grid;
+      grid-template-rows: 58px auto minmax(0, 1fr);
+      transform: translateX(100%);
+      transition: transform .18s ease;
+    }
+    .drawer.open { transform: translateX(0); }
+    .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--line); }
+    .drawer-head h3 { margin: 0; font-size: 16px; }
+    .tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
+    .tab { border-radius: 0; background: #fff; color: var(--muted); border-right: 1px solid var(--line); font-size: 13px; }
+    .tab.active { background: var(--panel); color: var(--text); }
+    .drawer-body { overflow: auto; padding: 14px; }
+    .source-card, .admin-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 10px;
+      background: #fff;
+    }
+    .source-card b { display: block; margin-bottom: 6px; font-size: 13px; }
+    .source-card p { margin: 8px 0 0; color: var(--muted); line-height: 1.5; font-size: 13px; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #111827;
+      color: #e5e7eb;
+      border-radius: var(--radius);
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: middle; }
+    th { color: var(--muted); font-size: 12px; }
+    .admin-actions { display: grid; gap: 8px; margin-top: 10px; }
+    .admin-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .matrix { display: grid; gap: 4px; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      z-index: 50;
+      background: #111827;
+      color: #fff;
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: 13px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s ease;
+    }
+    .toast.show { opacity: 1; }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.3);
+      z-index: 20;
+    }
+    @media (max-width: 920px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: min(var(--sidebar-width), 88vw);
+        z-index: 25;
+        transform: translateX(-100%);
+        transition: transform .18s ease;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .mobile-only { display: inline-grid; }
+      .prompt-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .top-actions .secondary:not(.keep-mobile) { display: none; }
+      .composer-row { align-items: stretch; flex-direction: column; }
+      .send-group { justify-content: flex-end; }
+      .admin-inline { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <section id="loginView" class="login-screen">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="brand-dot">AI</div>
+        <h1>Enterprise Chat</h1>
+      </div>
+      <label for="loginUser">账号</label>
+      <input id="loginUser" value="admin" autocomplete="username" />
+      <label for="loginPassword">密码</label>
+      <input id="loginPassword" value="admin123" type="password" autocomplete="current-password" />
+      <button id="loginBtn" class="primary">登录</button>
+      <div class="demo-grid">
+        <button class="secondary demo-account" data-user="admin" data-pass="admin123">admin</button>
+        <button class="secondary demo-account" data-user="finance" data-pass="finance123">finance</button>
+        <button class="secondary demo-account" data-user="employee" data-pass="employee123">employee</button>
+        <button class="secondary demo-account" data-user="guest" data-pass="guest123">guest</button>
+      </div>
+      <p id="loginStatus" class="status"></p>
+    </div>
+  </section>
+
+  <section id="appView" class="app hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="side-top">
+        <button id="newChatBtn" class="new-chat">+ 新对话</button>
+        <input id="sessionSearch" class="side-search" placeholder="搜索对话" />
+      </div>
+      <div id="sessionList" class="side-scroll"></div>
+      <div class="side-kbs">
+        <div class="side-group-title" style="margin:0">可访问知识库</div>
+        <div id="sideKbList" class="kb-list"></div>
+      </div>
+      <div class="side-bottom">
+        <div class="user-chip">
+          <div id="userAvatar" class="avatar">U</div>
+          <div class="user-meta">
+            <div id="currentUser" class="user-name">-</div>
+            <span id="currentRole" class="role-pill">-</span>
+          </div>
+          <button id="logoutBtn" class="ghost icon" title="退出">↗</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div class="top-left">
+          <button id="openSidebarBtn" class="secondary icon mobile-only" title="打开侧边栏">☰</button>
+          <div class="top-title">
+            <h2 id="chatTitle">新对话</h2>
+            <div id="chatMeta" class="top-sub">-</div>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button id="adminBtn" class="secondary">权限管理</button>
+          <button id="retryBtn" class="secondary">重新生成</button>
+          <button id="exportBtn" class="secondary">导出</button>
+          <button id="detailsBtn" class="secondary keep-mobile">详情</button>
+          <button id="clearChatBtn" class="secondary">清空</button>
+        </div>
+      </header>
+
+      <section id="chatPane" class="chat-pane">
+        <div id="emptyState" class="empty-state">
+          <h1 id="emptyTitle">有什么可以帮忙？</h1>
+          <div class="prompt-grid">
+            <button class="prompt-card" data-prompt="报销的时限是多少？">查询制度<small>从你有权限的知识库中检索答案</small></button>
+            <button class="prompt-card" data-prompt="差旅报销需要哪些材料？">准备材料<small>列出办理事项和引用来源</small></button>
+            <button class="prompt-card" data-prompt="发票抬头错误怎么办？">排查问题<small>结合财务 FAQ 给出处理步骤</small></button>
+            <button class="prompt-card" data-prompt="这笔住宿超标能不能报销？">合规判断<small>需要判断时会走受控工具</small></button>
+          </div>
+        </div>
+        <div id="messages" class="messages hidden"></div>
+      </section>
+
+      <footer class="composer-wrap">
+        <div class="composer">
+          <textarea id="queryInput" placeholder="给 Enterprise Chat 发送消息"></textarea>
+          <div class="composer-row">
+            <div class="composer-tools">
+              <div class="kb-select">
+                <button id="kbBtn" class="secondary">可访问知识库</button>
+                <div id="kbPopover" class="kb-popover hidden"></div>
+              </div>
+              <span id="composerHint" class="composer-hint"></span>
+            </div>
+            <div class="send-group">
+              <button id="stopBtn" class="danger hidden">停止</button>
+              <button id="sendBtn" class="send-btn">发送</button>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </main>
+  </section>
+
+  <div id="drawerOverlay" class="overlay hidden"></div>
+  <aside id="drawer" class="drawer">
+    <div class="drawer-head">
+      <h3 id="drawerTitle">详情</h3>
+      <button id="closeDrawerBtn" class="secondary icon">×</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="sources">来源</button>
+      <button class="tab" data-tab="trace">Trace</button>
+      <button class="tab" data-tab="tools">工具</button>
+      <button class="tab" data-tab="admin">管理</button>
+    </div>
+    <div class="drawer-body">
+      <section id="tab-sources">
+        <div id="answerSummary" class="source-card">
+          <b>当前回答</b>
+          <div class="muted">暂无 trace</div>
+        </div>
+        <div id="sourcesBox"></div>
+      </section>
+      <section id="tab-trace" class="hidden"><pre id="traceBox">{}</pre></section>
+      <section id="tab-tools" class="hidden"><pre id="toolsBox">[]</pre></section>
+      <section id="tab-admin" class="hidden"><div id="adminBox"></div></section>
+    </div>
+  </aside>
+  <div id="toast" class="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const STORE_PREFIX = 'enterprise_chat_state_v2';
+const state = {
+  token: localStorage.getItem('agent_token') || '',
+  me: null,
+  sessions: [],
+  activeSessionId: '',
+  activeTab: 'sources',
+  drawerOpen: false,
+  sidebarOpen: false,
+  aborter: null,
+  lastPrompt: '',
+  admin: { users: [], roles: [], tools: [] },
+};
+
+const uid = () => `web-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+const safeCss = (value) => (window.CSS && CSS.escape ? CSS.escape(value) : String(value).replace(/"/g, '\\"'));
+const activeSession = () => state.sessions.find(item => item.id === state.activeSessionId) || null;
+const authHeaders = (extra = {}) => ({ ...extra, Authorization: `Bearer ${state.token}` });
+const jsonHeaders = () => authHeaders({ 'Content-Type': 'application/json' });
+const nowLabel = () => new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+const accessibleKbs = () => (state.me?.knowledge_bases || []).filter(kb => kb.allowed);
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+function renderJson(id, value) {
+  $(id).textContent = JSON.stringify(value ?? {}, null, 2);
+}
+function toast(message) {
+  $('toast').textContent = message;
+  $('toast').classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => $('toast').classList.remove('show'), 1600);
+}
+async function request(path, options = {}) {
+  const res = await fetch(path, options);
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!res.ok) throw new Error(data.detail || data.error || text || `${res.status}`);
+  return data;
+}
+
+function storageKey() {
+  return `${STORE_PREFIX}:${state.me?.username || 'anonymous'}`;
+}
+function loadLocalState() {
+  try {
+    const raw = localStorage.getItem(storageKey());
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    state.sessions = Array.isArray(saved.sessions) ? saved.sessions : [];
+    state.activeSessionId = saved.activeSessionId || state.sessions[0]?.id || '';
+    return true;
+  } catch {
+    return false;
+  }
+}
+function saveLocalState() {
+  if (!state.me) return;
+  const payload = {
+    activeSessionId: state.activeSessionId,
+    sessions: state.sessions.slice(0, 80),
+  };
+  localStorage.setItem(storageKey(), JSON.stringify(payload));
+}
+function makeSession(title = '新对话') {
+  return {
+    id: uid(),
+    title,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    messages: [],
+    lastFinal: null,
+  };
+}
+function ensureSession() {
+  if (!activeSession()) {
+    const session = makeSession();
+    state.sessions.unshift(session);
+    state.activeSessionId = session.id;
+    saveLocalState();
+  }
+  return activeSession();
+}
+
+async function login() {
+  setLoginStatus('登录中...');
+  try {
+    const data = await request('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: $('loginUser').value, password: $('loginPassword').value }),
+    });
+    state.token = data.access_token;
+    localStorage.setItem('agent_token', state.token);
+    await bootstrap();
+    setLoginStatus('');
+  } catch (err) {
+    setLoginStatus(err.message || String(err), 'error');
+  }
+}
+function setLoginStatus(text, kind = '') {
+  $('loginStatus').className = `status ${kind}`;
+  $('loginStatus').textContent = text;
+}
+async function logout() {
+  if (state.token) await fetch('/auth/logout', { method: 'POST', headers: authHeaders() }).catch(() => {});
+  localStorage.removeItem('agent_token');
+  state.token = '';
+  state.me = null;
+  state.sessions = [];
+  state.activeSessionId = '';
+  $('appView').classList.add('hidden');
+  $('loginView').classList.remove('hidden');
+  closeDrawer();
+}
+async function bootstrap() {
+  state.me = await request('/auth/me', { headers: authHeaders() });
+  if (!loadLocalState() || !state.sessions.length) {
+    const session = makeSession();
+    state.sessions = [session];
+    state.activeSessionId = session.id;
+  }
+  $('loginView').classList.add('hidden');
+  $('appView').classList.remove('hidden');
+  $('currentUser').textContent = state.me.username;
+  $('currentRole').textContent = state.me.role;
+  $('userAvatar').textContent = state.me.username.slice(0, 1).toUpperCase();
+  $('adminBtn').classList.toggle('hidden', state.me.role !== 'admin');
+  renderAll();
+  if (state.me.role === 'admin') await loadAdmin();
+  else renderAdminRestricted();
+}
+
+function renderAll() {
+  ensureSession();
+  renderSessions();
+  renderMessages();
+  renderKbPopover();
+  renderSidebarKbs();
+  renderTopbar();
+  renderDetails(activeSession()?.lastFinal || null);
+}
+function renderTopbar() {
+  const session = ensureSession();
+  $('chatTitle').textContent = session.title || '新对话';
+  $('chatMeta').textContent = `${state.me?.username || '-'} · ${state.me?.role || '-'} · ${session.messages.length} 条消息 · ${nowLabel()}`;
+  const kbs = accessibleKbs().map(kb => kb.kb_id);
+  $('composerHint').textContent = kbs.length ? `当前可访问：${kbs.join(', ')}` : '当前角色暂无可访问知识库';
+}
+function filteredSessions() {
+  const term = $('sessionSearch').value.trim().toLowerCase();
+  if (!term) return state.sessions;
+  return state.sessions.filter(session => (session.title || '').toLowerCase().includes(term));
+}
+function renderSessions() {
+  const groups = filteredSessions();
+  $('sessionList').innerHTML = `
+    <div class="side-group-title">对话</div>
+    ${groups.map(session => `
+      <div class="chat-row ${session.id === state.activeSessionId ? 'active' : ''}" data-session-row="${escapeHtml(session.id)}">
+        <div class="chat-title" data-session="${escapeHtml(session.id)}">${escapeHtml(session.title || '新对话')}</div>
+        <button class="chat-action" title="重命名" data-rename="${escapeHtml(session.id)}">✎</button>
+        <button class="chat-action" title="删除" data-delete="${escapeHtml(session.id)}">×</button>
+      </div>
+    `).join('') || '<div class="muted" style="padding:10px">没有匹配的对话</div>'}
+  `;
+}
+function renderKbPopover() {
+  const kbs = accessibleKbs();
+  $('kbPopover').innerHTML = `
+    <div class="muted" style="font-size:12px;margin:2px 0 8px">由当前账号角色决定，用户不能在前端切换权限</div>
+    <div class="kb-list">
+      ${kbs.map(kb => `<span class="kb-chip" title="${escapeHtml(kb.name)}">${escapeHtml(kb.kb_id)} · ${escapeHtml(kb.name)}</span>`).join('') || '<span class="muted">暂无可访问知识库</span>'}
+    </div>
+  `;
+}
+function renderSidebarKbs() {
+  const kbs = accessibleKbs();
+  $('sideKbList').innerHTML = kbs.map(kb => `<span class="kb-chip" title="${escapeHtml(kb.name)}">${escapeHtml(kb.kb_id)}</span>`).join('') || '<span class="muted">暂无权限</span>';
+}
+function renderMessages() {
+  const session = ensureSession();
+  const hasMessages = session.messages.length > 0;
+  $('emptyState').classList.toggle('hidden', hasMessages);
+  $('messages').classList.toggle('hidden', !hasMessages);
+  if (!hasMessages) return;
+  $('messages').innerHTML = session.messages.map((msg, index) => `
+    <article class="message ${escapeHtml(msg.role)}">
+      <div class="avatar">${msg.role === 'user' ? '我' : 'AI'}</div>
+      <div class="message-body">
+        <div class="message-role">${msg.role === 'user' ? '你' : 'Enterprise Chat'}</div>
+        <div class="message-text">${escapeHtml(msg.content || '')}</div>
+        ${msg.final ? renderAnswerMeta(msg.final) : ''}
+        <div class="message-actions">
+          <button class="secondary" data-copy-message="${index}">复制</button>
+          ${msg.role === 'assistant' ? `<button class="secondary" data-open-final="${index}">查看详情</button>` : `<button class="secondary" data-edit-message="${index}">重新提问</button>`}
+        </div>
+      </div>
+    </article>
+  `).join('');
+  $('chatPane').scrollTop = $('chatPane').scrollHeight;
+}
+function renderAnswerMeta(final) {
+  return `<div class="answer-meta">${renderMetaPills(final)}</div>`;
+}
+function renderMetaPills(final) {
+  const kbs = (final.used_kbs || []).map(kb => `<span class="pill green">${escapeHtml(kb)}</span>`).join('');
+  const trace = final.trace_id ? `<span class="pill gray">${escapeHtml(final.trace_id)}</span>` : '';
+  const route = final.route ? `<span class="pill">${escapeHtml(final.route)}</span>` : '';
+  return `${route}${kbs}${trace}`;
+}
+
+function newChat() {
+  const session = makeSession();
+  state.sessions.unshift(session);
+  state.activeSessionId = session.id;
+  saveLocalState();
+  renderAll();
+  closeMobileSidebar();
+}
+function switchSession(id) {
+  if (!state.sessions.some(item => item.id === id)) return;
+  state.activeSessionId = id;
+  saveLocalState();
+  renderAll();
+  closeMobileSidebar();
+}
+function renameSession(id) {
+  const session = state.sessions.find(item => item.id === id);
+  if (!session) return;
+  const title = prompt('重命名对话', session.title || '新对话');
+  if (!title) return;
+  session.title = title.trim().slice(0, 60) || session.title;
+  session.updatedAt = Date.now();
+  saveLocalState();
+  renderAll();
+}
+function deleteSession(id) {
+  if (state.sessions.length <= 1) {
+    const session = activeSession();
+    if (session) {
+      session.messages = [];
+      session.lastFinal = null;
+      session.title = '新对话';
+    }
+  } else {
+    state.sessions = state.sessions.filter(item => item.id !== id);
+    if (state.activeSessionId === id) state.activeSessionId = state.sessions[0].id;
+  }
+  saveLocalState();
+  renderAll();
+}
+function clearChat() {
+  const session = activeSession();
+  if (!session) return;
+  session.messages = [];
+  session.lastFinal = null;
+  session.title = '新对话';
+  saveLocalState();
+  renderAll();
+}
+
+async function sendChat(queryOverride = '') {
+  const query = (queryOverride || $('queryInput').value).trim();
+  if (!query || state.aborter) return;
+  const session = ensureSession();
+  const kbIds = accessibleKbs().map(kb => kb.kb_id);
+  if (!kbIds.length) {
+    toast('当前角色暂无可访问知识库');
+    return;
+  }
+  session.messages.push({ role: 'user', content: query, createdAt: Date.now() });
+  const assistant = { role: 'assistant', content: '', createdAt: Date.now() };
+  session.messages.push(assistant);
+  if (!session.title || session.title === '新对话') session.title = query.slice(0, 36);
+  session.updatedAt = Date.now();
+  state.lastPrompt = query;
+  $('queryInput').value = '';
+  saveLocalState();
+  renderAll();
+  setRunStatus('正在检索与生成...');
+  $('sendBtn').disabled = true;
+  $('stopBtn').classList.remove('hidden');
+  state.aborter = new AbortController();
+  try {
+    const res = await fetch('/chat/stream', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      signal: state.aborter.signal,
+      body: JSON.stringify({
+        query,
+        kb_ids: kbIds,
+        session_id: session.id,
+        stream: true,
+      }),
+    });
+    if (!res.ok || !res.body) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload.detail || `请求失败 ${res.status}`);
+    }
+    await readStream(res, assistant);
+  } catch (err) {
+    if (err.name !== 'AbortError') assistant.content = `请求失败：${err.message || err}`;
+    setRunStatus(err.name === 'AbortError' ? '已停止' : '请求失败', err.name === 'AbortError' ? '' : 'error');
+  } finally {
+    state.aborter = null;
+    $('sendBtn').disabled = false;
+    $('stopBtn').classList.add('hidden');
+    saveLocalState();
+    renderAll();
+  }
+}
+async function readStream(res, assistant) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) handleStreamLine(line, assistant);
+  }
+  if (buffer.trim()) handleStreamLine(buffer, assistant);
+}
+function handleStreamLine(line, assistant) {
+  if (!line.trim()) return;
+  const event = JSON.parse(line);
+  if (event.event === 'token') {
+    assistant.content += event.content || '';
+    renderMessages();
+    setRunStatus('生成中...');
+  } else if (event.event === 'status') {
+    setRunStatus(event.message || event.stage || '');
+  } else if (event.event === 'final') {
+    assistant.content = event.answer || assistant.content;
+    assistant.final = event;
+    const session = activeSession();
+    if (session) {
+      session.lastFinal = event;
+      session.updatedAt = Date.now();
+    }
+    renderDetails(event);
+    setRunStatus(`完成 · ${event.latency_ms || 0}ms`, 'ok');
+  } else if (event.event === 'error') {
+    assistant.content = event.error || '请求失败';
+    setRunStatus('请求失败', 'error');
+  }
+}
+function setRunStatus(text, kind = '') {
+  $('chatMeta').className = `top-sub ${kind}`;
+  $('chatMeta').textContent = text || '';
+}
+function stopChat() {
+  if (state.aborter) state.aborter.abort();
+}
+function regenerate() {
+  const session = activeSession();
+  if (!session) return;
+  const lastUserIndex = [...session.messages].map((msg, index) => ({ msg, index })).reverse().find(item => item.msg.role === 'user')?.index;
+  if (lastUserIndex === undefined) {
+    toast('没有可重新生成的问题');
+    return;
+  }
+  const prompt = session.messages[lastUserIndex].content || '';
+  session.messages = session.messages.slice(0, lastUserIndex);
+  session.lastFinal = null;
+  saveLocalState();
+  renderAll();
+  sendChat(prompt);
+}
+function exportCurrentChat() {
+  const session = activeSession();
+  if (!session || !session.messages.length) {
+    toast('当前对话为空');
+    return;
+  }
+  const lines = [`# ${session.title || '对话导出'}`, '', `用户：${state.me?.username || '-'}`, `角色：${state.me?.role || '-'}`, `会话：${session.id}`, ''];
+  for (const msg of session.messages) {
+    lines.push(`## ${msg.role === 'user' ? '用户' : '助手'}`, '', msg.content || '', '');
+    if (msg.final?.trace_id) lines.push(`trace_id: ${msg.final.trace_id}`, '');
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${(session.title || 'chat').replace(/[\\/:*?"<>|]/g, '_')}.md`;
+  link.click();
+  URL.revokeObjectURL(url);
+  toast('已导出 Markdown');
+}
+
+function renderDetails(final) {
+  if (!final) {
+    $('answerSummary').innerHTML = '<b>当前回答</b><div class="muted">暂无 trace</div>';
+    $('sourcesBox').innerHTML = '';
+    renderJson('traceBox', {});
+    renderJson('toolsBox', []);
+    return;
+  }
+  $('answerSummary').innerHTML = `
+    <b>当前回答</b>
+    <div class="muted mono">${escapeHtml(final.trace_id || '-')}</div>
+    <div class="answer-meta">${renderMetaPills(final)}</div>
+  `;
+  $('sourcesBox').innerHTML = (final.sources || []).map(source => `
+    <div class="source-card">
+      <b>${escapeHtml(source.kb_id || '-')} · ${escapeHtml(source.source || '-')}</b>
+      <div class="muted">${escapeHtml(source.title_path || '')}</div>
+      <p>${escapeHtml(source.preview || '')}</p>
+    </div>
+  `).join('') || '<div class="source-card muted">暂无引用来源</div>';
+  renderJson('traceBox', { node_trace: final.node_trace, retrieval_trace: final.retrieval_trace, audit_events: final.audit_events });
+  renderJson('toolsBox', final.tool_calls || []);
+}
+function openDrawer(tab = state.activeTab) {
+  state.drawerOpen = true;
+  $('drawer').classList.add('open');
+  $('drawerOverlay').classList.remove('hidden');
+  selectTab(tab);
+}
+function closeDrawer() {
+  state.drawerOpen = false;
+  $('drawer').classList.remove('open');
+  $('drawerOverlay').classList.add('hidden');
+}
+function selectTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  ['sources', 'trace', 'tools', 'admin'].forEach(name => $('tab-' + name).classList.toggle('hidden', name !== tab));
+  $('drawerTitle').textContent = tab === 'admin' ? '权限管理' : '回答详情';
+  if (tab === 'admin' && state.me?.role === 'admin') loadAdmin();
+}
+
+async function loadAdmin() {
+  if (state.me?.role !== 'admin') {
+    renderAdminRestricted();
+    return;
+  }
+  try {
+    const [users, roles, tools] = await Promise.all([
+      request('/admin/users', { headers: authHeaders() }),
+      request('/admin/roles', { headers: authHeaders() }),
+      request('/admin/tools', { headers: authHeaders() }),
+    ]);
+    state.admin.users = users.users || [];
+    state.admin.roles = roles.roles || [];
+    state.admin.tools = tools.tools || [];
+    renderAdmin();
+  } catch (err) {
+    $('adminBox').innerHTML = `<div class="admin-card status error">${escapeHtml(err.message || err)}</div>`;
+  }
+}
+function renderAdminRestricted() {
+  $('adminBox').innerHTML = '<div class="admin-card muted">当前角色不可访问管理数据。</div>';
+}
+function renderAdmin() {
+  const roles = state.admin.roles.map(item => item.role);
+  $('adminBox').innerHTML = `
+    <div class="admin-card">
+      <b>用户管理</b>
+      <table>
+        <thead><tr><th>账号</th><th>角色</th><th>启用</th><th></th></tr></thead>
+        <tbody>${state.admin.users.map(user => `
+          <tr>
+            <td>${escapeHtml(user.username)}</td>
+            <td><select data-user-role="${escapeHtml(user.username)}">${roles.map(role => `<option ${role === user.role ? 'selected' : ''}>${escapeHtml(role)}</option>`).join('')}</select></td>
+            <td><input type="checkbox" data-user-enabled="${escapeHtml(user.username)}" ${user.enabled ? 'checked' : ''}></td>
+            <td><button class="secondary" data-save-user="${escapeHtml(user.username)}">保存</button></td>
+          </tr>
+        `).join('')}</tbody>
+      </table>
+      <div class="admin-actions">
+        <div class="admin-inline">
+          <input id="newUsername" placeholder="新账号">
+          <input id="newPassword" placeholder="密码" type="password">
+        </div>
+        <div class="admin-inline">
+          <select id="newUserRole">${roles.map(role => `<option>${escapeHtml(role)}</option>`).join('')}</select>
+          <button id="createUserBtn" class="secondary">新建用户</button>
+        </div>
+      </div>
+    </div>
+    <div class="admin-card">
+      <b>角色权限</b>
+      <label>角色</label>
+      <select id="roleEditor">${roles.map(role => `<option>${escapeHtml(role)}</option>`).join('')}</select>
+      <label>知识库</label>
+      <div id="roleKbMatrix" class="matrix"></div>
+      <label>工具</label>
+      <div id="roleToolMatrix" class="matrix"></div>
+      <button id="saveRoleBtn" class="secondary" style="margin-top:10px">保存角色权限</button>
+    </div>
+  `;
+  $('roleEditor').addEventListener('change', renderRoleEditor);
+  $('saveRoleBtn').addEventListener('click', saveRolePolicy);
+  $('createUserBtn').addEventListener('click', createUser);
+  document.querySelectorAll('[data-save-user]').forEach(btn => btn.addEventListener('click', () => saveUser(btn.dataset.saveUser)));
+  renderRoleEditor();
+}
+function currentRolePolicy() {
+  const role = $('roleEditor')?.value;
+  return state.admin.roles.find(item => item.role === role) || { role, allowed_kbs: [], allowed_tools: [] };
+}
+function renderRoleEditor() {
+  const policy = currentRolePolicy();
+  const allKbs = state.me?.knowledge_bases || [];
+  $('roleKbMatrix').innerHTML = allKbs.map(kb => `
+    <label class="check-line">
+      <input type="checkbox" name="role-kb" value="${escapeHtml(kb.kb_id)}" ${policy.allowed_kbs.includes(kb.kb_id) ? 'checked' : ''}>
+      <span>${escapeHtml(kb.kb_id)} · ${escapeHtml(kb.name)}</span>
+    </label>
+  `).join('');
+  $('roleToolMatrix').innerHTML = state.admin.tools.map(tool => `
+    <label class="check-line">
+      <input type="checkbox" name="role-tool" value="${escapeHtml(tool.name)}" ${policy.allowed_tools.includes(tool.name) ? 'checked' : ''}>
+      <span>${escapeHtml(tool.name)}</span>
+    </label>
+  `).join('');
+}
+async function saveRolePolicy() {
+  const role = $('roleEditor').value;
+  const allowed_kbs = Array.from(document.querySelectorAll('input[name="role-kb"]:checked')).map(item => item.value);
+  const allowed_tools = Array.from(document.querySelectorAll('input[name="role-tool"]:checked')).map(item => item.value);
+  await request('/admin/roles', { method: 'PATCH', headers: jsonHeaders(), body: JSON.stringify({ role, allowed_kbs, allowed_tools }) });
+  await refreshAll();
+  toast('角色权限已保存');
+}
+async function saveUser(username) {
+  const role = document.querySelector(`[data-user-role="${safeCss(username)}"]`).value;
+  const enabled = document.querySelector(`[data-user-enabled="${safeCss(username)}"]`).checked;
+  await request(`/admin/users/${encodeURIComponent(username)}`, { method: 'PATCH', headers: jsonHeaders(), body: JSON.stringify({ role, enabled }) });
+  await refreshAll();
+  toast('用户已保存');
+}
+async function createUser() {
+  await request('/admin/users', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({ username: $('newUsername').value, password: $('newPassword').value, role: $('newUserRole').value, enabled: true }),
+  });
+  await refreshAll();
+  toast('用户已创建');
+}
+async function refreshAll() {
+  state.me = await request('/auth/me', { headers: authHeaders() });
+  $('currentUser').textContent = state.me.username;
+  $('currentRole').textContent = state.me.role;
+  $('adminBtn').classList.toggle('hidden', state.me.role !== 'admin');
+  renderKbPopover();
+  renderTopbar();
+  if (state.me.role === 'admin') await loadAdmin();
+  else renderAdminRestricted();
+}
+
+function copyText(text) {
+  navigator.clipboard?.writeText(text).then(() => toast('已复制')).catch(() => toast('复制失败'));
+}
+function openMobileSidebar() {
+  state.sidebarOpen = true;
+  $('sidebar').classList.add('open');
+  $('drawerOverlay').classList.remove('hidden');
+}
+function closeMobileSidebar() {
+  state.sidebarOpen = false;
+  $('sidebar').classList.remove('open');
+  if (!state.drawerOpen) $('drawerOverlay').classList.add('hidden');
+}
+
+document.addEventListener('click', (event) => {
+  const session = event.target.closest('[data-session]');
+  const rename = event.target.closest('[data-rename]');
+  const del = event.target.closest('[data-delete]');
+  const copy = event.target.closest('[data-copy-message]');
+  const openFinal = event.target.closest('[data-open-final]');
+  const edit = event.target.closest('[data-edit-message]');
+  if (session) switchSession(session.dataset.session);
+  if (rename) renameSession(rename.dataset.rename);
+  if (del) deleteSession(del.dataset.delete);
+  if (copy) {
+    const msg = activeSession()?.messages[Number(copy.dataset.copyMessage)];
+    if (msg) copyText(msg.content || '');
+  }
+  if (openFinal) {
+    const msg = activeSession()?.messages[Number(openFinal.dataset.openFinal)];
+    if (msg?.final) {
+      renderDetails(msg.final);
+      openDrawer('sources');
+    }
+  }
+  if (edit) {
+    const msg = activeSession()?.messages[Number(edit.dataset.editMessage)];
+    if (msg) $('queryInput').value = msg.content || '';
+  }
+});
+document.querySelectorAll('.demo-account').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $('loginUser').value = btn.dataset.user;
+    $('loginPassword').value = btn.dataset.pass;
+  });
+});
+document.querySelectorAll('.prompt-card').forEach(btn => btn.addEventListener('click', () => {
+  $('queryInput').value = btn.dataset.prompt;
+  $('queryInput').focus();
+}));
+document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => selectTab(btn.dataset.tab)));
+$('loginBtn').addEventListener('click', login);
+$('logoutBtn').addEventListener('click', logout);
+$('newChatBtn').addEventListener('click', newChat);
+$('sessionSearch').addEventListener('input', renderSessions);
+$('sendBtn').addEventListener('click', () => sendChat());
+$('stopBtn').addEventListener('click', stopChat);
+$('clearChatBtn').addEventListener('click', clearChat);
+$('detailsBtn').addEventListener('click', () => openDrawer('sources'));
+$('adminBtn').addEventListener('click', () => openDrawer('admin'));
+$('retryBtn').addEventListener('click', regenerate);
+$('exportBtn').addEventListener('click', exportCurrentChat);
+$('closeDrawerBtn').addEventListener('click', closeDrawer);
+$('drawerOverlay').addEventListener('click', () => { closeDrawer(); closeMobileSidebar(); });
+$('openSidebarBtn').addEventListener('click', openMobileSidebar);
+$('kbBtn').addEventListener('click', () => $('kbPopover').classList.toggle('hidden'));
+$('queryInput').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendChat();
+  }
+});
+window.addEventListener('keydown', (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    $('sessionSearch').focus();
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'n') {
+    event.preventDefault();
+    newChat();
+  }
+});
+
+if (state.token) bootstrap().catch(() => logout());
+</script>
+</body>
+</html>
