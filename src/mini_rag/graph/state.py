@@ -36,8 +36,15 @@ class AgentState(TypedDict, total=False):
     query_reason: str
     router_reason: str
     required_tools: list[str]
+    candidate_tool: str | None
     selected_tool: str | None
     tool_input: dict[str, Any]
+    tool_result: dict[str, Any]
+    previous_tool_context: dict[str, Any]
+    current_tool_context: dict[str, Any]
+    needs_time_resolution: bool
+    relative_time: str | None
+    missing_required_slots: list[str]
 
     # retrieval
     search_tasks: list[dict[str, Any]]

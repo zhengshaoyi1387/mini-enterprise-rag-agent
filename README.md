@@ -107,7 +107,7 @@ Qwen3-Embedding / text-embedding-v4 向量化
   ↓
 少量真实企业工具：知识库检索 / 当前时间 / 考勤 CSV / 公司日程 JSON
   ↓
-LangGraph 状态机 Agent：load_context -> manage_context -> llm_router -> execute_tool -> reflect -> final
+LangGraph 状态机 Agent：load_context -> understand_query(tool_plan) -> route -> call_tool/retrieve -> reflect -> generate_answer
   ↓
 LLM 检索规划：单问题单 query，多模块问题拆成多个子 query
   ↓
@@ -129,7 +129,7 @@ Trace 记录检索、工具、LLM、总耗时
 - **混合检索与重排**：向量检索 + BM25 + RRF 融合，并默认调用 Qwen `qwen3-rerank` 做二次排序。
 - **本地向量库**：使用 Chroma 持久化到 `storage/chroma`。
 - **Agent 工具调用**：不堆砌 prompt wrapper，只保留 `search_knowledge_base`、`get_current_datetime`、`query_attendance_summary`、`manage_company_calendar` 这 4 个真实、有边界的企业日常工具。
-- **LLM Router**：由 Qwen 输出结构化 route，并用 JSON 校验和危险关键词兜底。
+- **LLM Tool Planning**：关键词规则只提供 `candidate_tool` hint，真正的 route、selected_tool、tool_input 由 Qwen 输出严格 JSON，再由代码做权限、日期和参数校验。
 - **LLM 上下文管理**：由 Qwen 维护会话摘要、选择相关历史、生成独立检索问题。
 - **LLM 检索规划**：需要检索时由 Qwen 判断是否拆成多个子查询，分别召回证据。
 - **LLM 证据评估**：每轮检索后由 Qwen 判断证据是否足够，不足时生成补充检索 query。
@@ -155,6 +155,32 @@ Trace 记录检索、工具、LLM、总耗时
 3. 查日程：“下周公司有哪些安排？” -> `get_current_datetime` -> `manage_company_calendar(action=query)`
 4. 管理员写日程：“帮我添加下周三下午两点的新员工培训。” -> `get_current_datetime` -> `manage_company_calendar(action=create)`，只有 admin 允许。
 5. 普通用户写日程：“帮我添加一个公司会议。” -> 权限不足，拒绝写入。
+
+工具调用不是简单关键词直调，而是：
+
+```text
+用户问题
+  -> load_context 读取 history 和 previous_tool_context
+  -> understand_query 由 LLM 输出 tool_plan JSON
+  -> 代码校验权限、参数和相对时间
+  -> 必要时内部调用 get_current_datetime 标准化日期范围
+  -> 执行业务工具
+  -> generate_answer 根据 tool_result 生成自然语言答案
+  -> current_tool_context 写入 trace，供下一轮追问参考
+```
+
+典型多轮例子：
+
+1. 用户：“昨天公司的出勤情况如何？”
+   流程：LLM tool_plan -> 内部解析 `yesterday` -> `query_attendance_summary(start_date/end_date)`
+2. 用户：“谁迟到了？”
+   流程：`previous_tool_context` 提供上一轮日期范围 -> LLM 输出完整 tool_plan -> `query_attendance_summary(status_filter=late, include_records=true)`
+3. 用户：“下周公司有哪些安排？”
+   流程：LLM tool_plan -> 内部解析 `next_week` -> `manage_company_calendar(action=query)`
+4. 普通用户：“帮我添加明天下午三点的全员会”
+   流程：LLM tool_plan -> 内部解析 `tomorrow` -> `manage_company_calendar(action=create)` -> 权限拒绝
+5. admin：“帮我添加明天下午三点的全员会”
+   流程：LLM tool_plan -> 内部解析 `tomorrow` -> `manage_company_calendar(action=create)` -> 写入 JSON 成功
 
 ## 3. 安装
 
@@ -319,8 +345,8 @@ python scripts/eval.py
 
 第三阶段增强：
 
-- LangGraph 状态机 Agent：显式拆分 load_context、manage_context、llm_router、execute_tool、reflect、final、persist_context。
-- LLM Router：模型决定 rag/tool/direct/reject，危险请求强制 reject。
+- LangGraph 状态机 Agent：显式拆分 load_context、understand_query、route、call_tool/retrieve、reflect、generate_answer、update_memory。
+- LLM Tool Planner：模型决定 rag/tool/direct/reject，并输出 selected_tool、tool_input、relative_time；规则只作为 candidate_tool hint。
 - LLM Context Manager：模型维护 summary、选择相关历史、生成 standalone query。
 - LLM Retrieval Planner：模型决定是否把一个问题拆成多个检索 query。
 - LLM Evidence Reflector：每轮检索后判断证据是否足够，不足时补充检索。
@@ -338,7 +364,7 @@ load_context        从 SQLite 读取 summary 和最近历史
   ↓
 check_permission    根据登录会话角色计算可访问知识库
   ↓
-understand_query    LLM / 规则理解问题，输出 route、standalone_query、selected_tool
+understand_query    LLM 理解问题，结合 candidate_tool 与 previous_tool_context 输出 tool_plan
   ↓
 Conditional Edge
   ├─ rag  -> plan_retrieval -> retrieve(search_knowledge_base)
@@ -348,12 +374,12 @@ Conditional Edge
   ↓
 reflect_evidence    RAG 路径判断证据是否足够，不足时补充检索
   ↓
-generate_answer     基于证据或工具结果生成最终答案
+generate_answer     基于证据或工具结果生成最终自然语言答案
   ↓
 update_memory       写入 SQLite 上下文
 ```
 
-注意：RAG 本身仍然按 `search_knowledge_base` 工具动作记录在 trace 中，但实际执行位于 `retrieve` 节点；日常业务工具由 `call_tool` 节点通过 registry 执行。
+注意：RAG 本身仍然按 `search_knowledge_base` 工具动作记录在 trace 中，但实际执行位于 `retrieve` 节点；日常业务工具由 `call_tool` 节点通过 registry 执行。`select_daily_tool_by_rule` 不再直接决定 route，只作为 LLM 的候选工具提示和 JSON 失败时的低优先级兜底。
 
 ## 10. 检索对比
 
@@ -413,19 +439,19 @@ mini-enterprise-rag-agent/
 4. `src/mini_rag/ingestion/build_index.py`：理解离线索引构建。
 5. `src/mini_rag/retrieval/retriever.py`：理解 Chroma 检索。
 6. `src/mini_rag/agent/context_store.py`：理解 SQLite 上下文持久化。
-7. `src/mini_rag/agent/context_manager.py`：理解 LLM 如何管理 summary、相关历史和 standalone query。
-8. `src/mini_rag/agent/router.py`：理解 LLM Router 和规则兜底。
-9. `src/mini_rag/agent/retrieval_planner.py`：理解多模块问题如何拆成多个检索 query。
-10. `src/mini_rag/agent/evidence_reflector.py`：理解每轮检索后如何判断证据是否足够。
-11. `src/mini_rag/prompts/agent.py`：集中检查各阶段提示词。
-12. `src/mini_rag/agent/graph_agent.py`：理解 LangGraph 状态机 Agent。
-13. `src/mini_rag/observability/trace.py`：理解如何记录延迟和证据。
+7. `src/mini_rag/graph/prompts.py`：理解 LLM tool_plan、检索规划、证据反思和答案生成提示词。
+8. `src/mini_rag/graph/nodes.py`：理解 LangGraph 节点、程序侧权限校验、相对时间解析和工具执行。
+9. `src/mini_rag/tools/daily_tools.py`：理解真实 daily tools registry 和 candidate_tool hint。
+10. `src/mini_rag/tools/attendance_tool.py`：理解 CSV 考勤统计和明细过滤。
+11. `src/mini_rag/tools/calendar_tool.py`：理解 JSON 公司日程查询和 admin 写权限。
+12. `src/mini_rag/security/permissions.py`：理解 endpoint/tool 权限边界。
+13. `src/mini_rag/agent/context_store.py`：理解 SQLite 多轮上下文和 trace 持久化。
 
 ## 13. 适合面试时怎么讲
 
 你可以这样介绍项目：
 
-> 我做了一个企业知识库 RAG Agent。离线阶段使用 LangChain DirectoryLoader 接入 Markdown、TXT、PDF、Word，通过 manifest 做增量索引。在线阶段使用向量召回 + BM25 + RRF 融合，再用 Qwen qwen3-rerank 重排证据。Agent 层从脚本式 create_agent 升级为 LangGraph 状态机，包含 load_context、LLM context manager、LLM router、execute_tool、reflect、final、persist_context 等节点。Router 由 LLM 判断是否需要检索；需要检索时，Retrieval Planner 会把多模块问题拆成多个子查询；每轮检索后 Evidence Reflector 再判断证据是否足够，必要时继续补检索。RAG 不重复写成节点，而是作为 search_knowledge_base 工具由 execute_tool 节点调用。上下文持久化到 SQLite，同一 session_id 服务重启后仍能追问。Trace 记录 node_trace、tool_calls、observations、retrieval、证据评估和 rerank 状态，方便排查和面试展示。
+> 我做了一个企业知识库 RAG Agent。离线阶段使用 LangChain DirectoryLoader 接入 Markdown、TXT、PDF、Word，通过 manifest 做增量索引。在线阶段使用向量召回 + BM25 + RRF 融合，再用 Qwen qwen3-rerank 重排证据。Agent 层从脚本式 create_agent 升级为 LangGraph 状态机，包含 load_context、understand_query、route、call_tool/retrieve、reflect、generate_answer、update_memory 等节点。工具路线不是关键词直调，而是由 LLM 输出严格 JSON tool_plan，代码层做 RBAC、参数校验和相对时间补全；多轮追问通过 previous_tool_context 给 LLM 提供上一轮工具上下文。需要检索时，Retrieval Planner 会把多模块问题拆成多个子查询；每轮检索后 Evidence Reflector 再判断证据是否足够，必要时继续补检索。Trace 记录 node_trace、tool_calls、observations、retrieval、current_tool_context 和证据评估，方便排查和面试展示。
 
 ## 14. 当前限制
 
@@ -446,7 +472,7 @@ mini-enterprise-rag-agent/
 - 多知识库：`public / hr / finance / it / product`
 - 知识库级权限：不同 role 只能检索授权知识库
 - 检索前权限过滤：无权限文档不会进入模型上下文
-- LangGraph 主流程：`load_context -> check_permission -> understand_query -> route -> rag/tool -> generate_answer -> update_memory`
+- LangGraph 主流程：`load_context -> check_permission -> understand_query(LLM tool_plan) -> route -> rag/tool -> generate_answer -> update_memory`
 - 企业日常工具：当前时间、考勤 CSV 汇总、公司日程 JSON 查询/管理
 - Audit 日志：`logs/audit.jsonl`
 - 前端页面：启动服务后访问 `http://127.0.0.1:8000/`

@@ -6,7 +6,7 @@
 
 ## 2. 3 分钟架构介绍
 
-从请求进入 `/chat` 开始，API Gateway 从 Bearer token 解析当前用户和角色，生成 `trace_id`，做接口权限和轻量安全检查。然后请求进入 LangGraph Agent。Agent 先读取会话上下文，再由 Router 判断走 direct、rag、tool 还是 reject。制度、流程、FAQ 走 RAG；考勤统计走 CSV 工具；公司会议、培训、发薪日等走 JSON 日程工具；遇到“上周、下周、本月”等相对时间会先调用当前时间工具标准化日期范围。需要检索时，Retrieval Planner 生成 search task，检索层用向量召回和 BM25 召回，再用 RRF 融合、rerank 精排。最后把节点耗时、工具调用和来源写入 trace。
+从请求进入 `/chat` 开始，API Gateway 从 Bearer token 解析当前用户和角色，生成 `trace_id`，做接口权限和轻量安全检查。然后请求进入 LangGraph Agent。Agent 先读取会话上下文和上一轮 `previous_tool_context`，再由 LLM 输出严格 JSON tool_plan，包含 route、selected_tool、tool_input、relative_time 等字段。制度、流程、FAQ 走 RAG；考勤统计走 CSV 工具；公司会议、培训、发薪日等走 JSON 日程工具；遇到“上周、下周、本月”等相对时间时，代码层内部调用当前时间工具标准化日期范围，避免模型猜日期。需要检索时，Retrieval Planner 生成 search task，检索层用向量召回和 BM25 召回，再用 RRF 融合、rerank 精排。最后把节点耗时、工具调用、current_tool_context 和来源写入 trace。
 
 ## 3. 高频追问与回答
 
@@ -30,16 +30,21 @@
 
 trace_id 把一次请求中的 API、Router、检索、工具调用、证据反思和最终回答串起来。出现回答错误或延迟高时，我可以通过 `/traces/{trace_id}` 看每个节点耗时、route、检索 query、召回数量、来源和错误位置。
 
+### Q6：为什么不直接用关键词规则调用工具？
+
+关键词规则只能判断“可能是什么工具”，但不能稳定规划参数，也处理不好多轮追问。比如用户先问“昨天公司的出勤情况如何？”，下一轮问“谁迟到了？”，系统需要知道上一轮日期并补齐 `status_filter=late`、`include_records=true`。所以我把规则降级为 `candidate_tool` hint，真正的 route、tool_input 和相对时间意图由 LLM 输出 JSON tool_plan；代码层再负责 RBAC、日期解析、必填参数校验和工具执行。
+
 ## 4. 当前项目亮点
 
 - LangGraph 状态机，而不是普通 chain。
 - 混合检索 + RRF + rerank。
-- LLM Router + Retrieval Planner + Evidence Reflector。
+- LLM Tool Planner + Retrieval Planner + Evidence Reflector。
+- LLM Tool Planning：规则只做候选提示，LLM 产出可执行 tool_input。
 - FastAPI Gateway 服务化。
 - 登录会话 + role 权限。
 - 工具执行前程序侧权限检查。
 - 少量真实企业工具：知识库检索、当前时间、CSV 考勤、JSON 日程。
-- trace_id + `/traces/{trace_id}` 可观测接口。
+- trace_id + `/traces/{trace_id}` 可观测接口，trace 中保存 current_tool_context 以支持多轮追问。
 - SQLite 多轮上下文。
 
 ## 5. 下一阶段可继续优化

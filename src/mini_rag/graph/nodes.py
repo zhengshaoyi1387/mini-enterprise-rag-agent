@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -74,6 +73,7 @@ class AgenticRAGNodes:
             context = self.context_store.get_context(session_id, max_turns=self.settings.session_max_turns)
             state["conversation_summary"] = context.summary
             state["history"] = [self._turn_to_history_item(turn) for turn in context.turns]
+            state["previous_tool_context"] = self._extract_previous_tool_context(context.turns)
             state.setdefault("observations", [])
             state.setdefault("node_trace", [])
             state.setdefault("tool_calls", [])
@@ -138,26 +138,14 @@ class AgenticRAGNodes:
             if state.get("error") and state.get("route") == "reject":
                 return state
             question = state.get("question", "")
-            selected_tool = select_daily_tool_by_rule(question)
-            if selected_tool:
-                state["intent"] = "tool"
-                state["route"] = "tool"  # type: ignore[assignment]
-                state["risk_level"] = "low"
-                state["required_tools"] = [selected_tool]
-                state["selected_tool"] = selected_tool
-                state["standalone_query"] = question
-                state["topic"] = selected_tool
-                state["entities"] = []
-                state["query_reason"] = "规则命中低风险办公工具，跳过 LLM 理解节点以降低延迟。"
-                state["router_reason"] = state["query_reason"]
-                state.setdefault("observations", []).append(
-                    {"type": "understanding", "intent": "tool", "route": "tool", "selected_tool": selected_tool, "reason": state["query_reason"]}
-                )
-                return state
+            candidate_tool = select_daily_tool_by_rule(question)
+            state["candidate_tool"] = candidate_tool
             user_prompt = format_understand_user(
                 question=question,
                 summary=state.get("conversation_summary", ""),
                 history=state.get("history", []),
+                candidate_tool=candidate_tool,
+                previous_tool_context=state.get("previous_tool_context", {}),
             )
             payload = self._invoke_json(
                 state=state,
@@ -175,6 +163,9 @@ class AgenticRAGNodes:
                     "required_tools": [],
                     "selected_tool": None,
                     "tool_input": {},
+                    "needs_time_resolution": False,
+                    "relative_time": None,
+                    "missing_required_slots": [],
                     "reason": "LLM 输出解析失败，使用原问题兜底。",
                 },
             )
@@ -191,15 +182,16 @@ class AgenticRAGNodes:
             state["route"] = route  # type: ignore[assignment]
             state["risk_level"] = str(payload.get("risk_level") or "low")
             state["required_tools"] = [str(x) for x in coerce_list(payload.get("required_tools"))]
-            state["selected_tool"] = str(payload.get("selected_tool") or "") or None
+            selected_tool = str(payload.get("selected_tool") or "") or None
+            if route == "tool" and not selected_tool and candidate_tool:
+                selected_tool = candidate_tool
+                state["required_tools"] = [candidate_tool]
+            state["selected_tool"] = selected_tool
             state["tool_input"] = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
-            # Obvious daily business requests are routed by cheap deterministic rules.
-            # RAG policy questions remain on the retrieval route.
-            selected_tool = select_daily_tool_by_rule(question)
-            if selected_tool and route != "reject":
-                route = "tool"
-                state["route"] = "tool"  # type: ignore[assignment]
-                state["selected_tool"] = selected_tool
+            state["needs_time_resolution"] = bool(payload.get("needs_time_resolution", False))
+            state["relative_time"] = str(payload.get("relative_time") or "") or None
+            state["missing_required_slots"] = [str(x) for x in coerce_list(payload.get("missing_required_slots"))]
+            if route == "tool" and selected_tool and selected_tool not in state["required_tools"]:
                 state["required_tools"] = [selected_tool]
             state["standalone_query"] = standalone_query
             state["topic"] = str(payload.get("topic") or "")
@@ -212,6 +204,11 @@ class AgenticRAGNodes:
                     "intent": state["intent"],
                     "route": state["route"],
                     "standalone_query": state["standalone_query"],
+                    "candidate_tool": state.get("candidate_tool"),
+                    "selected_tool": state.get("selected_tool"),
+                    "tool_input": state.get("tool_input", {}),
+                    "needs_time_resolution": state.get("needs_time_resolution", False),
+                    "relative_time": state.get("relative_time"),
                     "topic": state["topic"],
                     "entities": state["entities"],
                     "reason": state["query_reason"],
@@ -230,11 +227,6 @@ class AgenticRAGNodes:
             if self._is_dangerous_question(state.get("question", ""), state.get("standalone_query", "")):
                 route = "reject"
                 state["risk_level"] = "high"
-            selected_tool = select_daily_tool_by_rule(state.get("question", ""))
-            if selected_tool and route != "reject":
-                route = "tool"
-                state["selected_tool"] = selected_tool
-                state["required_tools"] = [selected_tool]
             state["route"] = route  # type: ignore[assignment]
             state.setdefault("risk_level", "low")
             state.setdefault("required_tools", [])
@@ -255,12 +247,39 @@ class AgenticRAGNodes:
                 state["error"] = "No tool selected"
                 state["final_answer"] = "没有识别到可执行的办公工具。"
                 return state
+            if not self.tool_registry.has_tool(tool_name):
+                state["error"] = f"Unknown tool: {tool_name}"
+                state["final_answer"] = "没有识别到可执行的企业日常工具。"
+                state["tool_result"] = {"error": "unknown tool", "tool_name": tool_name}
+                state.setdefault("tool_calls", []).append({"tool_name": tool_name, "ok": False, "reason": "unknown tool"})
+                state.setdefault("audit_events", []).append(
+                    {"event": "tool_call", "tool_name": tool_name, "role": role, "decision": "blocked", "reason": "unknown tool"}
+                )
+                return state
             try:
                 assert_tool_permission(role, tool_name, role_policies=self.auth_store.list_role_policies())
                 payload = self._build_tool_payload(state, tool_name, role)
+                validation_error = self._validate_tool_payload(tool_name, payload)
+                if validation_error:
+                    state["final_answer"] = validation_error
+                    state["tool_input"] = payload
+                    state["tool_result"] = {"error": "missing_required_slots", "message": validation_error}
+                    state.setdefault("tool_calls", []).append(
+                        {"tool_name": tool_name, "args": payload, "ok": False, "reason": "missing_required_slots"}
+                    )
+                    state.setdefault("audit_events", []).append(
+                        {"event": "tool_call", "tool_name": tool_name, "role": role, "decision": "blocked", "reason": "missing_required_slots"}
+                    )
+                    return state
                 result = self.tool_registry.invoke(tool_name, payload)
-                content = str(result.get("content") or self._format_tool_result(tool_name, result))
-                state["final_answer"] = content
+                state["tool_input"] = payload
+                state["tool_result"] = result
+                if result.get("error"):
+                    state["final_answer"] = self._friendly_tool_error(tool_name, result)
+                else:
+                    current_context = self._build_current_tool_context(tool_name, payload, result)
+                    current_context["trace_id"] = state.get("trace_id")
+                    state["current_tool_context"] = current_context
                 state.setdefault("tool_calls", []).append(
                     {
                         "tool_name": tool_name,
@@ -545,8 +564,7 @@ class AgenticRAGNodes:
             if state.get("route") == "reject":
                 state["final_answer"] = state.get("final_answer") or "抱歉，这个请求存在安全风险，我不能执行。"
                 return state
-            if state.get("route") == "tool":
-                state["final_answer"] = state.get("final_answer") or "工具已执行，但没有返回可展示内容。"
+            if state.get("route") == "tool" and state.get("final_answer"):
                 return state
             evidence_text = state.get("evidence_brief") or compact_evidence_text(state.get("retrieved_docs", []), entities=state.get("entities", []))
             user_prompt = format_answer_user(
@@ -556,6 +574,10 @@ class AgenticRAGNodes:
                 model_name=self.settings.qwen_chat_model,
                 evidence_assessment=state.get("evidence_assessment", {}),
                 evidence_text=evidence_text,
+                selected_tool=state.get("selected_tool"),
+                tool_input=state.get("tool_input", {}),
+                tool_result=state.get("tool_result", {}),
+                current_tool_context=state.get("current_tool_context", {}),
             )
             answer = self._invoke_text(
                 state=state,
@@ -574,8 +596,7 @@ class AgenticRAGNodes:
                 state["final_answer"] = state.get("final_answer") or "抱歉，这个请求存在安全风险，我不能执行。"
                 yield state["final_answer"]
                 return
-            if state.get("route") == "tool":
-                state["final_answer"] = state.get("final_answer") or "工具已执行，但没有返回可展示内容。"
+            if state.get("route") == "tool" and state.get("final_answer"):
                 yield state["final_answer"]
                 return
 
@@ -587,6 +608,10 @@ class AgenticRAGNodes:
                 model_name=self.settings.qwen_chat_model,
                 evidence_assessment=state.get("evidence_assessment", {}),
                 evidence_text=evidence_text,
+                selected_tool=state.get("selected_tool"),
+                tool_input=state.get("tool_input", {}),
+                tool_result=state.get("tool_result", {}),
+                current_tool_context=state.get("current_tool_context", {}),
             )
 
             start = time.perf_counter()
@@ -738,7 +763,15 @@ class AgenticRAGNodes:
             "node_trace": state.get("node_trace", []),
             "llm_calls": state.get("llm_calls", []),
             "total_latency_ms": round(sum(float(item.get("latency_ms") or 0) for item in state.get("node_trace", [])), 2),
+            "candidate_tool": state.get("candidate_tool"),
             "selected_tool": state.get("selected_tool"),
+            "tool_input": state.get("tool_input", {}),
+            "tool_result": state.get("tool_result", {}),
+            "previous_tool_context": state.get("previous_tool_context", {}),
+            "current_tool_context": state.get("current_tool_context", {}),
+            "needs_time_resolution": state.get("needs_time_resolution", False),
+            "relative_time": state.get("relative_time"),
+            "missing_required_slots": state.get("missing_required_slots", []),
             "tool_calls": state.get("tool_calls", []),
             "observations": state.get("observations", []),
             "audit_events": state.get("audit_events", []),
@@ -749,43 +782,44 @@ class AgenticRAGNodes:
 
     # ---------- internals ----------
     def _build_tool_payload(self, state: AgentState, tool_name: str, role: str) -> dict[str, Any]:
-        question = state.get("question", "")
         payload = dict(state.get("tool_input") or {})
-        payload.update({"query": question, "user_id": state.get("user_id"), "role": role})
+        payload.update({"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role})
 
         if tool_name == "get_current_datetime":
             payload.setdefault("timezone", "Asia/Shanghai")
             return payload
 
         if tool_name in {"query_attendance_summary", "manage_company_calendar"}:
-            date_payload = self._resolve_relative_date_payload(state, role)
-            payload = {**date_payload, **payload}
+            payload = self._resolve_relative_time_if_needed(state, payload, role)
 
         if tool_name == "query_attendance_summary":
             payload.setdefault("department", "all")
             payload.setdefault("group_by", "department")
+            payload.setdefault("employee_name", None)
+            payload.setdefault("status_filter", None)
+            payload.setdefault("include_records", False)
         elif tool_name == "manage_company_calendar":
-            action = str(payload.get("action") or self._infer_calendar_action(question)).lower()
+            action = str(payload.get("action") or "query").lower()
             payload["action"] = action
             payload.setdefault("event_type", "all")
             payload.setdefault("department", "all")
-            if action == "create":
-                payload.setdefault("title", self._infer_calendar_title(question))
-                payload.setdefault("type", self._infer_calendar_type(question))
-                payload.setdefault("time", self._infer_calendar_time(question))
+            if action == "query":
+                payload.setdefault("event_type", "all")
+            elif action == "create":
+                payload.setdefault("type", "event")
+                payload.setdefault("time", "全天")
                 payload.setdefault("location", "")
-                payload.setdefault("description", question)
-                if "date" not in payload:
-                    create_date = self._infer_calendar_create_date(question, date_payload)
-                    if create_date:
-                        payload["date"] = create_date
+                payload.setdefault("description", "")
+                if not payload.get("date") and payload.get("start_date"):
+                    payload["date"] = payload.get("start_date")
         return payload
 
-    def _resolve_relative_date_payload(self, state: AgentState, role: str) -> dict[str, Any]:
-        question = state.get("question", "")
-        range_key = self._infer_range_key(question)
+    def _resolve_relative_time_if_needed(self, state: AgentState, payload: dict[str, Any], role: str) -> dict[str, Any]:
+        range_key = str(state.get("relative_time") or payload.get("relative_time") or "").strip()
+        if not range_key and not state.get("needs_time_resolution"):
+            return payload
         if not range_key:
-            return {}
+            return payload
         assert_tool_permission(role, "get_current_datetime", role_policies=self.auth_store.list_role_policies())
         datetime_payload = {"timezone": "Asia/Shanghai"}
         datetime_result = get_current_datetime(datetime_payload)
@@ -799,92 +833,60 @@ class AgenticRAGNodes:
             {"event": "tool_call", "tool_name": "get_current_datetime", "role": role, "decision": "allowed"}
         )
         if selected_range:
-            return {"start_date": selected_range.get("start_date"), "end_date": selected_range.get("end_date"), "_relative_range": range_key}
-        return {}
+            payload["start_date"] = selected_range.get("start_date")
+            payload["end_date"] = selected_range.get("end_date")
+            payload["_relative_range"] = range_key
+        return payload
 
     @staticmethod
-    def _infer_range_key(query: str) -> str | None:
-        q = str(query or "")
-        checks = [
-            ("上个月", "last_month"),
-            ("下个月", "next_month"),
-            ("这个月", "this_month"),
-            ("本月", "this_month"),
-            ("上周", "last_week"),
-            ("下周", "next_week"),
-            ("本周", "this_week"),
-            ("这周", "this_week"),
-            ("昨天", "yesterday"),
-            ("明天", "tomorrow"),
-            ("今天", "today"),
-            ("当前日期", "today"),
-            ("现在", "today"),
-        ]
-        for keyword, range_key in checks:
-            if keyword in q:
-                return range_key
+    def _validate_tool_payload(tool_name: str, payload: dict[str, Any]) -> str | None:
+        if tool_name == "query_attendance_summary":
+            if not payload.get("start_date") or not payload.get("end_date"):
+                return "我需要一个明确的日期范围才能查询考勤。你可以说“昨天”、“上周”或“2026-05-01 到 2026-05-07”。"
+        if tool_name == "manage_company_calendar":
+            action = str(payload.get("action") or "query").lower()
+            if action == "query" and (not payload.get("start_date") or not payload.get("end_date")):
+                return "我需要知道你想查询哪个时间段的公司日程，例如“今天”、“下周”或具体日期范围。"
+            if action == "create" and not payload.get("date"):
+                return "我需要知道要创建哪一天的公司日程，例如“明天”或具体日期。"
+            if action in {"update", "delete"} and not payload.get("event_id"):
+                return "我需要知道要修改或删除的日程 event_id。"
         return None
 
     @staticmethod
-    def _infer_calendar_action(query: str) -> str:
-        q = str(query or "")
-        if any(word in q for word in ["删除", "取消", "移除"]):
-            return "delete"
-        if any(word in q for word in ["修改", "更新", "调整", "改到", "改成"]):
-            return "update"
-        if any(word in q for word in ["添加", "新增", "创建", "安排", "加一个"]):
-            return "create"
-        return "query"
+    def _friendly_tool_error(tool_name: str, result: dict[str, Any]) -> str:
+        error = str(result.get("error") or "")
+        action = str(result.get("action") or "")
+        if tool_name == "manage_company_calendar" and error == "permission denied" and action in {"create", "update", "delete"}:
+            return "你没有权限修改公司日程。普通成员只能查询日程，只有 admin 可以新增、更新或删除日程。"
+        if error == "invalid date format":
+            if tool_name == "query_attendance_summary":
+                return "我需要一个明确的日期范围才能查询考勤。你可以说“昨天”、“上周”或“2026-05-01 到 2026-05-07”。"
+            if tool_name == "manage_company_calendar":
+                return "我需要一个明确的日期范围才能查询公司日程。你可以说“今天”、“下周”或具体日期范围。"
+        return "工具执行失败，请检查请求参数后再试。"
 
-    @staticmethod
-    def _infer_calendar_type(query: str) -> str:
-        q = str(query or "")
-        if "培训" in q:
-            return "training"
-        if "工资" in q or "发薪" in q:
-            return "payday"
-        if "节假日" in q or "放假" in q:
-            return "holiday"
-        if "会议" in q or "周会" in q:
-            return "meeting"
-        return "event"
+    def _build_current_tool_context(self, tool_name: str, payload: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+        domain = {
+            "query_attendance_summary": "attendance",
+            "manage_company_calendar": "calendar",
+            "get_current_datetime": "datetime",
+        }.get(tool_name, "tool")
+        clean_input = {
+            key: value
+            for key, value in payload.items()
+            if key not in {"file_path", "query", "user_id", "role"} and not str(key).startswith("_")
+        }
+        return {
+            "domain": domain,
+            "tool_name": tool_name,
+            "tool_input": clean_input,
+            "result_summary": self._summarize_tool_result(tool_name, result),
+            "trace_id": None,
+        }
 
-    @staticmethod
-    def _infer_calendar_time(query: str) -> str:
-        q = str(query or "")
-        if "下午两点" in q or "下午2点" in q:
-            return "14:00-15:00"
-        if "上午十点" in q or "上午10点" in q:
-            return "10:00-11:00"
-        return "全天"
-
-    @staticmethod
-    def _infer_calendar_title(query: str) -> str:
-        q = str(query or "").strip()
-        for marker in ["的", "：", ":"]:
-            if marker in q and len(q.rsplit(marker, 1)[-1].strip()) >= 2:
-                return q.rsplit(marker, 1)[-1].strip(" 。")
-        if "培训" in q:
-            return "新员工培训" if "新员工" in q else "培训"
-        if "会议" in q:
-            return "公司会议"
-        return q[:30] or "公司日程"
-
-    @staticmethod
-    def _infer_calendar_create_date(query: str, date_payload: dict[str, Any]) -> str | None:
-        q = str(query or "")
-        weekday_map = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6}
-        target_weekday = None
-        for label, index in weekday_map.items():
-            if f"周{label}" in q or f"星期{label}" in q:
-                target_weekday = index
-                break
-        if target_weekday is None:
-            return date_payload.get("start_date")
-        if not date_payload.get("start_date"):
-            return None
-        start = date.fromisoformat(str(date_payload.get("start_date")))
-        return (start + timedelta(days=target_weekday)).isoformat()
+    def _summarize_tool_result(self, tool_name: str, result: dict[str, Any]) -> str:
+        return self._format_tool_result(tool_name, result)
 
     @staticmethod
     def _format_tool_result(tool_name: str, result: dict[str, Any]) -> str:
@@ -893,6 +895,36 @@ class AgenticRAGNodes:
         if tool_name == "get_current_datetime":
             return f"当前日期：{result.get('current_date')}，时间：{result.get('current_time')}，星期：{result.get('weekday')}，时区：{result.get('timezone')}。"
         if tool_name == "query_attendance_summary":
+            status_filter = result.get("status_filter") or (result.get("filters") or {}).get("status_filter")
+            filtered_count = result.get("filtered_count")
+            records = result.get("records") or []
+            if status_filter:
+                status_label = {
+                    "present": "正常出勤",
+                    "late": "迟到",
+                    "leave": "请假",
+                    "absent": "缺勤",
+                }.get(str(status_filter), str(status_filter))
+                if records:
+                    people: list[str] = []
+                    for record in records[:8]:
+                        detail = str(record.get("name") or "").strip()
+                        department = str(record.get("department") or "").strip()
+                        check_in = str(record.get("check_in") or "").strip()
+                        if department:
+                            detail += f"（{department}"
+                            if check_in:
+                                detail += f"，打卡 {check_in}"
+                            detail += "）"
+                        elif check_in:
+                            detail += f"（打卡 {check_in}）"
+                        if detail:
+                            people.append(detail)
+                    suffix = "；".join(people)
+                    if len(records) > 8:
+                        suffix += f" 等 {len(records)} 条记录"
+                    return f"{result.get('start_date')} 至 {result.get('end_date')} 共有 {filtered_count} 条{status_label}记录：{suffix}。"
+                return f"{result.get('start_date')} 至 {result.get('end_date')} 共有 {filtered_count or 0} 条{status_label}记录。"
             summary = result.get("summary") or {}
             return (
                 f"{result.get('start_date')} 至 {result.get('end_date')} 的考勤汇总："
@@ -1102,6 +1134,35 @@ class AgenticRAGNodes:
             "created_at": getattr(turn, "created_at", 0.0),
         }
 
+    @staticmethod
+    def _extract_previous_tool_context(turns: list[Any]) -> dict[str, Any]:
+        """Return the latest compact tool context from persisted turn traces."""
+
+        for turn in reversed(turns or []):
+            trace = getattr(turn, "trace", {}) or {}
+            if not isinstance(trace, dict):
+                continue
+            context = trace.get("current_tool_context") or trace.get("tool_context")
+            if not isinstance(context, dict) or not context:
+                continue
+            tool_input = context.get("tool_input") if isinstance(context.get("tool_input"), dict) else {}
+            compact_input = {
+                str(key): value
+                for key, value in tool_input.items()
+                if str(key) not in {"file_path", "query", "user_id", "role"} and not str(key).startswith("_")
+            }
+            previous = {
+                "domain": context.get("domain"),
+                "tool_name": context.get("tool_name"),
+                "tool_input": compact_input,
+                "result_summary": str(context.get("result_summary") or "")[:700],
+            }
+            trace_id = context.get("trace_id") or trace.get("trace_id")
+            if trace_id:
+                previous["trace_id"] = trace_id
+            return {key: value for key, value in previous.items() if value not in (None, "", {})}
+        return {}
+
 
 def create_initial_state(
     question: str,
@@ -1136,8 +1197,15 @@ def create_initial_state(
         "topic": "",
         "entities": [],
         "required_tools": [],
+        "candidate_tool": None,
         "selected_tool": None,
         "tool_input": {},
+        "tool_result": {},
+        "previous_tool_context": {},
+        "current_tool_context": {},
+        "needs_time_resolution": False,
+        "relative_time": None,
+        "missing_required_slots": [],
         "search_tasks": [],
         "pending_search_tasks": [],
         "executed_queries": [],

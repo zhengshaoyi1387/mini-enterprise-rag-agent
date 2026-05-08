@@ -36,6 +36,16 @@ def _add(counter: dict[str, int], status: str) -> None:
         counter[status] += 1
 
 
+def _as_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (None, ""):
+        return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
 def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     file_path = Path(str(payload.get("file_path") or ATTENDANCE_FILE))
@@ -57,10 +67,16 @@ def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str,
     group_by = str(payload.get("group_by") or "department").strip().lower()
     if group_by not in {"none", "department", "employee"}:
         group_by = "department"
+    status_filter = payload.get("status_filter")
+    status_filter = str(status_filter).strip().lower() if status_filter not in (None, "") else None
+    if status_filter and status_filter not in STATUSES:
+        return {"error": "invalid status_filter", "allowed_statuses": list(STATUSES)}
+    include_records = _as_bool(payload.get("include_records", False))
 
     total = _empty_counter()
     by_department: dict[str, dict[str, int]] = defaultdict(_empty_counter)
     by_employee: dict[tuple[str, str, str], dict[str, int]] = defaultdict(_empty_counter)
+    filtered_records: list[dict[str, Any]] = []
 
     with file_path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
@@ -81,13 +97,38 @@ def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str,
             _add(by_department[row_department or "-"], status)
             employee_key = (str(row.get("employee_id") or "").strip(), row_name or "-", row_department or "-")
             _add(by_employee[employee_key], status)
+            if status_filter and status != status_filter:
+                continue
+            if include_records and (status_filter or employee_name):
+                filtered_records.append(
+                    {
+                        "date": str(row.get("date") or ""),
+                        "employee_id": str(row.get("employee_id") or ""),
+                        "name": row_name,
+                        "department": row_department,
+                        "status": status,
+                        "check_in": str(row.get("check_in") or ""),
+                        "check_out": str(row.get("check_out") or ""),
+                    }
+                )
 
     result: dict[str, Any] = {
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
-        "filters": {"department": department, "employee_name": employee_name, "group_by": group_by},
+        "filters": {
+            "department": department,
+            "employee_name": employee_name,
+            "group_by": group_by,
+            "status_filter": status_filter,
+            "include_records": include_records,
+        },
         "summary": _format_summary(total),
     }
+    if status_filter:
+        result["status_filter"] = status_filter
+        result["filtered_count"] = len(filtered_records) if include_records else int(total.get(status_filter, 0))
+    if include_records and (status_filter or employee_name):
+        result["records"] = filtered_records
     if group_by == "department":
         result["by_department"] = [
             {"department": key, **_format_summary(counter)}
