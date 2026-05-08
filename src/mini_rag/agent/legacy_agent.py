@@ -3,12 +3,7 @@ from __future__ import annotations
 from langchain.agents import create_agent
 
 from mini_rag.agent.session import InMemorySessionStore, default_session_store
-from mini_rag.agent.tools import (
-    create_compare_sources_tool,
-    create_rewrite_query_tool,
-    create_search_knowledge_base_tool,
-    create_summarize_sources_tool,
-)
+from mini_rag.agent.tools import create_search_knowledge_base_tool
 from mini_rag.config import Settings
 from mini_rag.models.qwen import build_qwen_chat_model
 from mini_rag.observability.timer import Timer
@@ -60,14 +55,8 @@ class LegacyEnterpriseKnowledgeAgent:
             "enable_rerank": self.settings.rerank_enabled if enable_rerank is None else enable_rerank,
         }
 
-        # 旧版把 RAG、总结、对比、改写都注册成 LangChain tool，
-        # 由 create_agent 自己决定什么时候调用。
-        tools = [
-            create_rewrite_query_tool(trace, history),
-            create_search_knowledge_base_tool(self.retriever, trace, retrieval_mode, enable_rerank),
-            create_summarize_sources_tool(self.retriever, trace, retrieval_mode, enable_rerank),
-            create_compare_sources_tool(self.retriever, trace, retrieval_mode, enable_rerank),
-        ]
+        # 旧版只保留 search_knowledge_base，避免把资料总结/对比/改写包装器继续暴露成工具。
+        tools = [create_search_knowledge_base_tool(self.retriever, trace, retrieval_mode, enable_rerank)]
 
         agent = create_agent(
             model=self.llm,

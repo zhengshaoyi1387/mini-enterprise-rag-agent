@@ -20,7 +20,7 @@ FastAPI Gateway
 Auth & Permission Layer
   - X-API-Key
   - user_id
-  - role: guest/user/admin
+  - role: guest/user/employee/finance/hr/it/admin
   - endpoint permission
   - tool permission
         |
@@ -55,7 +55,7 @@ Retrieval System        Observability
 5. 对明显危险请求做轻量安全拒答。
 6. 调用复用的 `EnterpriseKnowledgeAgent` 单例，避免每个请求重复初始化重资源。
 7. LangGraph 将问题拆成理解、路由、检索规划、检索、证据反思、回答生成等节点。
-8. `retrieve` 节点在真正访问知识库前做 tool permission 检查。
+8. `retrieve` 节点在真正访问知识库前做 tool permission 检查；日常工具节点可读取本地 CSV / JSON。
 9. Agent 产出答案、来源、工具调用、节点耗时和完整 trace。
 10. API 保存 trace JSON，并返回结构化 `ChatResponse`。
 
@@ -65,12 +65,19 @@ Retrieval System        Observability
 
 ## 5. 为什么 Agent 要权限层
 
-Agent 能调用工具，而工具可能访问知识库、memory、eval 或外部系统。模型提示词只能降低误调用概率，不能成为安全边界。因此本项目做了两层权限：
+Agent 能调用工具，而工具可能访问知识库、考勤 CSV 或公司日程 JSON。模型提示词只能降低误调用概率，不能成为安全边界。因此本项目做了两层权限：
 
 - API Gateway：控制谁能访问 `/chat`、`/traces/{trace_id}` 等接口。
 - Tool Layer：在工具真正执行前检查当前角色是否允许调用该工具。
 
 这使得即使模型被 prompt injection 诱导，程序侧仍会阻断越权工具调用。
+
+当前工具层只保留 4 个有清晰边界的工具：
+
+- `search_knowledge_base`：非结构化知识库检索，由 `retrieve` 节点执行。
+- `get_current_datetime`：解析当前时间和常用相对日期范围。
+- `query_attendance_summary`：读取 `data/business/attendance.csv` 做考勤汇总。
+- `manage_company_calendar`：读取/写入 `data/business/company_calendar.json`，普通成员只读，admin 可写。
 
 ## 6. 为什么要 trace_id
 
@@ -90,6 +97,7 @@ Agent 能调用工具，而工具可能访问知识库、memory、eval 或外部
 - 新增 `user_id` / `role` 请求级元数据。
 - 新增 endpoint permission 与 tool permission。
 - `retrieve` 节点执行前做工具权限检查。
+- 新增本地 CSV 考勤统计工具和 JSON 公司日程工具。
 - 新增 `/traces/{trace_id}` 可读 trace 查询接口。
 - Agent/RAG 对象改为进程级懒加载单例，避免每个请求重复初始化。
 - 新增 P0 安全、API、trace 单元测试。

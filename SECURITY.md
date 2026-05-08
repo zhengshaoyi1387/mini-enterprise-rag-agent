@@ -32,9 +32,10 @@ AGENT_API_KEY=dev-api-key
 
 | 角色 | 权限说明 |
 |---|---|
-| guest | 普通知识库检索和问答 |
-| user | 知识库检索、总结、对比、读写自己的 memory |
-| admin | trace 查询、eval、管理类工具 |
+| guest | public 知识库检索、当前日期时间查询 |
+| user / employee | 授权知识库检索、当前日期时间、考勤统计、公司日程查询 |
+| finance / hr / it | 部门授权知识库检索、当前日期时间、考勤统计、公司日程查询 |
+| admin | 全部知识库、trace 查询、用户/角色管理、公司日程写入 |
 
 未知角色会降级为 `guest`。
 
@@ -42,12 +43,15 @@ AGENT_API_KEY=dev-api-key
 
 ```python
 ENDPOINT_PERMISSIONS = {
-    "health": ["guest", "user", "admin"],
-    "query": ["guest", "user", "admin"],
-    "chat": ["guest", "user", "admin"],
+    "health": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
+    "query": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
+    "chat": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
     "trace": ["admin"],
     "eval": ["admin"],
-    "upload": ["user", "admin"],
+    "upload": ["user", "employee", "finance", "hr", "it", "admin"],
+    "admin_kbs": ["admin"],
+    "admin_tools": ["admin"],
+    "admin_audit": ["admin"],
 }
 ```
 
@@ -55,22 +59,20 @@ ENDPOINT_PERMISSIONS = {
 
 ```python
 TOOL_PERMISSIONS = {
-    "search_knowledge_base": ["guest", "user", "admin"],
-    "summarize_sources": ["guest", "user", "admin"],
-    "rewrite_query": ["guest", "user", "admin"],
-    "generate_study_plan": ["guest", "user", "admin"],
-    "compare_sources": ["user", "admin"],
-    "read_memory": ["user", "admin"],
-    "save_memory": ["user", "admin"],
-    "run_eval": ["admin"],
+    "search_knowledge_base": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
+    "get_current_datetime": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
+    "query_attendance_summary": ["user", "employee", "finance", "hr", "it", "admin"],
+    "manage_company_calendar": ["user", "employee", "finance", "hr", "it", "admin"],
 }
 ```
+
+`manage_company_calendar` 还有 action 级权限：`query` 允许普通成员调用，`create/update/delete` 只有 `admin` 可以执行。这个检查在工具内部执行，并把拒绝结果写入 trace / audit events。
 
 ## 6. 面试回答模板
 
 如果面试官问“你怎么防止模型误调用危险工具？”，可以回答：
 
-> 我不会只依赖 prompt。我的系统有两层权限：API Gateway 做 endpoint 级校验，Tool Layer 在工具真正执行前做程序侧权限检查。即使 LLM 被诱导输出某个工具调用，执行前也会根据 role 和 TOOL_PERMISSIONS 强制拦截，并把拦截结果写入 trace。
+> 我不会只依赖 prompt。我的系统有两层权限：API Gateway 做 endpoint 级校验，Tool Layer 在工具真正执行前做程序侧权限检查。比如 guest 只能用 search_knowledge_base 和 get_current_datetime，不能查考勤或日程；普通成员可以查询日程，但 create/update/delete 日程会被工具内部 action 权限拒绝。所有拦截都会进入 trace / audit events。
 
 ## 7. 不提交真实密钥
 

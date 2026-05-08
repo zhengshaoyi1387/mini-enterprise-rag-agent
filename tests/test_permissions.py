@@ -23,11 +23,12 @@ def test_endpoint_permissions() -> None:
 
 def test_tool_permissions() -> None:
     assert can_use_tool("guest", "search_knowledge_base") is True
-    assert can_use_tool("guest", "compare_sources") is False
-    assert can_use_tool("user", "compare_sources") is True
-    assert can_use_tool("admin", "run_eval") is True
+    assert can_use_tool("guest", "get_current_datetime") is True
+    assert can_use_tool("guest", "query_attendance_summary") is False
+    assert can_use_tool("employee", "query_attendance_summary") is True
+    assert can_use_tool("employee", "manage_company_calendar") is True
 
 
 def test_assert_tool_permission_raises_on_forbidden_tool() -> None:
     with pytest.raises(PermissionError):
-        assert_tool_permission("guest", "compare_sources")
+        assert_tool_permission("guest", "manage_company_calendar")

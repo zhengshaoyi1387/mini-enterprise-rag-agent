@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import date, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -38,7 +39,8 @@ from mini_rag.graph.utils import (
 from mini_rag.utils import stable_hash
 from mini_rag.security.auth_store import SQLiteAuthStore
 from mini_rag.security.permissions import assert_can_access_kbs, assert_tool_permission, normalize_role
-from mini_rag.tools.office_tools import build_default_tool_registry, select_office_tool_by_rule
+from mini_rag.tools.daily_tools import build_default_tool_registry, select_daily_tool_by_rule
+from mini_rag.tools.datetime_tool import get_current_datetime
 
 
 class AgenticRAGNodes:
@@ -136,7 +138,7 @@ class AgenticRAGNodes:
             if state.get("error") and state.get("route") == "reject":
                 return state
             question = state.get("question", "")
-            selected_tool = select_office_tool_by_rule(question)
+            selected_tool = select_daily_tool_by_rule(question)
             if selected_tool:
                 state["intent"] = "tool"
                 state["route"] = "tool"  # type: ignore[assignment]
@@ -171,8 +173,8 @@ class AgenticRAGNodes:
                     "needs_retrieval": True,
                     "risk_level": "low",
                     "required_tools": [],
-        "selected_tool": None,
-        "tool_input": {},
+                    "selected_tool": None,
+                    "tool_input": {},
                     "reason": "LLM 输出解析失败，使用原问题兜底。",
                 },
             )
@@ -189,9 +191,11 @@ class AgenticRAGNodes:
             state["route"] = route  # type: ignore[assignment]
             state["risk_level"] = str(payload.get("risk_level") or "low")
             state["required_tools"] = [str(x) for x in coerce_list(payload.get("required_tools"))]
-            # Obvious office-draft requests are routed by cheap deterministic rules.
-            # This avoids an extra LLM planning step and makes enterprise demos stable.
-            selected_tool = select_office_tool_by_rule(question)
+            state["selected_tool"] = str(payload.get("selected_tool") or "") or None
+            state["tool_input"] = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+            # Obvious daily business requests are routed by cheap deterministic rules.
+            # RAG policy questions remain on the retrieval route.
+            selected_tool = select_daily_tool_by_rule(question)
             if selected_tool and route != "reject":
                 route = "tool"
                 state["route"] = "tool"  # type: ignore[assignment]
@@ -226,7 +230,7 @@ class AgenticRAGNodes:
             if self._is_dangerous_question(state.get("question", ""), state.get("standalone_query", "")):
                 route = "reject"
                 state["risk_level"] = "high"
-            selected_tool = select_office_tool_by_rule(state.get("question", ""))
+            selected_tool = select_daily_tool_by_rule(state.get("question", ""))
             if selected_tool and route != "reject":
                 route = "tool"
                 state["selected_tool"] = selected_tool
@@ -253,16 +257,29 @@ class AgenticRAGNodes:
                 return state
             try:
                 assert_tool_permission(role, tool_name, role_policies=self.auth_store.list_role_policies())
-                payload = {"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role}
+                payload = self._build_tool_payload(state, tool_name, role)
                 result = self.tool_registry.invoke(tool_name, payload)
-                content = str(result.get("content") or "")
+                content = str(result.get("content") or self._format_tool_result(tool_name, result))
                 state["final_answer"] = content
                 state.setdefault("tool_calls", []).append(
-                    {"tool_name": tool_name, "args": payload, "ok": True, "risk_level": result.get("risk_level", "low")}
+                    {
+                        "tool_name": tool_name,
+                        "args": payload,
+                        "ok": not bool(result.get("error")),
+                        "risk_level": result.get("risk_level", "low"),
+                        "error": result.get("error"),
+                    }
                 )
                 state.setdefault("observations", []).append({"type": "tool", "tool_name": tool_name, "result": result})
                 state.setdefault("audit_events", []).append(
-                    {"event": "tool_call", "tool_name": tool_name, "role": role, "decision": "allowed"}
+                    {
+                        "event": "tool_call",
+                        "tool_name": tool_name,
+                        "role": role,
+                        "decision": "blocked" if result.get("error") == "permission denied" else "allowed",
+                        "action": result.get("action"),
+                        "reason": result.get("error"),
+                    }
                 )
             except PermissionError as exc:
                 state["route"] = "reject"
@@ -731,6 +748,171 @@ class AgenticRAGNodes:
         }
 
     # ---------- internals ----------
+    def _build_tool_payload(self, state: AgentState, tool_name: str, role: str) -> dict[str, Any]:
+        question = state.get("question", "")
+        payload = dict(state.get("tool_input") or {})
+        payload.update({"query": question, "user_id": state.get("user_id"), "role": role})
+
+        if tool_name == "get_current_datetime":
+            payload.setdefault("timezone", "Asia/Shanghai")
+            return payload
+
+        if tool_name in {"query_attendance_summary", "manage_company_calendar"}:
+            date_payload = self._resolve_relative_date_payload(state, role)
+            payload = {**date_payload, **payload}
+
+        if tool_name == "query_attendance_summary":
+            payload.setdefault("department", "all")
+            payload.setdefault("group_by", "department")
+        elif tool_name == "manage_company_calendar":
+            action = str(payload.get("action") or self._infer_calendar_action(question)).lower()
+            payload["action"] = action
+            payload.setdefault("event_type", "all")
+            payload.setdefault("department", "all")
+            if action == "create":
+                payload.setdefault("title", self._infer_calendar_title(question))
+                payload.setdefault("type", self._infer_calendar_type(question))
+                payload.setdefault("time", self._infer_calendar_time(question))
+                payload.setdefault("location", "")
+                payload.setdefault("description", question)
+                if "date" not in payload:
+                    create_date = self._infer_calendar_create_date(question, date_payload)
+                    if create_date:
+                        payload["date"] = create_date
+        return payload
+
+    def _resolve_relative_date_payload(self, state: AgentState, role: str) -> dict[str, Any]:
+        question = state.get("question", "")
+        range_key = self._infer_range_key(question)
+        if not range_key:
+            return {}
+        assert_tool_permission(role, "get_current_datetime", role_policies=self.auth_store.list_role_policies())
+        datetime_payload = {"timezone": "Asia/Shanghai"}
+        datetime_result = get_current_datetime(datetime_payload)
+        ranges = datetime_result.get("ranges") or {}
+        selected_range = ranges.get(range_key) or {}
+        state.setdefault("tool_calls", []).append(
+            {"tool_name": "get_current_datetime", "args": datetime_payload, "ok": True, "risk_level": "low", "purpose": "resolve_relative_date"}
+        )
+        state.setdefault("observations", []).append({"type": "tool", "tool_name": "get_current_datetime", "result": datetime_result})
+        state.setdefault("audit_events", []).append(
+            {"event": "tool_call", "tool_name": "get_current_datetime", "role": role, "decision": "allowed"}
+        )
+        if selected_range:
+            return {"start_date": selected_range.get("start_date"), "end_date": selected_range.get("end_date"), "_relative_range": range_key}
+        return {}
+
+    @staticmethod
+    def _infer_range_key(query: str) -> str | None:
+        q = str(query or "")
+        checks = [
+            ("上个月", "last_month"),
+            ("下个月", "next_month"),
+            ("这个月", "this_month"),
+            ("本月", "this_month"),
+            ("上周", "last_week"),
+            ("下周", "next_week"),
+            ("本周", "this_week"),
+            ("这周", "this_week"),
+            ("昨天", "yesterday"),
+            ("明天", "tomorrow"),
+            ("今天", "today"),
+            ("当前日期", "today"),
+            ("现在", "today"),
+        ]
+        for keyword, range_key in checks:
+            if keyword in q:
+                return range_key
+        return None
+
+    @staticmethod
+    def _infer_calendar_action(query: str) -> str:
+        q = str(query or "")
+        if any(word in q for word in ["删除", "取消", "移除"]):
+            return "delete"
+        if any(word in q for word in ["修改", "更新", "调整", "改到", "改成"]):
+            return "update"
+        if any(word in q for word in ["添加", "新增", "创建", "安排", "加一个"]):
+            return "create"
+        return "query"
+
+    @staticmethod
+    def _infer_calendar_type(query: str) -> str:
+        q = str(query or "")
+        if "培训" in q:
+            return "training"
+        if "工资" in q or "发薪" in q:
+            return "payday"
+        if "节假日" in q or "放假" in q:
+            return "holiday"
+        if "会议" in q or "周会" in q:
+            return "meeting"
+        return "event"
+
+    @staticmethod
+    def _infer_calendar_time(query: str) -> str:
+        q = str(query or "")
+        if "下午两点" in q or "下午2点" in q:
+            return "14:00-15:00"
+        if "上午十点" in q or "上午10点" in q:
+            return "10:00-11:00"
+        return "全天"
+
+    @staticmethod
+    def _infer_calendar_title(query: str) -> str:
+        q = str(query or "").strip()
+        for marker in ["的", "：", ":"]:
+            if marker in q and len(q.rsplit(marker, 1)[-1].strip()) >= 2:
+                return q.rsplit(marker, 1)[-1].strip(" 。")
+        if "培训" in q:
+            return "新员工培训" if "新员工" in q else "培训"
+        if "会议" in q:
+            return "公司会议"
+        return q[:30] or "公司日程"
+
+    @staticmethod
+    def _infer_calendar_create_date(query: str, date_payload: dict[str, Any]) -> str | None:
+        q = str(query or "")
+        weekday_map = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6}
+        target_weekday = None
+        for label, index in weekday_map.items():
+            if f"周{label}" in q or f"星期{label}" in q:
+                target_weekday = index
+                break
+        if target_weekday is None:
+            return date_payload.get("start_date")
+        if not date_payload.get("start_date"):
+            return None
+        start = date.fromisoformat(str(date_payload.get("start_date")))
+        return (start + timedelta(days=target_weekday)).isoformat()
+
+    @staticmethod
+    def _format_tool_result(tool_name: str, result: dict[str, Any]) -> str:
+        if result.get("error"):
+            return f"工具调用失败：{result.get('error')}"
+        if tool_name == "get_current_datetime":
+            return f"当前日期：{result.get('current_date')}，时间：{result.get('current_time')}，星期：{result.get('weekday')}，时区：{result.get('timezone')}。"
+        if tool_name == "query_attendance_summary":
+            summary = result.get("summary") or {}
+            return (
+                f"{result.get('start_date')} 至 {result.get('end_date')} 的考勤汇总："
+                f"记录 {summary.get('total_records', 0)} 条，出勤 {summary.get('present', 0)}，"
+                f"迟到 {summary.get('late', 0)}，请假 {summary.get('leave', 0)}，缺勤 {summary.get('absent', 0)}，"
+                f"出勤率 {summary.get('attendance_rate', '0.00%')}，迟到率 {summary.get('late_rate', '0.00%')}。"
+            )
+        if tool_name == "manage_company_calendar":
+            action = result.get("action")
+            if action == "query":
+                events = result.get("events") or []
+                if not events:
+                    return f"{result.get('start_date')} 至 {result.get('end_date')} 暂无公司日程。"
+                lines = [f"{result.get('start_date')} 至 {result.get('end_date')} 的公司日程："]
+                for event in events:
+                    lines.append(f"- {event.get('date')} {event.get('time')} {event.get('title')}（{event.get('location') or '未指定地点'}）")
+                return "\n".join(lines)
+            return str(result.get("message") or f"公司日程已{result.get('status', '处理')}")
+        return str(result)
+
     def _get_retriever(self) -> Any:
         if self.retriever is None:
             from mini_rag.retrieval.retriever import KnowledgeBaseRetriever

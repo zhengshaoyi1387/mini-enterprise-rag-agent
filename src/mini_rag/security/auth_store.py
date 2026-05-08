@@ -108,6 +108,28 @@ class SQLiteAuthStore:
                         now,
                     ),
                 )
+                row = conn.execute(
+                    "SELECT allowed_kbs_json, allowed_tools_json FROM role_policies WHERE role = ?",
+                    (role,),
+                ).fetchone()
+                if row:
+                    stored_tools = [str(item) for item in json.loads(row["allowed_tools_json"] or "[]")]
+                    has_stale_tools = any(tool not in TOOL_PERMISSIONS for tool in stored_tools)
+                    if has_stale_tools:
+                        stored_kbs = normalize_kb_ids(json.loads(row["allowed_kbs_json"] or "[]"))
+                        conn.execute(
+                            """
+                            UPDATE role_policies
+                            SET allowed_kbs_json = ?, allowed_tools_json = ?, updated_at = ?
+                            WHERE role = ?
+                            """,
+                            (
+                                json.dumps(stored_kbs or policy.allowed_kbs, ensure_ascii=False),
+                                json.dumps(policy.allowed_tools, ensure_ascii=False),
+                                now,
+                                role,
+                            ),
+                        )
             for username, password, role in DEMO_USERS:
                 salt, password_hash = hash_password(password)
                 conn.execute(

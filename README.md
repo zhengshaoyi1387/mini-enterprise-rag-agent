@@ -105,7 +105,7 @@ Qwen3-Embedding / text-embedding-v4 向量化
   ↓
 向量检索 + BM25 + RRF + Qwen qwen3-rerank
   ↓
-search / summarize / compare / rewrite 多工具
+少量真实企业工具：知识库检索 / 当前时间 / 考勤 CSV / 公司日程 JSON
   ↓
 LangGraph 状态机 Agent：load_context -> manage_context -> llm_router -> execute_tool -> reflect -> final
   ↓
@@ -128,7 +128,7 @@ Trace 记录检索、工具、LLM、总耗时
 - **Qwen 系列模型**：聊天模型默认 `qwen-plus`，Embedding 默认 `text-embedding-v4`。
 - **混合检索与重排**：向量检索 + BM25 + RRF 融合，并默认调用 Qwen `qwen3-rerank` 做二次排序。
 - **本地向量库**：使用 Chroma 持久化到 `storage/chroma`。
-- **Agent 工具调用**：LangGraph 的 `execute_tool` 节点调用 `search_knowledge_base`、`summarize_sources`、`compare_sources`、`generate_study_plan` 等安全工具。
+- **Agent 工具调用**：不堆砌 prompt wrapper，只保留 `search_knowledge_base`、`get_current_datetime`、`query_attendance_summary`、`manage_company_calendar` 这 4 个真实、有边界的企业日常工具。
 - **LLM Router**：由 Qwen 输出结构化 route，并用 JSON 校验和危险关键词兜底。
 - **LLM 上下文管理**：由 Qwen 维护会话摘要、选择相关历史、生成独立检索问题。
 - **LLM 检索规划**：需要检索时由 Qwen 判断是否拆成多个子查询，分别召回证据。
@@ -139,7 +139,24 @@ Trace 记录检索、工具、LLM、总耗时
 - **延迟观测**：每次问答可保存 trace JSON，便于分析性能瓶颈。
 - **CLI + FastAPI**：支持命令行问答和 Web API。
 
-## 2. 安装
+## 2. 企业日常助手工具
+
+本项目不是堆砌大量 prompt wrapper 工具，而是保留少量真实、有边界的企业日常工具：
+
+- `search_knowledge_base`：查询非结构化企业知识库。
+- `get_current_datetime`：获取当前日期时间，辅助解析“今天、昨天、上周、下周、本月”等相对时间。
+- `query_attendance_summary`：读取本地 CSV，统计结构化考勤数据。
+- `manage_company_calendar`：读取/写入本地 JSON 公司日程，普通成员只读，admin 可写。
+
+工具示例问题：
+
+1. 查制度：“公司的迟到规则是什么？” -> RAG / `search_knowledge_base`
+2. 查考勤：“上周公司的出勤情况怎么样？” -> `get_current_datetime` -> `query_attendance_summary`
+3. 查日程：“下周公司有哪些安排？” -> `get_current_datetime` -> `manage_company_calendar(action=query)`
+4. 管理员写日程：“帮我添加下周三下午两点的新员工培训。” -> `get_current_datetime` -> `manage_company_calendar(action=create)`，只有 admin 允许。
+5. 普通用户写日程：“帮我添加一个公司会议。” -> 权限不足，拒绝写入。
+
+## 3. 安装
 
 推荐使用虚拟环境：
 
@@ -319,25 +336,24 @@ User Question
   ↓
 load_context        从 SQLite 读取 summary 和最近历史
   ↓
-manage_context      LLM 更新摘要、选择相关历史、生成 standalone_query
+check_permission    根据登录会话角色计算可访问知识库
   ↓
-llm_router          LLM 输出 route/reason/required_tools/risk_level
+understand_query    LLM / 规则理解问题，输出 route、standalone_query、selected_tool
   ↓
 Conditional Edge
-  ├─ rag/tool -> execute_tool  先做检索规划，再调用 search_knowledge_base 或安全工具
-  ├─ direct   -> direct        直接回答
-  └─ reject   -> reject        危险请求拒绝
+  ├─ rag  -> plan_retrieval -> retrieve(search_knowledge_base)
+  ├─ tool -> call_tool(get_current_datetime / query_attendance_summary / manage_company_calendar)
+  ├─ direct -> generate_answer
+  └─ reject -> generate_answer
   ↓
-reflect             LLM 判断证据是否足够
-  ├─ 证据不足且有 followup query -> execute_tool 继续检索
-  └─ 证据足够或无法继续补充 -> final
+reflect_evidence    RAG 路径判断证据是否足够，不足时补充检索
   ↓
-final               基于证据生成最终答案
+generate_answer     基于证据或工具结果生成最终答案
   ↓
-persist_context     写入 SQLite 上下文
+update_memory       写入 SQLite 上下文
 ```
 
-注意：RAG 本身仍然是 `search_knowledge_base` 工具能力，LangGraph 里不重复实现一个独立 RAG 系统；`execute_tool` 节点负责编排工具执行、多子查询检索和写入 State。
+注意：RAG 本身仍然按 `search_knowledge_base` 工具动作记录在 trace 中，但实际执行位于 `retrieve` 节点；日常业务工具由 `call_tool` 节点通过 registry 执行。
 
 ## 10. 检索对比
 
@@ -415,9 +431,9 @@ mini-enterprise-rag-agent/
 
 当前版本故意保持小而清晰：
 
-- 暂不支持 PPTX / CSV。
-- 暂不做多用户权限。
-- 暂不做复杂前端页面。
+- 暂不支持 PPTX 企业文档解析。
+- 考勤和日程工具使用本地 CSV / JSON，适合教学和面试讲解，不是生产级数据库方案。
+- 用户、角色和权限是本地演示级实现，生产环境应接入企业 IAM。
 
 这些都可以作为 v0.2 扩展方向。
 
@@ -431,7 +447,7 @@ mini-enterprise-rag-agent/
 - 知识库级权限：不同 role 只能检索授权知识库
 - 检索前权限过滤：无权限文档不会进入模型上下文
 - LangGraph 主流程：`load_context -> check_permission -> understand_query -> route -> rag/tool -> generate_answer -> update_memory`
-- 办公工具：周报、邮件、IT 工单、报销判断、请假申请草稿
+- 企业日常工具：当前时间、考勤 CSV 汇总、公司日程 JSON 查询/管理
 - Audit 日志：`logs/audit.jsonl`
 - 前端页面：启动服务后访问 `http://127.0.0.1:8000/`
 
@@ -464,7 +480,7 @@ curl -X POST http://127.0.0.1:8000/chat \
   }'
 ```
 
-### 办公工具示例
+### 企业日常工具示例
 
 ```bash
 curl -X POST http://127.0.0.1:8000/chat \
@@ -473,7 +489,7 @@ curl -X POST http://127.0.0.1:8000/chat \
   -d '{
     "user_id": "u003",
     "role": "employee",
-    "query": "帮我写一份本周项目进展周报"
+    "query": "上周公司的出勤情况怎么样？"
   }'
 ```
 

@@ -40,18 +40,9 @@ ENDPOINT_PERMISSIONS: Final[dict[str, list[str]]] = {
 
 TOOL_PERMISSIONS: Final[dict[str, list[str]]] = {
     "search_knowledge_base": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
-    "summarize_sources": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
-    "rewrite_query": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
-    "generate_study_plan": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
-    "compare_sources": ["user", "employee", "finance", "hr", "it", "admin"],
-    "read_memory": ["user", "employee", "finance", "hr", "it", "admin"],
-    "save_memory": ["user", "employee", "finance", "hr", "it", "admin"],
-    "run_eval": ["admin"],
-    "generate_weekly_report": ["user", "employee", "finance", "hr", "it", "admin"],
-    "draft_email": ["user", "employee", "finance", "hr", "it", "admin"],
-    "create_it_ticket": ["user", "employee", "it", "admin"],
-    "check_reimbursement_rule": ["finance", "admin"],
-    "generate_leave_request": ["user", "employee", "hr", "admin"],
+    "get_current_datetime": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
+    "query_attendance_summary": ["user", "employee", "finance", "hr", "it", "admin"],
+    "manage_company_calendar": ["user", "employee", "finance", "hr", "it", "admin"],
 }
 
 

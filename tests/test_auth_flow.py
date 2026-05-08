@@ -131,7 +131,7 @@ def test_admin_can_update_role_kb_permissions(tmp_path, monkeypatch) -> None:
             json={
                 "role": "employee",
                 "allowed_kbs": ["public", "hr", "it", "product", "finance"],
-                "allowed_tools": ["search_knowledge_base", "summarize_sources"],
+                "allowed_tools": ["search_knowledge_base", "query_attendance_summary"],
             },
         )
         assert response.status_code == 200, response.text

@@ -23,7 +23,12 @@ UNDERSTAND_QUERY_SYSTEM = """
 要求：
 - 需要结合历史时，只用历史中的自然语言内容，不要把 source/title_path/chunk_id 等引用元数据当成业务实体。
 - 保留用户真实问题，不要增加用户没有要求的目标、文档类型、详细程度或分析维度；“介绍一下”不要改成“详细介绍”。
-- 如果问题是闲聊、模型身份、代码通用概念等，不需要企业知识库时，intent 选 direct。
+- 制度、流程、FAQ、产品文档、内部手册等非结构化知识问题 route=rag，由 search_knowledge_base 检索。
+- 出勤、考勤、迟到、缺勤、请假统计 route=tool，required_tools 包含 query_attendance_summary。
+- 公司日程、会议、培训、发薪日、节假日、放假、团建 route=tool，required_tools 包含 manage_company_calendar。
+- 当前日期、今天、昨天、上周、下周、本月、星期几等相对时间问题 route=tool，required_tools 包含 get_current_datetime。
+- 当用户问题包含相对时间表达时，不要直接猜测日期；应先调用 get_current_datetime 获取当前日期和标准日期范围，再调用业务工具。
+- 如果问题是闲聊、模型身份、代码通用概念等，不需要企业知识库或业务工具时，intent 选 direct。
 - 需要企业知识库、内部文档、产品手册、项目文档证据时 route=rag。
 - 通用问题、模型身份、普通解释且无需内部知识时 route=direct。
 - 需要安全工具执行受控任务时 route=tool。
@@ -42,6 +47,11 @@ ROUTE_SYSTEM = """
 }
 
 判断标准：
+- 制度、流程、FAQ、产品文档等非结构化知识问题 route=rag。
+- 出勤、考勤、迟到、缺勤、请假统计 route=tool，使用 query_attendance_summary。
+- 公司日程、会议、培训、发薪日、节假日、放假、团建 route=tool，使用 manage_company_calendar。
+- 当前日期、今天、昨天、上周、下周、本月、星期几等相对时间 route=tool，使用 get_current_datetime。
+- 包含相对时间的业务工具问题应先用 get_current_datetime 标准化日期范围，不要让 LLM 直接猜日期。
 - 需要企业知识库、内部文档、产品手册、项目文档证据时 route=rag。
 - 通用问题、模型身份、普通解释且无需内部知识时 route=direct。
 - 需要安全工具执行受控任务时 route=tool。

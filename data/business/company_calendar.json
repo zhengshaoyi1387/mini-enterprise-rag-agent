@@ -1,0 +1,32 @@
+[
+  {
+    "event_id": "EVT-20260508-0001",
+    "date": "2026-05-08",
+    "title": "全员周会",
+    "type": "meeting",
+    "department": "all",
+    "time": "10:00-11:00",
+    "location": "线上会议",
+    "description": "每周全员同步"
+  },
+  {
+    "event_id": "EVT-20260513-0001",
+    "date": "2026-05-13",
+    "title": "新员工培训",
+    "type": "training",
+    "department": "all",
+    "time": "14:00-16:00",
+    "location": "会议室 A",
+    "description": "面向本月入职员工"
+  },
+  {
+    "event_id": "EVT-20260515-0001",
+    "date": "2026-05-15",
+    "title": "工资发放日",
+    "type": "payday",
+    "department": "all",
+    "time": "全天",
+    "location": "",
+    "description": "本月工资发放"
+  }
+]

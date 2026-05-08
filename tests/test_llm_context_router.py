@@ -50,14 +50,14 @@ def test_manage_context_falls_back_on_invalid_json():
 
 def test_route_with_llm_accepts_valid_json():
     llm = FakeLLM(
-        '{"route":"tool","reason":"用户要求总结","rewritten_query":"总结智能客服平台",'
-        '"required_tools":["summarize_sources"],"risk_level":"low"}'
+        '{"route":"tool","reason":"用户查询公司日程","rewritten_query":"查询下周公司日程",'
+        '"required_tools":["manage_company_calendar"],"risk_level":"low"}'
     )
 
-    decision = route_with_llm(llm, question="总结一下", standalone_query="总结智能客服平台")
+    decision = route_with_llm(llm, question="下周有哪些安排", standalone_query="下周公司有哪些安排")
 
     assert decision.route == "tool"
-    assert decision.required_tools == ["summarize_sources"]
+    assert decision.required_tools == ["manage_company_calendar"]
 
 
 def test_route_with_llm_falls_back_to_rag_on_invalid_json():
@@ -76,4 +76,3 @@ def test_route_with_llm_forces_reject_for_dangerous_query():
 
     assert decision.route == "reject"
     assert decision.risk_level == "high"
-

@@ -46,7 +46,7 @@ from mini_rag.schemas import HealthResponse, QueryRequest, QueryResponse
 from mini_rag.security.auth_store import AuthUser, SQLiteAuthStore
 from mini_rag.security.permissions import TOOL_PERMISSIONS, check_endpoint_permission, get_allowed_kbs, knowledge_base_permission_summary, normalize_role
 from mini_rag.security.safety import looks_dangerous
-from mini_rag.tools.office_tools import build_default_tool_registry
+from mini_rag.tools.daily_tools import build_default_tool_registry
 
 app = FastAPI(
     title="Mini Enterprise RAG Agent",
