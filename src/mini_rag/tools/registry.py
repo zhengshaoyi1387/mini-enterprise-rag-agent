@@ -69,24 +69,19 @@ class ToolRegistry:
         return bool(name and name in self._tools)
 
     def format_tool_contracts_for_prompt(self, candidate_tool: str | None = None) -> str:
-        """Return compact tool contracts for the LLM tool-planning prompt."""
         tools = list(self._tools.values())
-
-        # 候选工具排前面，但仍保留所有工具，避免 LLM 被错误候选绑死。
         if candidate_tool and candidate_tool in self._tools:
             candidate = self._tools[candidate_tool]
             tools = [candidate] + [tool for tool in tools if tool.name != candidate_tool]
 
-        contracts = []
-        for tool in tools:
-            contracts.append(
-                {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "risk_level": tool.risk_level,
-                    "input_schema": tool.input_schema,
-                    "examples": tool.examples,
-                }
-            )
-
+        contracts = [
+            {
+                "name": tool.name,
+                "description": tool.description,
+                "risk_level": tool.risk_level,
+                "input_schema": tool.input_schema,
+                "examples": tool.examples,
+            }
+            for tool in tools
+        ]
         return json.dumps(contracts, ensure_ascii=False, indent=2)

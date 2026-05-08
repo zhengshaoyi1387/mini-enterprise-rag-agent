@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -41,6 +41,8 @@ from mini_rag.security.auth_store import SQLiteAuthStore
 from mini_rag.security.permissions import assert_can_access_kbs, assert_tool_permission, normalize_role
 from mini_rag.tools.daily_tools import build_default_tool_registry, select_daily_tool_by_rule
 from mini_rag.tools.datetime_tool import get_current_datetime
+from mini_rag.tools.contracts import validate_tool_input
+from pydantic import ValidationError
 
 
 class AgenticRAGNodes:
@@ -143,7 +145,6 @@ class AgenticRAGNodes:
             state["candidate_tool"] = candidate_tool
 
             tool_contracts = self.tool_registry.format_tool_contracts_for_prompt(candidate_tool)
-
             user_prompt = format_understand_user(
                 question=question,
                 summary=state.get("conversation_summary", ""),
@@ -263,17 +264,31 @@ class AgenticRAGNodes:
                 return state
             try:
                 assert_tool_permission(role, tool_name, role_policies=self.auth_store.list_role_policies())
-                payload = self._build_tool_payload(state, tool_name, role)
-                validation_error = self._validate_tool_payload(tool_name, payload)
-                if validation_error:
-                    state["final_answer"] = validation_error
-                    state["tool_input"] = payload
-                    state["tool_result"] = {"error": "missing_required_slots", "message": validation_error}
+                try:
+                    payload = self._build_tool_payload(state, tool_name, role)
+                except ValidationError as exc:
+                    state["final_answer"] = "我还缺少执行该工具所需的必要信息，请补充具体日期、时间或事件信息。"
+                    state["tool_result"] = {
+                        "error": "tool_input_validation_failed",
+                        "message": str(exc),
+                        "tool_name": tool_name,
+                    }
                     state.setdefault("tool_calls", []).append(
-                        {"tool_name": tool_name, "args": payload, "ok": False, "reason": "missing_required_slots"}
+                        {
+                            "tool_name": tool_name,
+                            "ok": False,
+                            "reason": "tool_input_validation_failed",
+                            "validation_error": str(exc),
+                        }
                     )
                     state.setdefault("audit_events", []).append(
-                        {"event": "tool_call", "tool_name": tool_name, "role": role, "decision": "blocked", "reason": "missing_required_slots"}
+                        {
+                            "event": "tool_call",
+                            "tool_name": tool_name,
+                            "role": role,
+                            "decision": "blocked",
+                            "reason": "tool_input_validation_failed",
+                        }
                     )
                     return state
                 result = self.tool_registry.invoke(tool_name, payload)
@@ -786,146 +801,102 @@ class AgenticRAGNodes:
         }
 
     # ---------- internals ----------
+    def _finalize_tool_input_with_llm(
+        self,
+        state: AgentState,
+        tool_name: str,
+        payload: dict[str, Any],
+        datetime_result: dict[str, Any] | None = None,
+        validation_error: str | None = None,
+    ) -> dict[str, Any]:
+        tool = self.tool_registry.get(tool_name)
+        input_schema = tool.input_schema if tool else {}
+
+        user_prompt = "\n\n".join(
+            [
+                f"当前用户问题：{state.get('question', '')}",
+                f"独立问题：{state.get('standalone_query', state.get('question', ''))}",
+                f"selected_tool：{tool_name}",
+                "当前 tool_input 草案：\n" + self._safe_json_dumps(payload),
+                "previous_tool_context：\n" + self._safe_json_dumps(state.get("previous_tool_context", {})),
+                "当前日期时间工具结果：\n" + self._safe_json_dumps(datetime_result or {}),
+                f"relative_time：{state.get('relative_time') or ''}",
+                f"validation_error：{validation_error or '无'}",
+                "input_schema：\n" + self._safe_json_dumps(input_schema),
+                "请只输出修正后的 JSON tool_input。",
+                "必须严格符合 input_schema。",
+                "不要输出解释，不要包裹 markdown。",
+            ]
+        )
+
+        fixed = self._invoke_json(
+            state=state,
+            node="finalize_tool_input",
+            system="你是工具参数生成器。你只能输出严格 JSON。你必须根据用户问题、日期时间结果和 input_schema 生成可执行 tool_input。",
+            user=user_prompt,
+            default=payload,
+        )
+        return fixed if isinstance(fixed, dict) else payload
+
     def _build_tool_payload(self, state: AgentState, tool_name: str, role: str) -> dict[str, Any]:
         payload = dict(state.get("tool_input") or {})
-
-        if tool_name == "manage_company_calendar":
-            payload = self._normalize_calendar_payload(payload)
-
-        payload.update(
-            {
-                "query": state.get("question", ""),
-                "user_id": state.get("user_id"),
-                "role": role,
-            }
-        )
+        datetime_result: dict[str, Any] | None = None
 
         if tool_name == "get_current_datetime":
             payload.setdefault("timezone", "Asia/Shanghai")
+            payload = validate_tool_input(tool_name, payload)
+            payload.update({"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role})
             return payload
 
-        if tool_name in {"query_attendance_summary", "manage_company_calendar"}:
-            payload = self._resolve_relative_time_if_needed(state, payload, role, tool_name)
+        if state.get("needs_time_resolution") or state.get("relative_time"):
+            assert_tool_permission(role, "get_current_datetime", role_policies=self.auth_store.list_role_policies())
+            datetime_payload = {"timezone": "Asia/Shanghai"}
+            datetime_result = get_current_datetime(datetime_payload)
 
-        if tool_name == "query_attendance_summary":
-            payload.setdefault("department", "all")
-            payload.setdefault("group_by", "department")
-            payload.setdefault("employee_name", None)
-            payload.setdefault("status_filter", None)
-            payload.setdefault("include_records", False)
+            state.setdefault("tool_calls", []).append(
+                {
+                    "tool_name": "get_current_datetime",
+                    "args": datetime_payload,
+                    "ok": not bool(datetime_result.get("error")),
+                    "risk_level": "low",
+                    "purpose": "resolve_relative_date",
+                }
+            )
+            state.setdefault("observations", []).append(
+                {"type": "tool", "tool_name": "get_current_datetime", "result": datetime_result}
+            )
+            state.setdefault("audit_events", []).append(
+                {"event": "tool_call", "tool_name": "get_current_datetime", "role": role, "decision": "allowed"}
+            )
 
-        elif tool_name == "manage_company_calendar":
-            payload = self._normalize_calendar_payload(payload)
-            action = str(payload.get("action") or "query").lower()
-            payload["action"] = action
+            payload = self._finalize_tool_input_with_llm(
+                state=state,
+                tool_name=tool_name,
+                payload=payload,
+                datetime_result=datetime_result,
+            )
 
-            if action == "query":
-                payload.setdefault("event_type", "all")
-                payload.setdefault("department", "all")
+        try:
+            payload = validate_tool_input(tool_name, payload)
+        except ValidationError as exc:
+            payload = self._finalize_tool_input_with_llm(
+                state=state,
+                tool_name=tool_name,
+                payload=payload,
+                datetime_result=datetime_result,
+                validation_error=str(exc),
+            )
+            payload = validate_tool_input(tool_name, payload)
 
-            elif action == "create":
-                payload.setdefault("type", "other")
-                payload.setdefault("time", "全天")
-                payload.setdefault("department", "all")
-                payload.setdefault("location", "")
-                payload.setdefault("description", "")
-
-                # create 只需要 date，不应该保留 start_date/end_date
-                payload.pop("start_date", None)
-                payload.pop("end_date", None)
-
-            elif action in {"update", "delete"}:
-                payload.setdefault("department", "all")
-
-        return payload
-
-    def _resolve_relative_time_if_needed(
-        self,
-        state: AgentState,
-        payload: dict[str, Any],
-        role: str,
-        tool_name: str,
-    ) -> dict[str, Any]:
-        range_key = str(state.get("relative_time") or payload.get("relative_time") or "").strip()
-        if not range_key and not state.get("needs_time_resolution"):
-            return payload
-        if not range_key:
-            return payload
-
-        assert_tool_permission(role, "get_current_datetime", role_policies=self.auth_store.list_role_policies())
-
-        datetime_payload = {"timezone": "Asia/Shanghai"}
-        datetime_result = get_current_datetime(datetime_payload)
-        ranges = datetime_result.get("ranges") or {}
-        selected_range = ranges.get(range_key) or {}
-
-        state.setdefault("tool_calls", []).append(
-            {
-                "tool_name": "get_current_datetime",
-                "args": datetime_payload,
-                "ok": not bool(datetime_result.get("error")),
-                "risk_level": "low",
-                "purpose": "resolve_relative_date",
-            }
-        )
-        state.setdefault("observations", []).append(
-            {
-                "type": "tool",
-                "tool_name": "get_current_datetime",
-                "result": datetime_result,
-            }
-        )
-        state.setdefault("audit_events", []).append(
-            {
-                "event": "tool_call",
-                "tool_name": "get_current_datetime",
-                "role": role,
-                "decision": "allowed",
-            }
-        )
-
-        if not selected_range:
-            return payload
-
-        # 日程创建：相对时间要解析成单个 date，而不是 start_date/end_date
-        if tool_name == "manage_company_calendar" and payload.get("action") == "create":
-            if not payload.get("date"):
-                weekday = self._weekday_from_question_or_payload(
-                    state.get("question", ""),
-                    payload,
-                )
-
-                if weekday is not None:
-                    start = date.fromisoformat(selected_range["start_date"])
-                    payload["date"] = (start + timedelta(days=weekday)).isoformat()
-                elif selected_range.get("start_date") == selected_range.get("end_date"):
-                    payload["date"] = selected_range.get("start_date")
-
-            payload.pop("start_date", None)
-            payload.pop("end_date", None)
-            payload["_relative_range"] = range_key
-            return payload
-
-        # 查询类工具：相对时间解析成范围
-        payload["start_date"] = selected_range.get("start_date")
-        payload["end_date"] = selected_range.get("end_date")
-        payload["_relative_range"] = range_key
+        payload.update({"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role})
         return payload
 
     @staticmethod
-    def _validate_tool_payload(tool_name: str, payload: dict[str, Any]) -> str | None:
-        if tool_name == "query_attendance_summary":
-            if not payload.get("start_date") or not payload.get("end_date"):
-                return "我需要一个明确的日期范围才能查询考勤。你可以说“昨天”、“上周”或“2026-05-01 到 2026-05-07”。"
-        if tool_name == "manage_company_calendar":
-            action = str(payload.get("action") or "query").lower()
-            if action == "query" and (not payload.get("start_date") or not payload.get("end_date")):
-                return "我需要知道你想查询哪个时间段的公司日程，例如“今天”、“下周”或具体日期范围。"
-            if action == "create" and not payload.get("date"):
-                return "我需要知道要创建哪一天的公司日程，例如“明天”或具体日期。"
-            if action in {"update", "delete"} and not payload.get("event_id"):
-                return "我需要知道要修改或删除的日程 event_id。"
-        return None
+    def _safe_json_dumps(value: Any) -> str:
+        try:
+            return json.dumps(value, ensure_ascii=False, indent=2)
+        except TypeError:
+            return str(value)
 
     @staticmethod
     def _friendly_tool_error(tool_name: str, result: dict[str, Any]) -> str:

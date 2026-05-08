@@ -29,36 +29,29 @@ UNDERSTAND_QUERY_SYSTEM = """
 - 需要结合历史时，只用历史中的自然语言内容，不要把 source/title_path/chunk_id 等引用元数据当成业务实体。
 - 保留用户真实问题，不要增加用户没有要求的目标、文档类型、详细程度或分析维度；“介绍一下”不要改成“详细介绍”。
 - candidate_tool 只是规则候选提示，不是最终决定；你必须基于语义、历史和 previous_tool_context 输出最终 route、selected_tool 和 tool_input。
+- 你会收到 available_tool_contracts，其中包含每个工具的 input_schema 和 examples。
+- selected_tool 必须来自 available_tool_contracts。
 - route=rag 时 selected_tool=null，tool_input={}。
-- route=tool 时 selected_tool 必须是真实工具之一，tool_input 必须尽量完整且合规，没有的信息就用默认值，不能只给自然语言。
+- route=tool 时 selected_tool 必须是真实工具之一，tool_input 必须严格符合 selected_tool 的 input_schema。
+- 如果 input_schema 中某字段是 enum / const / Literal，只能输出允许值。
+- 不要输出 input_schema 中不存在的字段，例如不要把 time 拆成 start_time/end_time。
+- 如果缺少必填字段，请放入 missing_required_slots，不要编造。
 - 制度、流程、FAQ、产品说明、政策解释 route=rag，例如“公司迟到规则是什么？”“报销流程是什么？”“VPN 连不上怎么处理？”。
 - 纯日期时间问题 route=tool，selected_tool=get_current_datetime，例如“今天日期”“现在几点？”“今天星期几？”。
 - 考勤、出勤、迟到、缺勤、请假统计 route=tool，selected_tool=query_attendance_summary，例如“昨天公司的出勤情况如何？”“上周研发部门谁迟到了？”“谁迟到了？”。
-- 公司日程、会议、培训、发薪日、放假、节假日、团建 route=tool，selected_tool=manage_company_calendar，例如“下周公司有哪些安排？”“明天有没有培训？”。
-- 包含相对时间表达时，不要猜具体日期；输出 needs_time_resolution=true，并把 relative_time 设为 today/yesterday/tomorrow/this_week/last_week/next_week/this_month/last_month/next_month。
+- 公司日程、会议、培训、发薪日、放假、节假日、团建 route=tool，selected_tool=manage_company_calendar，例如“下周公司有哪些安排？”“明天有没有培训？”“新增一个会议”。
+- 对 manage_company_calendar：action 只能是 query/create/update/delete。用户说“增加/添加/新增/创建”时，action=create；不要输出 action=add。
+- 对 manage_company_calendar create：必须使用 date 和 time；不要使用 start_date/end_date 表示单个事件日期；不要使用 start_time/end_time。
+- 包含相对时间表达时，不要直接猜具体日期；输出 needs_time_resolution=true，并把 relative_time 设为 today/yesterday/tomorrow/this_week/last_week/next_week/this_month/last_month/next_month。
+- 如果用户说“下周三/下周五”等相对星期，先输出 needs_time_resolution=true；如你能根据 previous_tool_context 或当前日期工具结果确定日期，则在 tool_input 中使用具体 date。
 - 多轮追问时，如果当前问题省略日期、部门、状态、事件类型等参数，必须参考 previous_tool_context 补全 tool_input。不要输出“查询上一轮内容”这种自然语言占位。
 - 如果问题是闲聊、模型身份、代码通用概念等，不需要企业知识库或业务工具时，intent 选 direct。
 - 需要企业知识库、内部文档、产品手册、项目文档证据时 route=rag。
-- 通用问题、模型身份、普通解释且无需内部知识时 route=direct。
-- 需要安全工具执行受控任务时 route=tool。
 - 不安全请求 route=reject，risk_level=high。
-
-示例：如果 previous_tool_context 是 2026-05-07 的考勤汇总，用户问“谁迟到了？”，应输出 query_attendance_summary，tool_input 包含 start_date=2026-05-07、end_date=2026-05-07、group_by=employee、status_filter=late、include_records=true。
-你会收到 available_tool_contracts，其中包含每个工具的输入协议、允许枚举、必填字段、禁用字段和示例。
-
-硬性要求：
-- selected_tool 必须来自 available_tool_contracts。
-- tool_input 必须严格遵守 selected_tool 的 input_schema。
-- 如果 input_schema 中规定枚举值，只能输出枚举中的值。
-- 如果 input_schema 中规定 forbidden 字段，禁止输出这些字段。
-- 如果用户使用自然语言同义词，例如“添加/新增/增加”，必须映射成工具协议中的 canonical value，例如 manage_company_calendar.action=create。
-- 不允许输出工具不支持的 action 或字段名。
-- 如果缺少必填字段，在 missing_required_slots 中列出，不要伪造。
 """.strip()
 
 ROUTE_SYSTEM = """
 你是企业级 Agent 的路由节点。你只判断下一步，不回答问题。
-
 请只输出合法 JSON：
 {
   "route": "direct | rag | tool | reject",
@@ -66,7 +59,6 @@ ROUTE_SYSTEM = """
   "required_tools": [],
   "reason": "路由理由"
 }
-
 判断标准：
 - 制度、流程、FAQ、产品文档等非结构化知识问题 route=rag。
 - 出勤、考勤、迟到、缺勤、请假统计 route=tool，使用 query_attendance_summary。
@@ -82,7 +74,6 @@ ROUTE_SYSTEM = """
 PLAN_RETRIEVAL_SYSTEM = """
 你是 Agentic RAG 的检索规划节点。注意：上一步 understand_query 已经产出语义完整的 standalone_query。
 你的任务不是改写问题，而是决定是否需要把这个已完成 query 拆成少量检索任务。
-
 请只输出合法 JSON：
 {
   "search_tasks": [
@@ -90,7 +81,6 @@ PLAN_RETRIEVAL_SYSTEM = """
   ],
   "reason": "规划理由"
 }
-
 硬性要求：
 - 默认直接把 standalone_query 原样作为唯一 query。
 - 禁止把 standalone_query 再扩写成更宽泛的问题；禁止添加用户没有要求的“原理、优势、案例、流程、风险、最佳实践”等维度。
@@ -103,7 +93,6 @@ PLAN_RETRIEVAL_SYSTEM = """
 REFLECT_EVIDENCE_SYSTEM = """
 你是 Agentic RAG 的证据反思节点。请判断当前证据是否足够回答用户问题。
 证据反思只能围绕原始问题和 standalone_query，不能扩大检索范围。
-
 请只输出合法 JSON：
 {
   "is_sufficient": true,
@@ -116,7 +105,6 @@ REFLECT_EVIDENCE_SYSTEM = """
   "stop_reason": "如果不继续检索，说明原因；否则为空",
   "reason": "判断理由"
 }
-
 要求：
 - 以用户原始问题和 standalone_query 为准，不要扩大问题范围。
 - 如果用户只问“有哪些/包含哪些”，有完整列表证据即可充分，不要要求每个对象的详细功能。
@@ -129,7 +117,6 @@ REFLECT_EVIDENCE_SYSTEM = """
 GENERATE_ANSWER_SYSTEM = """
 你是严谨的企业知识库 Agent。请基于输入中的证据、工具结果和证据评估回答用户。
 你不负责重新检索，不负责扩大问题范围，只负责基于已给证据或工具结果生成答案。
-
 要求：
 - 回答当前用户问题，不要复读历史无关内容。
 - 使用自然、简洁、结构清晰的中文。
@@ -142,7 +129,6 @@ GENERATE_ANSWER_SYSTEM = """
 
 MEMORY_UPDATE_SYSTEM = """
 你是会话记忆整理节点。请把本轮问答整理成下一轮可用的干净记忆。
-
 请只输出合法 JSON：
 {
   "memory_answer": "去掉引用来源和技术元数据后的简洁答案",
@@ -150,7 +136,6 @@ MEMORY_UPDATE_SYSTEM = """
   "topic": "本轮主题或空",
   "entities": ["本轮重要业务实体"]
 }
-
 要求：
 - 不要保存 source/title_path/chunk_id/vector_score 等引用或 trace 字段。
 - memory_answer 用于下一轮理解上下文，不是给用户看的完整答案。
@@ -190,10 +175,9 @@ def format_understand_user(
             "最近历史：\n" + format_history(history),
             f"candidate_tool：{candidate_tool or '无'}",
             "available_tool_contracts：\n" + available_tool_contracts,
-            "previous_tool_context：\n"
-            + json.dumps(previous_tool_context or {}, ensure_ascii=False, indent=2),
+            "previous_tool_context：\n" + json.dumps(previous_tool_context or {}, ensure_ascii=False, indent=2),
             "多轮补全要求：如果当前问题省略了日期、部门、状态或事件类型，请基于 previous_tool_context 补全 tool_input。",
-            "工具协议要求：tool_input 必须严格遵守 available_tool_contracts，不允许输出未声明的 action 枚举或字段。",
+            "工具协议要求：tool_input 必须严格遵守 available_tool_contracts 中 selected_tool 的 input_schema，不允许输出 schema 未声明的 action 枚举或字段。",
             f"当前问题：{question}",
         ]
     )

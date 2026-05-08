@@ -20,6 +20,16 @@
     "description": "面向本月入职员工"
   },
   {
+    "event_id": "EVT-20260513-0002",
+    "date": "2026-05-13",
+    "title": "公司高层会议",
+    "type": "meeting",
+    "department": "all",
+    "time": "14:00-16:00",
+    "location": "",
+    "description": ""
+  },
+  {
     "event_id": "EVT-20260515-0001",
     "date": "2026-05-15",
     "title": "工资发放日",
