@@ -56,9 +56,13 @@ def get_current_datetime(payload: dict[str, Any] | None = None) -> dict[str, Any
             "this_week": _date_range(monday, sunday),
             "last_week": _date_range(monday - timedelta(days=7), sunday - timedelta(days=7)),
             "next_week": _date_range(monday + timedelta(days=7), sunday + timedelta(days=7)),
+            "week_after_next": _date_range(monday + timedelta(days=14), sunday + timedelta(days=14)),
+            "next_next_week": _date_range(monday + timedelta(days=14), sunday + timedelta(days=14)),
             "this_month": _date_range(this_month_start, this_month_end),
             "last_month": _date_range(last_month_start, last_month_end),
             "next_month": _date_range(next_month_start, next_month_end),
+            "month_after_next": _date_range(*_month_bounds(*_shift_month(now.year, now.month, 2))),
+            "next_next_month": _date_range(*_month_bounds(*_shift_month(now.year, now.month, 2))),
         },
     }
     if warning:

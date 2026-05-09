@@ -16,8 +16,8 @@ class RegisteredTool:
     risk_level: str
     func: ToolFunc
     input_schema: dict[str, Any] = field(default_factory=dict)
-    examples: list[dict[str, Any]] = field(default_factory=list)
     action_contracts: dict[str, dict[str, Any]] = field(default_factory=dict)
+    examples: list[dict[str, Any]] = field(default_factory=list)
 
 
 class ToolRegistry:
@@ -31,8 +31,8 @@ class ToolRegistry:
         description: str,
         risk_level: str = "low",
         input_schema: dict[str, Any] | None = None,
-        examples: list[dict[str, Any]] | None = None,
         action_contracts: dict[str, dict[str, Any]] | None = None,
+        examples: list[dict[str, Any]] | None = None,
     ) -> None:
         self._tools[name] = RegisteredTool(
             name=name,
@@ -40,8 +40,8 @@ class ToolRegistry:
             description=description,
             risk_level=risk_level,
             input_schema=input_schema or {},
-            examples=examples or [],
             action_contracts=action_contracts or {},
+            examples=examples or [],
         )
 
     def invoke(self, name: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -65,8 +65,8 @@ class ToolRegistry:
                 "description": tool.description,
                 "risk_level": tool.risk_level,
                 "input_schema": tool.input_schema,
+                "action_contracts": tool.action_contracts,
                 "examples": tool.examples,
-                "actions": tool.action_contracts,
             }
             for tool in self._tools.values()
         ]
@@ -74,56 +74,45 @@ class ToolRegistry:
     def has_tool(self, name: str | None) -> bool:
         return bool(name and name in self._tools)
 
-    def format_tool_contracts_for_prompt(
-        self,
-        role: str | None = None,
-        role_policies: RolePolicyMap | None = None,
-        candidate_tool: str | None = None,
-    ) -> str:
-        """Return compact permission-aware tool contracts for LLM planning.
+    def allowed_actions(self, name: str | None, role: str | None, role_policies: RolePolicyMap | None = None) -> set[str]:
+        if not name or name not in self._tools:
+            return set()
+        return get_allowed_tool_actions(role, name, role_policies=role_policies)
 
-        ``candidate_tool`` is accepted for backward compatibility but ignored on
-        purpose, so keyword hints cannot bias tool selection.
+    def format_tool_contracts_for_prompt(self, role: str | None = None, role_policies: RolePolicyMap | None = None) -> str:
+        """Return compact permission-aware contracts for the planner.
+
+        This is intentionally not the full JSON Schema. It is the current role's
+        capability catalog: tools/actions not visible here should not be planned.
         """
         role = normalize_role(role)
         contracts: list[dict[str, Any]] = []
-        search_actions = get_allowed_tool_actions(role, "search_knowledge_base", role_policies=role_policies)
-        if search_actions:
+        for tool in self._tools.values():
+            allowed = self.allowed_actions(tool.name, role, role_policies=role_policies)
+            if not allowed:
+                continue
+            actions: dict[str, Any] = {}
+            if "*" in allowed:
+                actions["*"] = tool.action_contracts.get("*") or self._compact_schema(tool.input_schema)
+            else:
+                for action in sorted(allowed):
+                    if action in tool.action_contracts:
+                        actions[action] = tool.action_contracts[action]
+            if not actions:
+                continue
             contracts.append(
                 {
-                    "name": "search_knowledge_base",
-                    "description": "查询当前角色可访问的企业知识库；制度、流程、FAQ、政策解释和产品文档问题应使用 route=rag。",
-                    "risk_level": "low",
-                    "actions": {
-                        "*": {
-                            "input": {"query": "语义完整的知识库检索问题"},
-                            "notes": ["route 应为 rag；不要把 search_knowledge_base 作为 daily tool 执行。"],
-                        }
-                    },
+                    "name": tool.name,
+                    "description": tool.description,
+                    "risk_level": tool.risk_level,
+                    "actions": actions,
                 }
             )
-        for tool in self._tools.values():
-            allowed_actions = get_allowed_tool_actions(role, tool.name, role_policies=role_policies)
-            if not allowed_actions:
-                continue
-            contracts.append(self._compact_contract(tool, allowed_actions))
         return json.dumps(contracts, ensure_ascii=False, separators=(",", ":"))
 
     @staticmethod
-    def _compact_contract(tool: RegisteredTool, allowed_actions: set[str]) -> dict[str, Any]:
-        """Hand the LLM the smallest useful contract, not full JSON Schema."""
-        action_contracts = tool.action_contracts
-        if allowed_actions != {"*"}:
-            action_contracts = {
-                action: contract
-                for action, contract in action_contracts.items()
-                if action in allowed_actions
-            }
-        if not action_contracts and "*" in allowed_actions:
-            action_contracts = {"*": {"input_schema": tool.input_schema}}
-        return {
-            "name": tool.name,
-            "description": tool.description,
-            "risk_level": tool.risk_level,
-            "actions": action_contracts,
-        }
+    def _compact_schema(schema: dict[str, Any]) -> dict[str, Any]:
+        properties = schema.get("properties") if isinstance(schema, dict) else {}
+        if not isinstance(properties, dict):
+            return {}
+        return {"input_fields": sorted(properties.keys()), "required": schema.get("required", [])}

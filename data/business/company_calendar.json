@@ -10,6 +10,26 @@
     "description": "每周全员同步"
   },
   {
+    "event_id": "EVT-20260509-0001",
+    "date": "2026-05-09",
+    "title": "全员会",
+    "type": "meeting",
+    "department": "all",
+    "time": "15:00",
+    "location": "",
+    "description": ""
+  },
+  {
+    "event_id": "EVT-20260509-0002",
+    "date": "2026-05-09",
+    "title": "全员会",
+    "type": "meeting",
+    "department": "all",
+    "time": "15:00",
+    "location": "",
+    "description": ""
+  },
+  {
     "event_id": "EVT-20260513-0001",
     "date": "2026-05-13",
     "title": "新员工培训",
@@ -26,6 +46,16 @@
     "type": "meeting",
     "department": "all",
     "time": "14:00-16:00",
+    "location": "",
+    "description": ""
+  },
+  {
+    "event_id": "EVT-20260513-0003",
+    "date": "2026-05-13",
+    "title": "员工会议",
+    "type": "meeting",
+    "department": "all",
+    "time": "21:00-23:00",
     "location": "",
     "description": ""
   },

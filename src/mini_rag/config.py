@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     qwen_chat_model: str = Field(default="qwen-plus", alias="QWEN_CHAT_MODEL")
     # 控制节点模型：用于理解、路由、规划、反思等结构化 JSON 任务。
     # 默认不降级，继续使用 qwen_chat_model，确保质量优先；需要提速时可单独设为 qwen-plus/qwen-turbo。
-    qwen_control_model: str | None = Field(default="qwen-turbo", alias="QWEN_CONTROL_MODEL")
+    qwen_control_model: str | None = Field(default="qwen-flash", alias="QWEN_CONTROL_MODEL")
 
     # 向量模型。text-embedding-v4 属于 Qwen3-Embedding 系列。
     qwen_embedding_model: str = Field(default="text-embedding-v4", alias="QWEN_EMBEDDING_MODEL")

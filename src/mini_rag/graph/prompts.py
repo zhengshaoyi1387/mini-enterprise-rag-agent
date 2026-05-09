@@ -5,70 +5,74 @@ from typing import Any
 
 from mini_rag.graph.utils import strip_citations_and_metadata, truncate
 
-UNDERSTAND_QUERY_SYSTEM = """
-你是企业 Agent 的结构化 Planner。只输出合法 JSON，不回答问题。
-你必须先理解“当前消息本身”，再决定是否使用历史或 previous_tool_context。
-你会收到 available_tool_contracts，其中只列出当前角色允许使用的工具和 action。
-你只能选择 available_tool_contracts 中存在的工具和 action；如果能力不可见，必须输出 permission_required direct。
+
+PLAN_INTENT_SYSTEM = """
+你是企业 Agent 的结构化 Planner，只输出 JSON，不回答用户。
+
+输入包含：current_message、role、planning_context、available_capabilities。
 
 输出 schema：
 {
-  "message_type": "smalltalk|business_question|followup_question|command|unsafe",
-  "context_usage": "none|use_history|use_previous_tool_context",
-  "intent": "smalltalk|rag_fact|daily_tool|permission_required|direct|reject",
-  "route": "direct|rag|tool|reject",
-  "standalone_query": "语义完整问题",
-  "topic": "",
-  "entities": [],
-  "risk_level": "low|medium|high",
-  "selected_tool": "string|null",
-  "selected_action": "string|null",
-  "required_tools": [],
+  "message_type": "smalltalk | business_question | followup_question | command | unsafe",
+  "context_usage": "none | use_history | use_previous_tool_context",
+  "intent": "smalltalk | rag_fact | daily_tool | permission_required | direct | reject",
+  "route": "direct | rag | tool | reject",
+  "standalone_query": "string",
+  "risk_level": "low | medium | high",
+  "selected_tool": "string | null",
+  "selected_action": "string | null",
   "tool_input": {},
-  "needs_time_resolution": false,
-  "relative_time": null,
+  "time_requirement": {
+    "has_time_requirement": false,
+    "time_reference_type": "none | relative | absolute | range | ambiguous",
+    "canonical_relative": "today | yesterday | tomorrow | this_week | last_week | next_week | week_after_next | this_month | last_month | next_month | month_after_next | null",
+    "absolute_date": null,
+    "date_range": null,
+    "requires_current_datetime": false
+  },
+  "knowledge_requirement": {
+    "requires_company_knowledge": false,
+    "known_from_user_message": false,
+    "should_use_rag": false
+  },
   "missing_required_slots": [],
-  "reason": "不超过25字"
+  "reason": "short"
 }
 
-选择原则：
-- 当前消息优先。不要被历史上下文过度牵引。
-- smalltalk 例如“你好/在吗/谢谢/好的/再见”：message_type=smalltalk, context_usage=none, intent=smalltalk, route=direct, selected_tool=null, selected_action=null, tool_input={}，禁止使用 previous_tool_context。
-- followup_question 例如“谁迟到了/还有别的吗/具体是哪几个/那下周呢”：只有当前问题明显依赖上一轮业务内容时，才允许 context_usage=use_history 或 use_previous_tool_context。
-- 制度、流程、FAQ、产品/项目文档、政策解释 => route=rag, selected_tool=null, selected_action=null。
-- 纯日期时间问题，如“今天星期几/现在几点/下周日期范围”必须调用工具 => selected_tool=get_current_datetime, selected_action="*"。严禁猜具体日期。
-- 考勤、出勤、迟到、缺勤、请假统计 => selected_tool=query_attendance_summary, selected_action="*"。
-- 公司日程、会议、培训、发薪日、放假、团建 => selected_tool=manage_company_calendar，并按可见 actions 选择 query/create/update/delete。
-- 如果用户请求的工具或 action 不在 available_tool_contracts 中：intent=permission_required, route=direct, selected_tool=null, selected_action=null, tool_input={}。
-- 相对时间值只能是 today/yesterday/tomorrow/this_week/last_week/next_week/this_month/last_month/next_month。不要猜具体日期；设置 needs_time_resolution=true 和 relative_time。
-- 业务数据问题中 get_current_datetime 只是内部时间解析依赖，不是最终 selected_tool；日程问题最终选择 manage_company_calendar，考勤问题最终选择 query_attendance_summary。
-- tool_input 必须遵守 selected_tool 的 contract。枚举值只用 contract 里的值。
-- reason 最多30个中文字符。
+协议：
+- 只能选择 available_capabilities 中可见的工具和 action；看不到的能力必须 route=direct 且 intent=permission_required。
+- 当前消息优先；只有明确追问才使用 planning_context。
+- context_usage=use_previous_tool_context 表示当前消息延续上一次结构化工具查询，必须继承 previous_tool_context 的 domain/tool/action，并产出可执行 tool plan；不要把这类追问规划成 direct。
+- smalltalk 必须 route=direct、context_usage=none、selected_tool=null。
+- 公司内部制度/流程/政策/FAQ/产品文档等非结构化知识必须 route=rag，不能凭常识回答。
+- 结构化业务数据或写操作走 tool。
+- 任何依赖当前日期/时间/周/月解释的任务，time_requirement.time_reference_type=relative 且 requires_current_datetime=true；不要自行推算具体日期。
+- “下下周/再下一周”使用 canonical_relative=week_after_next；“下下月/再下一月”使用 canonical_relative=month_after_next。
+- 绝对日期或明确范围可直接写 absolute_date/date_range。
+- get_current_datetime 只在纯日期时间问题中作为最终工具；业务查询中的时间处理由执行层内部调用。
+- tool_input 只写业务字段；相对时间不要填猜测日期。
+- reason 不超过 20 个中文字符。
 """.strip()
 
-TIME_REFERENCE_SYSTEM = """
-你是企业 Agent 的时间引用归一化器。只输出合法 JSON，不回答问题。
-你只判断“当前用户消息本身”是否包含需要用当前日期时间解析的时间引用；不要从历史或 previous_tool_context 继承日期。
+# Backward-compatible aliases. The main graph uses plan_intent; older tests may still import these names.
+UNDERSTAND_QUERY_SYSTEM = PLAN_INTENT_SYSTEM
+TIME_REFERENCE_SYSTEM = """Deprecated. Time handling is part of PLAN_INTENT_SYSTEM via time_requirement."""
 
-输出 schema：
+ROUTE_SYSTEM = """
+你是企业级 Agent 的路由一致性检查节点。你只判断下一步，不回答问题。
+请只输出合法 JSON：
 {
-  "has_time_reference": false,
-  "needs_time_resolution": false,
-  "relative_time": null,
-  "is_datetime_only": false,
-  "reason": "不超过20字"
+  "route": "direct | rag | tool | reject",
+  "risk_level": "low | medium | high",
+  "required_tools": [],
+  "reason": "路由理由"
 }
-
-约束：
-- relative_time 只能是 null 或以下规范值之一：today/yesterday/tomorrow/this_week/last_week/next_week/this_month/last_month/next_month。
-- 不输出具体日期，不猜测日期范围；具体日期只能由 get_current_datetime 工具结果产生。
-- 如果当前消息只是询问日期、时间、星期、日期范围，is_datetime_only=true。
-- 如果当前消息是业务问题但带时间引用，is_datetime_only=false；业务工具仍是最终工具，get_current_datetime 只是内部依赖。
-- 如果当前消息没有时间引用，has_time_reference=false, needs_time_resolution=false, relative_time=null。
+判断应保持 plan_intent 的规划结果；除非存在安全风险或结构明显不一致，不要改写业务意图。
 """.strip()
+
 
 PLAN_RETRIEVAL_SYSTEM = """
-你是 Agentic RAG 的检索规划节点。注意：上一步 understand_query 已经产出语义完整的 standalone_query。
+你是 Agentic RAG 的检索规划节点。注意：上一步 plan_intent 已经产出语义完整的 standalone_query。
 你的任务不是改写问题，而是决定是否需要把这个已完成 query 拆成少量检索任务。
 请只输出合法 JSON：
 {
@@ -79,12 +83,11 @@ PLAN_RETRIEVAL_SYSTEM = """
 }
 硬性要求：
 - 默认直接把 standalone_query 原样作为唯一 query。
-- 禁止把 standalone_query 再扩写成更宽泛的问题；禁止添加用户没有要求的“原理、优势、案例、流程、风险、最佳实践”等维度。
+- 禁止把 standalone_query 再扩写成更宽泛的问题；禁止添加用户没有要求的维度。
 - 只有用户明确比较多个对象，或 standalone_query 里确实包含多个对象且需要分别找证据时，才允许拆成最多 3 个任务。
-- 拆分时每个 query 仍必须围绕 standalone_query，不得创造新问题；可以加明确对象名，但不要扩大范围。
-- 如果只是问“有哪些/包含哪些/规则是什么”，优先用 standalone_query 一次整体检索。
-- 检索任务越少越好，目的是提高召回精度和降低延迟。
+- 检索任务越少越好。
 """.strip()
+
 
 REFLECT_EVIDENCE_SYSTEM = """
 你是 Agentic RAG 的证据反思节点。请判断当前证据是否足够回答用户问题。
@@ -103,12 +106,9 @@ REFLECT_EVIDENCE_SYSTEM = """
 }
 要求：
 - 以用户原始问题和 standalone_query 为准，不要扩大问题范围。
-- 如果用户只问“有哪些/包含哪些”，有完整列表证据即可充分，不要要求每个对象的详细功能。
-- 如果用户要求介绍/解释多个对象，每个对象应有相应证据；缺失时可 partial。
 - 只有当补检索很可能带来新的、可回答用户问题的证据时，should_continue_retrieval 才设为 true。
-- followup_tasks 只补当前问题最关键的缺失信息，不要重复已经检索过的 query。
-- 如果已有证据可部分回答，且继续检索大概率只是重复命中概述，should_continue_retrieval=false，直接部分回答。
 """.strip()
+
 
 GENERATE_ANSWER_SYSTEM = """
 你是严谨的企业知识库 Agent。请基于输入中的证据、工具结果和证据评估回答用户。
@@ -117,11 +117,10 @@ GENERATE_ANSWER_SYSTEM = """
 - 回答当前用户问题，不要复读历史无关内容。
 - 使用自然、简洁、结构清晰的中文。
 - 证据不足时说明不足，但不要输出 debug 风格的 chunk 罗列。
-- 没有证据支持的对象，只说明“当前资料未提供详细说明”，不要根据常识推测功能。
-- 如果是 direct 问题，可直接回答；如果涉及当前模型配置，请使用输入中给出的模型配置。
 - RAG 答案末尾列出引用来源，包含 source、title_path、chunk_id。
 - 工具答案不要直接输出原始 JSON，要把 tool_result 转成自然语言；权限或参数错误要用用户能理解的话解释。
 """.strip()
+
 
 MEMORY_UPDATE_SYSTEM = """
 你是会话记忆整理节点。请把本轮问答整理成下一轮可用的干净记忆。
@@ -138,7 +137,7 @@ MEMORY_UPDATE_SYSTEM = """
 """.strip()
 
 
-def format_history(history: list[dict[str, Any]], max_chars: int = 520) -> str:
+def format_history(history: list[dict[str, Any]], max_chars: int = 700) -> str:
     if not history:
         return "无"
     lines: list[str] = []
@@ -150,11 +149,59 @@ def format_history(history: list[dict[str, Any]], max_chars: int = 520) -> str:
                 [
                     f"[{idx}] 用户：{turn.get('question', '')}",
                     f"独立问题：{turn.get('standalone_query', '')}",
-                    f"助手记忆：{truncate(answer, 160)}",
+                    f"助手记忆：{truncate(answer, 220)}",
                 ]
             )
         )
     return truncate("\n\n".join(lines), max_chars)
+
+
+def compact_previous_tool_context(context: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(context, dict) or not context:
+        return {}
+    tool_input = context.get("tool_input") if isinstance(context.get("tool_input"), dict) else {}
+    compact_input = {
+        str(key): value
+        for key, value in tool_input.items()
+        if str(key) not in {"query", "user_id", "role", "file_path"} and not str(key).startswith("_")
+    }
+    output = {
+        "domain": context.get("domain"),
+        "tool_name": context.get("tool_name"),
+        "tool_input": compact_input,
+        "result_summary": truncate(str(context.get("result_summary") or ""), 360),
+    }
+    return {key: value for key, value in output.items() if value not in (None, "", {})}
+
+
+def format_time_reference_user(question: str) -> str:
+    # Backward-compatible helper. The main graph no longer uses a standalone time node.
+    return "\n".join([f"current_message：{question}"])
+
+
+def format_plan_intent_user(
+    question: str,
+    summary: str = "",
+    history: list[dict[str, Any]] | None = None,
+    previous_tool_context: dict[str, Any] | None = None,
+    available_tool_contracts: str = "[]",
+    role: str | None = None,
+    planning_context: dict[str, Any] | None = None,
+) -> str:
+    # Planner only needs compact state, not raw history or long summaries.
+    if planning_context is None:
+        planning_context = {
+            "recent": format_history(history or [], max_chars=420),
+            "previous_tool_context": compact_previous_tool_context(previous_tool_context),
+        }
+    return "\n".join(
+        [
+            f"role={role or 'unknown'}",
+            "available_capabilities=" + available_tool_contracts,
+            "planning_context=" + json.dumps(planning_context or {}, ensure_ascii=False, separators=(",", ":")),
+            f"current_message={question}",
+        ]
+    )
 
 
 def format_understand_user(
@@ -164,33 +211,29 @@ def format_understand_user(
     candidate_tool: str | None = None,
     previous_tool_context: dict[str, Any] | None = None,
     available_tool_contracts: str = "[]",
+    time_reference: dict[str, Any] | None = None,
     role: str | None = None,
 ) -> str:
-    _ = candidate_tool
-    return "\n\n".join(
-        [
-            f"当前问题：{question}",
-            f"当前角色：{role or 'unknown'}",
-            f"会话摘要：{truncate(summary or '无', 180)}",
-            "最近历史：\n" + format_history(history),
-            "previous_tool_context：" + json.dumps(previous_tool_context or {}, ensure_ascii=False, separators=(",", ":")),
-            "available_tool_contracts：" + available_tool_contracts,
-            "只能从 available_tool_contracts 中选择工具和 action；如果能力不可见，输出 permission_required direct。",
-        ]
+    # Backward-compatible wrapper around the new planner prompt.
+    return format_plan_intent_user(
+        question=question,
+        summary=summary,
+        history=history,
+        previous_tool_context=previous_tool_context,
+        available_tool_contracts=available_tool_contracts,
+        role=role,
+        planning_context=None,
     )
 
 
-def format_time_reference_user(
-    question: str,
-    standalone_query: str,
-    planner_context: dict[str, Any] | None = None,
-) -> str:
-    return "\n\n".join(
+def format_route_user(question: str, standalone_query: str, intent: str, topic: str, entities: list[str]) -> str:
+    return "\n".join(
         [
-            f"当前用户消息：{question}",
-            f"planner_standalone_query：{standalone_query}",
-            "planner_context：" + json.dumps(planner_context or {}, ensure_ascii=False, separators=(",", ":")),
-            "只判断当前用户消息本身的时间引用；不要从 planner_context 或历史继承日期。",
+            f"原始问题：{question}",
+            f"独立问题：{standalone_query}",
+            f"初步 intent：{intent}",
+            f"topic：{topic or '无'}",
+            "entities：" + ("、".join(entities) if entities else "无"),
         ]
     )
 
@@ -254,7 +297,6 @@ def format_answer_user(
 
 
 def compact_evidence_assessment(evidence_assessment: dict[str, Any] | None) -> dict[str, Any]:
-    """只把最终回答需要的证据评估字段交给 LLM。"""
     if not evidence_assessment:
         return {}
     output: dict[str, Any] = {}

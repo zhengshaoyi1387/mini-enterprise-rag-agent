@@ -8,15 +8,16 @@ from mini_rag.graph.state import AgentState
 
 
 class AgenticRAGWorkflow:
-    """LangGraph workflow for the simplified enterprise Agent.
+    """LangGraph workflow for the enterprise Agent.
 
     Main graph:
-        load_context -> check_permission -> understand_query -> route
-        route=rag    -> plan_retrieval -> retrieve -> reflect -> generate_answer
-        route=tool   -> call_tool -> generate_answer
-        route=direct -> generate_answer
-        route=reject -> generate_answer
-        generate_answer -> update_memory -> END
+    load_context -> check_permission -> build_capability_catalog ->
+    build_planning_context -> plan_intent -> validate_plan -> route
+
+    route=rag  -> plan_retrieval -> retrieve -> reflect -> generate_answer
+    route=tool -> call_tool -> generate_answer
+    route=direct/reject -> generate_answer
+    generate_answer -> update_memory -> END
     """
 
     def __init__(self, settings: Settings, llm: Any | None = None, retriever: Any | None = None, context_store: Any | None = None):
@@ -96,7 +97,10 @@ class AgenticRAGWorkflow:
         workflow = StateGraph(AgentState)
         workflow.add_node("load_context", self.nodes.load_context)
         workflow.add_node("check_permission", self.nodes.check_permission)
-        workflow.add_node("understand_query", self.nodes.understand_query)
+        workflow.add_node("build_capability_catalog", self.nodes.build_capability_catalog)
+        workflow.add_node("build_planning_context", self.nodes.build_planning_context)
+        workflow.add_node("plan_intent", self.nodes.plan_intent)
+        workflow.add_node("validate_plan", self.nodes.validate_plan)
         workflow.add_node("route", self.nodes.route)
         workflow.add_node("plan_retrieval", self.nodes.plan_retrieval)
         workflow.add_node("retrieve", self.nodes.retrieve)
@@ -107,8 +111,11 @@ class AgenticRAGWorkflow:
 
         workflow.set_entry_point("load_context")
         workflow.add_edge("load_context", "check_permission")
-        workflow.add_edge("check_permission", "understand_query")
-        workflow.add_edge("understand_query", "route")
+        workflow.add_edge("check_permission", "build_capability_catalog")
+        workflow.add_edge("build_capability_catalog", "build_planning_context")
+        workflow.add_edge("build_planning_context", "plan_intent")
+        workflow.add_edge("plan_intent", "validate_plan")
+        workflow.add_edge("validate_plan", "route")
         workflow.add_conditional_edges(
             "route",
             self.nodes.next_after_route,
@@ -149,7 +156,10 @@ class AgenticRAGWorkflow:
     def _run_until_generate(self, state: AgentState) -> AgentState:
         state = self.nodes.load_context(state)
         state = self.nodes.check_permission(state)
-        state = self.nodes.understand_query(state)
+        state = self.nodes.build_capability_catalog(state)
+        state = self.nodes.build_planning_context(state)
+        state = self.nodes.plan_intent(state)
+        state = self.nodes.validate_plan(state)
         state = self.nodes.route(state)
         next_node = self.nodes.next_after_route(state)
         if next_node == "call_tool":
@@ -159,10 +169,10 @@ class AgenticRAGWorkflow:
             state = self.nodes.retrieve(state)
             if self.nodes.after_retrieve(state) == "reflect_evidence":
                 state = self.nodes.reflect_evidence(state)
-            while self.nodes.after_reflect(state) == "retrieve":
-                state = self.nodes.retrieve(state)
-                if self.nodes.after_retrieve(state) == "reflect_evidence":
-                    state = self.nodes.reflect_evidence(state)
-                else:
-                    break
+                while self.nodes.after_reflect(state) == "retrieve":
+                    state = self.nodes.retrieve(state)
+                    if self.nodes.after_retrieve(state) == "reflect_evidence":
+                        state = self.nodes.reflect_evidence(state)
+                    else:
+                        break
         return state

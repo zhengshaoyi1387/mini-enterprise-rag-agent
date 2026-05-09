@@ -9,9 +9,7 @@ from typing import Any, Callable
 METADATA_FIELD_PATTERN = re.compile(
     r"(?im)^\s*[-*]?\s*(source|title_path|titlepath|chunk_id|chunkid|vector_score|bm25_score|rrf_score|rerank_score|rank|preview)\s*[:：].*$"
 )
-REFERENCE_BLOCK_PATTERN = re.compile(
-    r"(?is)(引用来源|来源|Sources?|References?)\s*[:：].*$"
-)
+REFERENCE_BLOCK_PATTERN = re.compile(r"(?is)(引用来源|来源|Sources?|References?)\s*[:：].*$")
 
 
 def now_ms() -> float:
@@ -29,23 +27,27 @@ class NodeTimer:
 
     def __exit__(self, exc_type, exc, tb):
         elapsed = round(now_ms() - self.start, 2)
+        # Keep trace useful but compact. The full state can be inspected via
+        # top-level trace fields; per-node listing every key bloats logs without
+        # improving debugging quality.
         self.state.setdefault("node_trace", []).append(
             {
                 "node": self.node,
                 "latency_ms": elapsed,
                 "route": self.state.get("route", ""),
                 "error": str(exc) if exc else self.state.get("error"),
-                "output_keys": sorted(k for k in self.state.keys() if k not in {"retrieved_docs"}),
+                "state": {
+                    "intent": self.state.get("intent", ""),
+                    "message_type": self.state.get("message_type", ""),
+                    "selected_tool": self.state.get("selected_tool"),
+                    "selected_action": self.state.get("selected_action"),
+                },
             }
         )
         return False
 
 
 def strip_citations_and_metadata(text: str) -> str:
-    """生成会话记忆前清理引用和技术元数据。
-
-    这里不是业务规则，而是工程边界：下一轮语义理解不应该看到 source/chunk_id 等 trace 字段。
-    """
     text = text or ""
     text = REFERENCE_BLOCK_PATTERN.sub("", text)
     lines = []
@@ -59,12 +61,9 @@ def strip_citations_and_metadata(text: str) -> str:
 
 
 def safe_json_loads(text: str, default: Any) -> Any:
-    if not text:
-        return default
-    if not isinstance(text, str):
+    if not text or not isinstance(text, str):
         return default
     raw = text.strip()
-    # 兼容模型偶尔输出 ```json ... ```。
     raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.I)
     raw = re.sub(r"\s*```$", "", raw)
     try:
@@ -165,16 +164,18 @@ def format_evidence_text(docs: list[Any], limit_each: int = 900) -> str:
 
 
 def _contains_entity(doc: Any, entity: str) -> bool:
-    entity = str(entity or '').strip()
+    entity = str(entity or "").strip()
     if not entity:
         return False
-    md = getattr(doc, 'metadata', None) or {}
-    text = ' '.join([
-        str(md.get('title_path', '')),
-        str(md.get('section', '')),
-        str(md.get('source', '')),
-        str(getattr(doc, 'page_content', '') or ''),
-    ])
+    md = getattr(doc, "metadata", None) or {}
+    text = " ".join(
+        [
+            str(md.get("title_path", "")),
+            str(md.get("section", "")),
+            str(md.get("source", "")),
+            str(getattr(doc, "page_content", "") or ""),
+        ]
+    )
     return entity in text
 
 
@@ -184,37 +185,29 @@ def compact_evidence_text(
     limit_each: int = 260,
     max_total_chars: int = 2200,
 ) -> str:
-    """把检索证据压缩成 final/reflection 节点使用的短证据。
-
-    目标不是总结事实，而是减少 LLM 输入：
-    - 按实体优先保留相关 chunk；
-    - 去掉重复 chunk；
-    - 每条证据只保留 source/title_path/chunk_id + 短文本。
-    """
     docs = dedupe_keep_order(docs, key=document_key)
     selected: list[Any] = []
-
     for entity in entities or []:
         matched = [doc for doc in docs if _contains_entity(doc, entity)]
         selected.extend(matched[:2])
-
     selected.extend(docs[:5])
     selected = dedupe_keep_order(selected, key=document_key)
-
     blocks: list[str] = []
     total = 0
     for idx, doc in enumerate(selected, start=1):
-        md = getattr(doc, 'metadata', None) or {}
-        content = truncate(str(getattr(doc, 'page_content', '') or ''), limit_each)
-        block = '\n'.join([
-            f"[证据 {idx}]",
-            f"source: {md.get('source', 'unknown')}",
-            f"title_path: {md.get('title_path', 'unknown')}",
-            f"chunk_id: {md.get('chunk_id', 'unknown')}",
-            f"text: {content}",
-        ])
+        md = getattr(doc, "metadata", None) or {}
+        content = truncate(str(getattr(doc, "page_content", "") or ""), limit_each)
+        block = "\n".join(
+            [
+                f"[证据 {idx}]",
+                f"source: {md.get('source', 'unknown')}",
+                f"title_path: {md.get('title_path', 'unknown')}",
+                f"chunk_id: {md.get('chunk_id', 'unknown')}",
+                f"text: {content}",
+            ]
+        )
         if total + len(block) > max_total_chars:
             break
         blocks.append(block)
         total += len(block)
-    return '\n\n'.join(blocks)
+    return "\n\n".join(blocks)
