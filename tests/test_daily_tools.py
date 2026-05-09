@@ -4,7 +4,7 @@ import csv
 import json
 from pathlib import Path
 
-from mini_rag.security.permissions import TOOL_PERMISSIONS
+from mini_rag.security.permissions import TOOL_ACTION_PERMISSIONS, TOOL_PERMISSIONS, get_allowed_tool_actions
 from mini_rag.tools.attendance_tool import query_attendance_summary
 from mini_rag.tools.calendar_tool import manage_company_calendar
 from mini_rag.tools.daily_tools import build_default_tool_registry, select_daily_tool_by_rule
@@ -194,9 +194,9 @@ def test_tool_registry_only_contains_real_daily_tools() -> None:
     names = {tool["name"] for tool in registry.list_tools()}
 
     assert names == {"get_current_datetime", "query_attendance_summary", "manage_company_calendar"}
-    assert select_daily_tool_by_rule("上周公司的出勤情况怎么样") == "query_attendance_summary"
-    assert select_daily_tool_by_rule("下周公司有哪些安排") == "manage_company_calendar"
-    assert select_daily_tool_by_rule("现在几点") == "get_current_datetime"
+    assert select_daily_tool_by_rule("上周公司的出勤情况怎么样") is None
+    assert select_daily_tool_by_rule("下周公司有哪些安排") is None
+    assert select_daily_tool_by_rule("现在几点") is None
     assert not {
         "generate_weekly_report",
         "draft_email",
@@ -225,3 +225,6 @@ def test_tool_permissions_cleanup() -> None:
         "query_attendance_summary",
         "manage_company_calendar",
     }
+    assert set(TOOL_ACTION_PERMISSIONS["manage_company_calendar"]) == {"query", "create", "update", "delete"}
+    assert get_allowed_tool_actions("employee", "manage_company_calendar") == {"query"}
+    assert get_allowed_tool_actions("admin", "manage_company_calendar") == {"query", "create", "update", "delete"}

@@ -28,6 +28,8 @@ class AgentState(TypedDict, total=False):
 
     # understanding / routing
     intent: str
+    message_type: str
+    context_usage: str
     route: RouteName
     risk_level: str
     standalone_query: str
@@ -38,6 +40,7 @@ class AgentState(TypedDict, total=False):
     required_tools: list[str]
     candidate_tool: str | None
     selected_tool: str | None
+    selected_action: str | None
     tool_input: dict[str, Any]
     tool_result: dict[str, Any]
     previous_tool_context: dict[str, Any]

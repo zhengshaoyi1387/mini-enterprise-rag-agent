@@ -68,5 +68,15 @@
     "time": "16:00-18:00",
     "location": "",
     "description": ""
+  },
+  {
+    "event_id": "EVT-20260518-0001",
+    "date": "2026-05-18",
+    "title": "动员大会",
+    "type": "meeting",
+    "department": "all",
+    "time": "09:00-11:00",
+    "location": "",
+    "description": ""
   }
 ]

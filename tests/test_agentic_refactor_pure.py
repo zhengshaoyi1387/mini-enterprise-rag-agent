@@ -67,8 +67,13 @@ class FakeLLM:
     def invoke(self, messages):
         system = messages[0][1]
         user = messages[1][1]
-        if "上下文理解节点" in system:
-            return _Msg('{"intent":"direct","standalone_query":"你是什么模型","topic":"","entities":[],"needs_retrieval":false,"reason":"模型身份问题"}')
+        if "结构化 Planner" in system or "问题改写" in system:
+            return _Msg(
+                '{"message_type":"business_question","context_usage":"none","intent":"direct","route":"direct",'
+                '"standalone_query":"你是什么模型","topic":"","entities":[],"risk_level":"low",'
+                '"selected_tool":null,"selected_action":null,"required_tools":[],"tool_input":{},'
+                '"needs_time_resolution":false,"relative_time":null,"missing_required_slots":[],"reason":"模型身份问题"}'
+            )
         if "路由节点" in system:
             return _Msg('{"route":"direct","risk_level":"low","required_tools":[],"reason":"无需检索"}')
         if "严谨的企业知识库 Agent" in system:

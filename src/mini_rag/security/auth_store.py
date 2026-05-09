@@ -13,7 +13,14 @@ import time
 from typing import Any
 
 from mini_rag.ingestion.kb_config import normalize_kb_ids
-from mini_rag.security.permissions import RolePolicy, TOOL_PERMISSIONS, VALID_ROLES, default_role_policy, normalize_role
+from mini_rag.security.permissions import (
+    RolePolicy,
+    TOOL_ACTION_PERMISSIONS,
+    TOOL_PERMISSIONS,
+    VALID_ROLES,
+    default_role_policy,
+    normalize_role,
+)
 from mini_rag.utils import ensure_dir
 
 
@@ -114,7 +121,7 @@ class SQLiteAuthStore:
                 ).fetchone()
                 if row:
                     stored_tools = [str(item) for item in json.loads(row["allowed_tools_json"] or "[]")]
-                    has_stale_tools = any(tool not in TOOL_PERMISSIONS for tool in stored_tools)
+                    has_stale_tools = any(not is_valid_tool_policy_spec(tool) for tool in stored_tools)
                     if has_stale_tools:
                         stored_kbs = normalize_kb_ids(json.loads(row["allowed_kbs_json"] or "[]"))
                         conn.execute(
@@ -274,8 +281,7 @@ class SQLiteAuthStore:
         role = normalize_role(role)
         if role not in VALID_ROLES:
             raise ValueError(f"unknown role: {role}")
-        valid_tools = set(TOOL_PERMISSIONS)
-        normalized_tools = sorted({str(tool) for tool in allowed_tools if str(tool) in valid_tools})
+        normalized_tools = normalize_tool_policy_specs(allowed_tools)
         policy = RolePolicy(role=role, allowed_kbs=normalize_kb_ids(allowed_kbs), allowed_tools=normalized_tools)
         with self._connect() as conn:
             conn.execute(
@@ -299,6 +305,25 @@ class SQLiteAuthStore:
 
 def normalize_username(username: str | None) -> str:
     return str(username or "").strip().lower()
+
+
+def is_valid_tool_policy_spec(spec: str) -> bool:
+    spec = str(spec or "").strip()
+    if spec in TOOL_PERMISSIONS:
+        return True
+    if "." not in spec:
+        return False
+    tool_name, action = spec.split(".", 1)
+    return bool(tool_name in TOOL_ACTION_PERMISSIONS and action in TOOL_ACTION_PERMISSIONS[tool_name])
+
+
+def normalize_tool_policy_specs(allowed_tools: list[str]) -> list[str]:
+    normalized: set[str] = set()
+    for raw_spec in allowed_tools:
+        spec = str(raw_spec or "").strip()
+        if is_valid_tool_policy_spec(spec):
+            normalized.add(spec)
+    return sorted(normalized)
 
 
 def hash_password(password: str) -> tuple[str, str]:

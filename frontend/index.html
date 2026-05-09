@@ -423,6 +423,9 @@
     .admin-actions { display: grid; gap: 8px; margin-top: 10px; }
     .admin-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .matrix { display: grid; gap: 4px; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; }
+    .check-group { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+    .check-group:last-child { border-bottom: 0; }
+    .check-group .check-line { padding-left: 10px; min-height: 28px; }
     .toast {
       position: fixed;
       left: 50%;
@@ -1109,12 +1112,36 @@ function renderRoleEditor() {
       <span>${escapeHtml(kb.kb_id)} · ${escapeHtml(kb.name)}</span>
     </label>
   `).join('');
-  $('roleToolMatrix').innerHTML = state.admin.tools.map(tool => `
-    <label class="check-line">
-      <input type="checkbox" name="role-tool" value="${escapeHtml(tool.name)}" ${policy.allowed_tools.includes(tool.name) ? 'checked' : ''}>
-      <span>${escapeHtml(tool.name)}</span>
-    </label>
-  `).join('');
+  $('roleToolMatrix').innerHTML = state.admin.tools.map(tool => renderToolPolicyControl(tool, policy)).join('');
+}
+function toolPolicyChecked(policy, toolName, action) {
+  if (policy.allowed_tools.includes(toolName)) return true;
+  if (!action || action === '*') return policy.allowed_tools.includes(`${toolName}.*`);
+  return policy.allowed_tools.includes(`${toolName}.${action}`);
+}
+function renderToolPolicyControl(tool, policy) {
+  const roleActions = ((tool.default_actions || {})[policy.role] || []).filter(Boolean);
+  const actionKeys = roleActions.length ? roleActions : Object.keys(tool.actions || {});
+  const namedActions = actionKeys.filter(action => action && action !== '*');
+  if (!namedActions.length) {
+    return `
+      <label class="check-line">
+        <input type="checkbox" name="role-tool" value="${escapeHtml(tool.name)}" ${toolPolicyChecked(policy, tool.name, '*') ? 'checked' : ''}>
+        <span>${escapeHtml(tool.name)}</span>
+      </label>
+    `;
+  }
+  return `
+    <div class="check-group">
+      <div class="muted">${escapeHtml(tool.name)}</div>
+      ${namedActions.map(action => `
+        <label class="check-line">
+          <input type="checkbox" name="role-tool" value="${escapeHtml(`${tool.name}.${action}`)}" ${toolPolicyChecked(policy, tool.name, action) ? 'checked' : ''}>
+          <span>${escapeHtml(action)}</span>
+        </label>
+      `).join('')}
+    </div>
+  `;
 }
 async function saveRolePolicy() {
   const role = $('roleEditor').value;

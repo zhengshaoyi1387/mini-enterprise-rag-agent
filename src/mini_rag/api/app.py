@@ -44,7 +44,14 @@ from mini_rag.observability.request_logger import RequestLoggerMiddleware
 from mini_rag.observability.trace_store import build_readable_trace, extract_latest_retrieval_trace, load_trace
 from mini_rag.schemas import HealthResponse, QueryRequest, QueryResponse
 from mini_rag.security.auth_store import AuthUser, SQLiteAuthStore
-from mini_rag.security.permissions import TOOL_PERMISSIONS, check_endpoint_permission, get_allowed_kbs, knowledge_base_permission_summary, normalize_role
+from mini_rag.security.permissions import (
+    TOOL_PERMISSIONS,
+    check_endpoint_permission,
+    get_allowed_kbs,
+    get_allowed_tool_actions,
+    knowledge_base_permission_summary,
+    normalize_role,
+)
 from mini_rag.security.safety import looks_dangerous
 from mini_rag.tools.daily_tools import build_default_tool_registry
 
@@ -495,6 +502,11 @@ def list_tools(user: AuthUser = Depends(require_admin_user)) -> ToolListResponse
     for name in sorted(TOOL_PERMISSIONS):
         item = dict(registry_tools.get(name) or {"name": name, "description": "系统内部工具", "risk_level": "low"})
         item["default_roles"] = TOOL_PERMISSIONS.get(name, [])
+        item["default_actions"] = {
+            role: sorted(get_allowed_tool_actions(role, name))
+            for role in ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"]
+            if get_allowed_tool_actions(role, name)
+        }
         tools.append(item)
     return ToolListResponse(tools=tools)
 

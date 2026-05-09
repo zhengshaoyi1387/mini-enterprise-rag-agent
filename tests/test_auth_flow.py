@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 
 import mini_rag.api.app as app_module
 from mini_rag.config import Settings
+from mini_rag.security.auth_store import SQLiteAuthStore
+from mini_rag.security.permissions import get_allowed_tool_actions
 
 
 class RecordingAgent:
@@ -139,6 +141,38 @@ def test_admin_can_update_role_kb_permissions(tmp_path, monkeypatch) -> None:
         after = client.get("/auth/me", headers=auth_header(employee_token)).json()
 
     assert "finance" in after["allowed_kbs"]
+
+
+def test_admin_can_update_public_role_policy(tmp_path, monkeypatch) -> None:
+    configure_app(tmp_path, monkeypatch)
+    with TestClient(app_module.app) as client:
+        admin_token = login(client, "admin", "admin123")
+        response = client.patch(
+            "/admin/roles",
+            headers=auth_header(admin_token),
+            json={
+                "role": "public",
+                "allowed_kbs": ["public"],
+                "allowed_tools": ["search_knowledge_base", "get_current_datetime"],
+            },
+        )
+
+    assert response.status_code == 200, response.text
+    public_policy = next(item for item in response.json()["roles"] if item["role"] == "public")
+    assert public_policy["allowed_tools"] == ["get_current_datetime", "search_knowledge_base"]
+
+
+def test_role_policy_preserves_action_level_tool_specs(tmp_path) -> None:
+    store = SQLiteAuthStore(tmp_path / "auth.sqlite3")
+    policy = store.update_role_policy(
+        "admin",
+        ["public", "hr"],
+        ["search_knowledge_base", "manage_company_calendar.query"],
+    )
+    policies = store.list_role_policies()
+
+    assert policy.allowed_tools == ["manage_company_calendar.query", "search_knowledge_base"]
+    assert get_allowed_tool_actions("admin", "manage_company_calendar", role_policies=policies) == {"query"}
 
 
 def test_regular_user_cannot_access_admin_or_trace_endpoints(tmp_path, monkeypatch) -> None:

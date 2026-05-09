@@ -13,13 +13,13 @@ from mini_rag.graph.prompts import (
     MEMORY_UPDATE_SYSTEM,
     PLAN_RETRIEVAL_SYSTEM,
     REFLECT_EVIDENCE_SYSTEM,
-    ROUTE_SYSTEM,
+    TIME_REFERENCE_SYSTEM,
     UNDERSTAND_QUERY_SYSTEM,
     format_answer_user,
     format_memory_user,
     format_plan_user,
     format_reflect_user,
-    format_route_user,
+    format_time_reference_user,
     format_understand_user,
 )
 from mini_rag.graph.state import AgentState
@@ -36,9 +36,13 @@ from mini_rag.graph.utils import (
     strip_citations_and_metadata,
     truncate,
 )
-from mini_rag.utils import stable_hash
 from mini_rag.security.auth_store import SQLiteAuthStore
-from mini_rag.security.permissions import assert_can_access_kbs, assert_tool_permission, normalize_role
+from mini_rag.security.permissions import (
+    assert_can_access_kbs,
+    assert_tool_action_permission,
+    can_use_tool_action,
+    normalize_role,
+)
 from mini_rag.tools.daily_tools import build_default_tool_registry
 from mini_rag.tools.datetime_tool import get_current_datetime
 from mini_rag.tools.contracts import validate_tool_input
@@ -141,14 +145,16 @@ class AgenticRAGNodes:
             if state.get("error") and state.get("route") == "reject":
                 return state
             question = state.get("question", "")
-            # Let the LLM choose the tool from the tool contracts.
-            # We intentionally do not pre-select a candidate by keyword, because
-            # relative-time words such as “下周” can otherwise bias the planner
-            # toward get_current_datetime even when the business intent is calendar/attendance.
-            candidate_tool = None
+            # Let the LLM choose from permission-filtered tool contracts. We
+            # intentionally do not pre-select a candidate by keyword.
             state["candidate_tool"] = None
 
-            tool_contracts = self.tool_registry.format_tool_contracts_for_prompt()
+            role = normalize_role(state.get("role"))
+            role_policies = self.auth_store.list_role_policies()
+            tool_contracts = self.tool_registry.format_tool_contracts_for_prompt(
+                role=role,
+                role_policies=role_policies,
+            )
             user_prompt = format_understand_user(
                 question=question,
                 summary=state.get("conversation_summary", ""),
@@ -156,6 +162,7 @@ class AgenticRAGNodes:
                 candidate_tool=None,
                 previous_tool_context=state.get("previous_tool_context", {}),
                 available_tool_contracts=tool_contracts,
+                role=role,
             )
             payload = self._invoke_json(
                 state=state,
@@ -164,6 +171,8 @@ class AgenticRAGNodes:
                 user=user_prompt,
                 default={
                     "intent": "rag_fact",
+                    "message_type": "business_question",
+                    "context_usage": "none",
                     "route": "rag",
                     "standalone_query": question,
                     "topic": "",
@@ -172,6 +181,7 @@ class AgenticRAGNodes:
                     "risk_level": "low",
                     "required_tools": [],
                     "selected_tool": None,
+                    "selected_action": None,
                     "tool_input": {},
                     "needs_time_resolution": False,
                     "relative_time": None,
@@ -188,31 +198,76 @@ class AgenticRAGNodes:
             if self._is_dangerous_question(question, standalone_query):
                 route = "reject"
                 payload["risk_level"] = "high"
-            state["intent"] = intent
-            state["route"] = route  # type: ignore[assignment]
-            state["risk_level"] = str(payload.get("risk_level") or "low")
-            state["required_tools"] = [str(x) for x in coerce_list(payload.get("required_tools"))]
+            message_type = str(payload.get("message_type") or "business_question")
+            context_usage = str(payload.get("context_usage") or "none")
+            risk_level = str(payload.get("risk_level") or "low")
+            required_tools = [str(x) for x in coerce_list(payload.get("required_tools"))]
+            tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
             selected_tool = str(payload.get("selected_tool") or "") or None
+            selected_action = str(payload.get("selected_action") or "") or None
+
+            normalized_plan = self._normalize_planner_contract(
+                role=role,
+                role_policies=role_policies,
+                intent=intent,
+                route=route,
+                message_type=message_type,
+                context_usage=context_usage,
+                selected_tool=selected_tool,
+                selected_action=selected_action,
+                required_tools=required_tools,
+                tool_input=tool_input,
+            )
+            intent = normalized_plan["intent"]
+            route = normalized_plan["route"]
+            selected_tool = normalized_plan["selected_tool"]
+            selected_action = normalized_plan["selected_action"]
+            required_tools = normalized_plan["required_tools"]
+            tool_input = normalized_plan["tool_input"]
+            message_type = normalized_plan["message_type"]
+            context_usage = normalized_plan["context_usage"]
+
+            state["intent"] = intent
+            state["message_type"] = message_type
+            state["context_usage"] = context_usage
+            state["route"] = route  # type: ignore[assignment]
+            state["risk_level"] = risk_level
+            state["required_tools"] = required_tools
             state["selected_tool"] = selected_tool
-            state["tool_input"] = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+            state["selected_action"] = selected_action
+            state["route"] = route  # type: ignore[assignment]
+            state["tool_input"] = tool_input
             state["needs_time_resolution"] = bool(payload.get("needs_time_resolution", False))
             state["relative_time"] = str(payload.get("relative_time") or "") or None
             state["missing_required_slots"] = [str(x) for x in coerce_list(payload.get("missing_required_slots"))]
-            if route == "tool" and selected_tool and selected_tool not in state["required_tools"]:
-                state["required_tools"] = [selected_tool]
             state["standalone_query"] = standalone_query
             state["topic"] = str(payload.get("topic") or "")
             state["entities"] = dedupe_keep_order(entities)
             state["query_reason"] = str(payload.get("reason") or "")
             state["router_reason"] = str(payload.get("reason") or "")
+            self._enforce_current_datetime_contract(state)
+            if normalized_plan.get("normalization_reason"):
+                state.setdefault("observations", []).append(
+                    {
+                        "type": "planner_contract_normalization",
+                        "reason": normalized_plan["normalization_reason"],
+                        "route": state.get("route"),
+                        "intent": state.get("intent"),
+                        "selected_tool": state.get("selected_tool"),
+                        "selected_action": state.get("selected_action"),
+                    }
+                )
             state.setdefault("observations", []).append(
                 {
                     "type": "understanding",
                     "intent": state["intent"],
+                    "message_type": state.get("message_type"),
+                    "context_usage": state.get("context_usage"),
                     "route": state["route"],
                     "standalone_query": state["standalone_query"],
                     "candidate_tool": state.get("candidate_tool"),
                     "selected_tool": state.get("selected_tool"),
+                    "selected_action": state.get("selected_action"),
                     "tool_input": state.get("tool_input", {}),
                     "needs_time_resolution": state.get("needs_time_resolution", False),
                     "relative_time": state.get("relative_time"),
@@ -264,11 +319,13 @@ class AgenticRAGNodes:
                 )
                 return state
             try:
-                assert_tool_permission(role, tool_name, role_policies=self.auth_store.list_role_policies())
+                role_policies = self.auth_store.list_role_policies()
+                action = self._tool_action_from_state(state)
+                assert_tool_action_permission(role, tool_name, action, role_policies=role_policies)
                 try:
                     payload = self._build_tool_payload(state, tool_name, role)
                 except ValidationError as exc:
-                    state["final_answer"] = "我还缺少执行该工具所需的必要信息，请补充具体日期、时间或事件信息。"
+                    state["final_answer"] = self._friendly_validation_error(tool_name)
                     state["tool_result"] = {
                         "error": "tool_input_validation_failed",
                         "message": str(exc),
@@ -292,6 +349,9 @@ class AgenticRAGNodes:
                         }
                     )
                     return state
+                action = self._tool_action_from_state(state, payload)
+                assert_tool_action_permission(role, tool_name, action, role_policies=role_policies)
+                state["selected_action"] = action
                 result = self.tool_registry.invoke(tool_name, payload)
                 state["tool_input"] = payload
                 state["tool_result"] = result
@@ -325,9 +385,9 @@ class AgenticRAGNodes:
                     }
                 )
             except PermissionError as exc:
-                state["route"] = "reject"
                 state["error"] = str(exc)
-                state["final_answer"] = f"你没有权限调用工具：{tool_name}"
+                action = self._tool_action_from_state(state)
+                state["final_answer"] = self._permission_denial_answer(state, tool_name=tool_name, action=action)
                 state.setdefault("tool_calls", []).append({"tool_name": tool_name, "ok": False, "reason": str(exc)})
                 state.setdefault("audit_events", []).append(
                     {"event": "tool_call", "tool_name": tool_name, "role": role, "decision": "blocked", "reason": str(exc)}
@@ -375,7 +435,7 @@ class AgenticRAGNodes:
             # route to retrieval, but program-side permission is checked here
             # immediately before executing the underlying retriever.
             role = normalize_role(state.get("role"))
-            assert_tool_permission(role, "search_knowledge_base", role_policies=self.auth_store.list_role_policies())
+            assert_tool_action_permission(role, "search_knowledge_base", "*", role_policies=self.auth_store.list_role_policies())
             state.setdefault("observations", []).append(
                 {
                     "type": "permission_check",
@@ -588,6 +648,12 @@ class AgenticRAGNodes:
             if state.get("route") == "reject":
                 state["final_answer"] = state.get("final_answer") or "抱歉，这个请求存在安全风险，我不能执行。"
                 return state
+            if state.get("route") == "direct" and state.get("intent") == "smalltalk":
+                state["final_answer"] = "你好，我是企业知识库助手。你可以问我公司制度、考勤、公司日程等问题。"
+                return state
+            if state.get("route") == "direct" and state.get("intent") == "permission_required":
+                state["final_answer"] = self._permission_denial_answer(state)
+                return state
             if state.get("route") == "tool" and state.get("final_answer"):
                 return state
             evidence_text = state.get("evidence_brief") or compact_evidence_text(state.get("retrieved_docs", []), entities=state.get("entities", []))
@@ -618,6 +684,14 @@ class AgenticRAGNodes:
         with NodeTimer(state, "generate_answer"):
             if state.get("route") == "reject":
                 state["final_answer"] = state.get("final_answer") or "抱歉，这个请求存在安全风险，我不能执行。"
+                yield state["final_answer"]
+                return
+            if state.get("route") == "direct" and state.get("intent") == "smalltalk":
+                state["final_answer"] = "你好，我是企业知识库助手。你可以问我公司制度、考勤、公司日程等问题。"
+                yield state["final_answer"]
+                return
+            if state.get("route") == "direct" and state.get("intent") == "permission_required":
+                state["final_answer"] = self._permission_denial_answer(state)
                 yield state["final_answer"]
                 return
             if state.get("route") == "tool" and state.get("final_answer"):
@@ -775,6 +849,8 @@ class AgenticRAGNodes:
             "used_kbs": state.get("used_kbs", []),
             "route": state.get("route"),
             "intent": state.get("intent"),
+            "message_type": state.get("message_type"),
+            "context_usage": state.get("context_usage"),
             "risk_level": state.get("risk_level"),
             "standalone_query": state.get("standalone_query"),
             "topic": state.get("topic"),
@@ -789,6 +865,7 @@ class AgenticRAGNodes:
             "total_latency_ms": round(sum(float(item.get("latency_ms") or 0) for item in state.get("node_trace", [])), 2),
             "candidate_tool": state.get("candidate_tool"),
             "selected_tool": state.get("selected_tool"),
+            "selected_action": state.get("selected_action"),
             "tool_input": state.get("tool_input", {}),
             "tool_result": state.get("tool_result", {}),
             "previous_tool_context": state.get("previous_tool_context", {}),
@@ -805,6 +882,304 @@ class AgenticRAGNodes:
         }
 
     # ---------- internals ----------
+    @staticmethod
+    def _tool_action_from_state(state: AgentState, payload: dict[str, Any] | None = None) -> str:
+        selected_tool = str(state.get("selected_tool") or "")
+        selected_action = str(state.get("selected_action") or "").strip().lower()
+        if selected_action:
+            return selected_action
+        if payload and payload.get("action"):
+            return str(payload.get("action")).strip().lower() or "*"
+        tool_input = state.get("tool_input") or {}
+        if selected_tool == "manage_company_calendar":
+            return str(tool_input.get("action") or "query").strip().lower() or "query"
+        return "*"
+
+    @staticmethod
+    def _planner_selection_allowed(role: str, tool_name: str | None, action: str | None, role_policies: Any | None) -> bool:
+        if not tool_name:
+            return False
+        if tool_name == "search_knowledge_base":
+            action = "*"
+        return can_use_tool_action(role, tool_name, action or "*", role_policies=role_policies)
+
+    def _enforce_current_datetime_contract(self, state: AgentState) -> None:
+        """Normalize current-message time references through an LLM contract.
+
+        previous_tool_context is still useful for business follow-ups, but if
+        the current message itself carries a time reference, the agent must use
+        get_current_datetime as the source of concrete dates. Code only
+        validates the schema and canonical enum returned by the normalizer.
+        """
+
+        if state.get("route") == "reject" or state.get("intent") in {"smalltalk", "permission_required", "reject"}:
+            return
+
+        planner_context = {
+            "intent": state.get("intent"),
+            "route": state.get("route"),
+            "message_type": state.get("message_type"),
+            "context_usage": state.get("context_usage"),
+            "selected_tool": state.get("selected_tool"),
+            "selected_action": state.get("selected_action"),
+            "needs_time_resolution": state.get("needs_time_resolution"),
+            "relative_time": state.get("relative_time"),
+            "tool_input": state.get("tool_input") or {},
+        }
+        payload = self._invoke_json(
+            state=state,
+            node="normalize_time_reference",
+            system=TIME_REFERENCE_SYSTEM,
+            user=format_time_reference_user(
+                question=state.get("question", ""),
+                standalone_query=state.get("standalone_query", ""),
+                planner_context=planner_context,
+            ),
+            default={
+                "has_time_reference": False,
+                "needs_time_resolution": False,
+                "relative_time": None,
+                "is_datetime_only": False,
+                "reason": "",
+            },
+        )
+        normalized_relative = self._canonical_relative_time(payload.get("relative_time"))
+        has_time_reference = bool(payload.get("has_time_reference")) or bool(normalized_relative)
+        needs_time_resolution = bool(payload.get("needs_time_resolution")) and has_time_reference
+        is_datetime_only = bool(payload.get("is_datetime_only")) and has_time_reference
+
+        state.setdefault("observations", []).append(
+            {
+                "type": "time_reference_normalization",
+                "has_time_reference": has_time_reference,
+                "needs_time_resolution": needs_time_resolution,
+                "relative_time": normalized_relative,
+                "is_datetime_only": is_datetime_only,
+                "reason": str(payload.get("reason") or ""),
+            }
+        )
+
+        if needs_time_resolution and normalized_relative:
+            if state.get("relative_time") != normalized_relative or not state.get("needs_time_resolution"):
+                state.setdefault("observations", []).append(
+                    {
+                        "type": "time_reference_contract_applied",
+                        "reason": "current_message_time_requires_datetime_tool",
+                        "relative_time": normalized_relative,
+                        "previous_relative_time": state.get("relative_time"),
+                    }
+                )
+            state["relative_time"] = normalized_relative
+            state["needs_time_resolution"] = True
+
+        if state.get("selected_tool"):
+            return
+
+        if is_datetime_only:
+            state["intent"] = "daily_tool"
+            state["route"] = "tool"
+            state["selected_tool"] = "get_current_datetime"
+            state["selected_action"] = "*"
+            state["required_tools"] = ["get_current_datetime"]
+            state["tool_input"] = {"timezone": "Asia/Shanghai"}
+            if normalized_relative:
+                state["relative_time"] = normalized_relative
+            state.setdefault("observations", []).append(
+                {
+                    "type": "time_reference_contract_applied",
+                    "reason": "datetime_only_question_normalized_to_tool",
+                    "relative_time": state.get("relative_time"),
+                }
+            )
+
+    @staticmethod
+    def _canonical_relative_time(value: Any) -> str | None:
+        text = str(value or "").strip().lower()
+        if not text or text in {"none", "null"}:
+            return None
+        allowed = {
+            "today",
+            "yesterday",
+            "tomorrow",
+            "this_week",
+            "last_week",
+            "next_week",
+            "this_month",
+            "last_month",
+            "next_month",
+        }
+        return text if text in allowed else None
+
+    def _normalize_planner_contract(
+        self,
+        *,
+        role: str,
+        role_policies: Any | None,
+        intent: str,
+        route: str,
+        message_type: str,
+        context_usage: str,
+        selected_tool: str | None,
+        selected_action: str | None,
+        required_tools: list[str],
+        tool_input: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Make the LLM plan internally consistent before routing.
+
+        The planner is allowed to understand meaning, but the state machine
+        owns the schema contract. If an otherwise valid plan contains
+        contradictory fields such as ``selected_tool`` plus ``route=direct``,
+        the executable selection wins. Conversely, direct-only intents must not
+        leak stale or accidental tool fields into later nodes.
+        """
+
+        intent = str(intent or "direct")
+        route = str(route or "direct")
+        message_type = str(message_type or "business_question")
+        context_usage = str(context_usage or "none")
+        selected_tool = str(selected_tool or "") or None
+        selected_action = str(selected_action or "").strip().lower() or None
+        required_tools = [str(item) for item in required_tools if str(item).strip()]
+        tool_input = dict(tool_input or {})
+        normalization_reason = ""
+
+        if route == "reject" or intent == "reject":
+            return {
+                "intent": "reject",
+                "route": "reject",
+                "message_type": message_type,
+                "context_usage": context_usage,
+                "selected_tool": None,
+                "selected_action": None,
+                "required_tools": [],
+                "tool_input": {},
+                "normalization_reason": "reject_plan_cleared_tools" if selected_tool or tool_input else "",
+            }
+
+        if message_type == "smalltalk" or intent == "smalltalk":
+            return {
+                "intent": "smalltalk",
+                "route": "direct",
+                "message_type": "smalltalk",
+                "context_usage": "none",
+                "selected_tool": None,
+                "selected_action": None,
+                "required_tools": [],
+                "tool_input": {},
+                "normalization_reason": "smalltalk_plan_cleared_tools" if selected_tool or tool_input else "",
+            }
+
+        if intent == "permission_required":
+            return {
+                "intent": "permission_required",
+                "route": "direct",
+                "message_type": message_type,
+                "context_usage": context_usage,
+                "selected_tool": None,
+                "selected_action": None,
+                "required_tools": [],
+                "tool_input": {},
+                "normalization_reason": "permission_plan_cleared_tools" if selected_tool or tool_input else "",
+            }
+
+        if selected_tool == "manage_company_calendar" and not selected_action:
+            selected_action = str(tool_input.get("action") or "").strip().lower() or None
+        if selected_tool in {"get_current_datetime", "query_attendance_summary"} and not selected_action:
+            selected_action = "*"
+
+        if selected_tool == "search_knowledge_base":
+            normalized_intent = intent if intent not in {"", "direct", "daily_tool"} else "rag_fact"
+            return {
+                "intent": normalized_intent,
+                "route": "rag",
+                "message_type": message_type,
+                "context_usage": context_usage,
+                "selected_tool": None,
+                "selected_action": None,
+                "required_tools": [],
+                "tool_input": {},
+                "normalization_reason": "search_tool_plan_normalized_to_rag",
+            }
+
+        if selected_tool:
+            if not self._planner_selection_allowed(role, selected_tool, selected_action, role_policies):
+                return {
+                    "intent": "permission_required",
+                    "route": "direct",
+                    "message_type": message_type,
+                    "context_usage": context_usage,
+                    "selected_tool": None,
+                    "selected_action": None,
+                    "required_tools": [],
+                    "tool_input": {},
+                    "normalization_reason": "disallowed_tool_plan_converted_to_permission_required",
+                }
+            if route != "tool" or intent in {"", "direct", "rag_fact"}:
+                normalization_reason = "allowed_tool_selection_normalized_to_tool_route"
+            return {
+                "intent": intent if intent not in {"", "direct", "rag_fact"} else "daily_tool",
+                "route": "tool",
+                "message_type": message_type,
+                "context_usage": context_usage,
+                "selected_tool": selected_tool,
+                "selected_action": selected_action or "*",
+                "required_tools": [selected_tool],
+                "tool_input": tool_input,
+                "normalization_reason": normalization_reason,
+            }
+
+        if route == "tool":
+            return {
+                "intent": "direct" if intent in {"", "daily_tool"} else intent,
+                "route": "direct",
+                "message_type": message_type,
+                "context_usage": context_usage,
+                "selected_tool": None,
+                "selected_action": None,
+                "required_tools": [],
+                "tool_input": {},
+                "normalization_reason": "tool_route_without_selection_normalized_to_direct",
+            }
+
+        return {
+            "intent": intent,
+            "route": route,
+            "message_type": message_type,
+            "context_usage": context_usage,
+            "selected_tool": None,
+            "selected_action": None,
+            "required_tools": [],
+            "tool_input": {},
+            "normalization_reason": "",
+        }
+
+    @staticmethod
+    def _friendly_validation_error(tool_name: str) -> str:
+        if tool_name == "query_attendance_summary":
+            return "我需要一个明确的日期范围才能查询考勤。你可以说“昨天”、“上周”或“2026-05-01 到 2026-05-07”。"
+        if tool_name == "manage_company_calendar":
+            return "我还缺少执行日程操作所需的信息，请补充具体日期、时间或事件信息。"
+        return "我还缺少执行该能力所需的必要信息，请补充后再试。"
+
+    @staticmethod
+    def _permission_denial_answer(
+        state: AgentState,
+        tool_name: str | None = None,
+        action: str | None = None,
+    ) -> str:
+        role = normalize_role(state.get("role"))
+        topic = str(state.get("topic") or "").lower()
+        action = str(action or state.get("selected_action") or "").lower()
+        if tool_name == "manage_company_calendar" or "calendar" in topic or "日程" in topic:
+            if action in {"create", "update", "delete"} or "write" in topic:
+                return "你没有权限修改公司日程。只有 admin 可以新增、更新或删除日程。"
+            if role in {"guest", "public"}:
+                return "你当前角色无法查看公司内部日程，请使用员工或管理员账号登录后再查询。"
+            return "你当前角色没有权限使用该日程能力。"
+        if tool_name == "query_attendance_summary" or "attendance" in topic:
+            return "你当前角色无法查看企业考勤数据，请使用有权限的员工或管理员账号登录后再查询。"
+        return "你当前角色无权使用该能力，请切换到有权限的账号后再试。"
+
     def _finalize_tool_input_with_llm(
         self,
         state: AgentState,
@@ -842,6 +1217,9 @@ class AgenticRAGNodes:
 
     def _build_tool_payload(self, state: AgentState, tool_name: str, role: str) -> dict[str, Any]:
         payload = dict(state.get("tool_input") or {})
+        file_path = payload.get("file_path")
+        if tool_name == "manage_company_calendar" and state.get("selected_action") and not payload.get("action"):
+            payload["action"] = state.get("selected_action")
         datetime_result: dict[str, Any] | None = None
 
         if tool_name == "get_current_datetime":
@@ -867,11 +1245,13 @@ class AgenticRAGNodes:
             )
             payload = validate_tool_input(tool_name, payload)
 
+        if file_path:
+            payload["file_path"] = file_path
         payload.update({"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role})
         return payload
 
     def _run_datetime_for_tool(self, state: AgentState, role: str) -> dict[str, Any]:
-        assert_tool_permission(role, "get_current_datetime", role_policies=self.auth_store.list_role_policies())
+        assert_tool_action_permission(role, "get_current_datetime", "*", role_policies=self.auth_store.list_role_policies())
         datetime_payload = {"timezone": "Asia/Shanghai"}
         datetime_result = get_current_datetime(datetime_payload)
         state.setdefault("tool_calls", []).append(
@@ -1276,6 +1656,8 @@ def create_initial_state(
         "conversation_summary": "",
         "history": [],
         "intent": "",
+        "message_type": "",
+        "context_usage": "none",
         "route": "direct",
         "risk_level": "low",
         "standalone_query": question,
@@ -1284,6 +1666,7 @@ def create_initial_state(
         "required_tools": [],
         "candidate_tool": None,
         "selected_tool": None,
+        "selected_action": None,
         "tool_input": {},
         "tool_result": {},
         "previous_tool_context": {},

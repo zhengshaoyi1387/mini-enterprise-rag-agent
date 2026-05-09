@@ -92,7 +92,7 @@ def test_understand_query_calls_llm_for_daily_tool(tmp_path: Path) -> None:
     state = nodes.understand_query(state)
 
     assert len(llm.calls) == 1
-    assert state["candidate_tool"] == "query_attendance_summary"
+    assert state["candidate_tool"] is None
     assert state["selected_tool"] == "query_attendance_summary"
     assert state["needs_time_resolution"] is True
     assert state["relative_time"] == "yesterday"
@@ -125,7 +125,7 @@ def test_rule_candidate_does_not_override_llm(tmp_path: Path) -> None:
     state = nodes.understand_query(state)
     state = nodes.route(state)
 
-    assert state["candidate_tool"] == "query_attendance_summary"
+    assert state["candidate_tool"] is None
     assert state["route"] == "direct"
     assert state["selected_tool"] is None
 
@@ -327,6 +327,7 @@ def test_calendar_write_permission_still_admin_only(tmp_path: Path) -> None:
                 "date": "2026-05-09",
                 "title": "全员会",
                 "type": "meeting",
+                "time": "15:00",
                 "file_path": str(calendar_path),
             },
         }
@@ -347,6 +348,7 @@ def test_calendar_write_permission_still_admin_only(tmp_path: Path) -> None:
                 "date": "2026-05-09",
                 "title": "全员会",
                 "type": "meeting",
+                "time": "15:00",
                 "file_path": str(calendar_path),
             },
         }

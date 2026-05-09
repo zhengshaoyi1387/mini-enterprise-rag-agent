@@ -13,7 +13,7 @@ from typing import Final
 from mini_rag.ingestion.kb_config import KNOWLEDGE_BASES, normalize_kb_ids
 
 
-VALID_ROLES: Final[set[str]] = {"guest", "user", "employee", "finance", "hr", "it", "admin"}
+VALID_ROLES: Final[set[str]] = {"guest", "public", "user", "employee", "finance", "hr", "it", "admin"}
 DEFAULT_ROLE: Final[str] = "user"
 
 ROLE_ALLOWED_KBS: Final[dict[str, list[str]]] = {
@@ -23,13 +23,14 @@ ROLE_ALLOWED_KBS: Final[dict[str, list[str]]] = {
     "finance": ["public", "finance"],
     "hr": ["public", "hr"],
     "it": ["public", "it"],
+    "public": ["public"],
     "guest": ["public"],
 }
 
 ENDPOINT_PERMISSIONS: Final[dict[str, list[str]]] = {
-    "health": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
-    "query": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
-    "chat": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
+    "health": ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"],
+    "query": ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"],
+    "chat": ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"],
     "trace": ["admin"],
     "eval": ["admin"],
     "upload": ["user", "employee", "finance", "hr", "it", "admin"],
@@ -39,10 +40,28 @@ ENDPOINT_PERMISSIONS: Final[dict[str, list[str]]] = {
 }
 
 TOOL_PERMISSIONS: Final[dict[str, list[str]]] = {
-    "search_knowledge_base": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
-    "get_current_datetime": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
+    "search_knowledge_base": ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"],
+    "get_current_datetime": ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"],
     "query_attendance_summary": ["user", "employee", "finance", "hr", "it", "admin"],
     "manage_company_calendar": ["user", "employee", "finance", "hr", "it", "admin"],
+}
+
+TOOL_ACTION_PERMISSIONS: Final[dict[str, dict[str, set[str]]]] = {
+    "search_knowledge_base": {
+        "*": {"guest", "public", "user", "employee", "finance", "hr", "it", "admin"},
+    },
+    "get_current_datetime": {
+        "*": {"guest", "public", "user", "employee", "finance", "hr", "it", "admin"},
+    },
+    "query_attendance_summary": {
+        "*": {"user", "employee", "finance", "hr", "it", "admin"},
+    },
+    "manage_company_calendar": {
+        "query": {"user", "employee", "finance", "hr", "it", "admin"},
+        "create": {"admin"},
+        "update": {"admin"},
+        "delete": {"admin"},
+    },
 }
 
 
@@ -83,6 +102,38 @@ def can_use_tool(role: str | None, tool_name: str, role_policies: RolePolicyMap 
     return role in TOOL_PERMISSIONS.get(tool_name, [])
 
 
+def get_allowed_tool_actions(role: str | None, tool_name: str, role_policies: RolePolicyMap | None = None) -> set[str]:
+    role = normalize_role(role)
+    action_permissions = TOOL_ACTION_PERMISSIONS.get(tool_name, {})
+    allowed = {action for action, roles in action_permissions.items() if role in roles}
+    if not allowed:
+        return set()
+
+    if role_policies and role in role_policies:
+        allowed_specs = set(role_policies[role].allowed_tools)
+        action_specs = {
+            spec.split(".", 1)[1]
+            for spec in allowed_specs
+            if spec.startswith(f"{tool_name}.") and "." in spec
+        }
+        if tool_name not in allowed_specs and not action_specs:
+            return set()
+        if action_specs:
+            allowed = allowed & action_specs
+    return allowed
+
+
+def can_use_tool_action(
+    role: str | None,
+    tool_name: str,
+    action: str | None = "*",
+    role_policies: RolePolicyMap | None = None,
+) -> bool:
+    action = str(action or "*").strip().lower() or "*"
+    allowed_actions = get_allowed_tool_actions(role, tool_name, role_policies=role_policies)
+    return "*" in allowed_actions or action in allowed_actions
+
+
 def get_allowed_kbs(role: str | None, role_policies: RolePolicyMap | None = None) -> list[str]:
     role = normalize_role(role)
     if role_policies and role in role_policies:
@@ -120,6 +171,18 @@ def check_tool_permission(role: str | None, tool_name: str, role_policies: RoleP
     allowed = can_use_tool(role, tool_name, role_policies=role_policies)
     reason = "allowed" if allowed else f"role={role} is not allowed to use tool={tool_name}"
     return PermissionDecision(allowed=allowed, role=role, resource=tool_name, reason=reason)
+
+
+def assert_tool_action_permission(
+    role: str | None,
+    tool_name: str,
+    action: str | None = "*",
+    role_policies: RolePolicyMap | None = None,
+) -> None:
+    role = normalize_role(role)
+    action = str(action or "*").strip().lower() or "*"
+    if not can_use_tool_action(role, tool_name, action, role_policies=role_policies):
+        raise PermissionError(f"role={role} is not allowed to use tool={tool_name} action={action}")
 
 
 def assert_tool_permission(role: str | None, tool_name: str, role_policies: RolePolicyMap | None = None) -> None:

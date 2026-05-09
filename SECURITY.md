@@ -32,7 +32,7 @@ AGENT_API_KEY=dev-api-key
 
 | 角色 | 权限说明 |
 |---|---|
-| guest | public 知识库检索、当前日期时间查询 |
+| guest / public | public 知识库检索、当前日期时间查询 |
 | user / employee | 授权知识库检索、当前日期时间、考勤统计、公司日程查询 |
 | finance / hr / it | 部门授权知识库检索、当前日期时间、考勤统计、公司日程查询 |
 | admin | 全部知识库、trace 查询、用户/角色管理、公司日程写入 |
@@ -43,9 +43,9 @@ AGENT_API_KEY=dev-api-key
 
 ```python
 ENDPOINT_PERMISSIONS = {
-    "health": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
-    "query": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
-    "chat": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
+    "health": ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"],
+    "query": ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"],
+    "chat": ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"],
     "trace": ["admin"],
     "eval": ["admin"],
     "upload": ["user", "employee", "finance", "hr", "it", "admin"],
@@ -59,20 +59,36 @@ ENDPOINT_PERMISSIONS = {
 
 ```python
 TOOL_PERMISSIONS = {
-    "search_knowledge_base": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
-    "get_current_datetime": ["guest", "user", "employee", "finance", "hr", "it", "admin"],
+    "search_knowledge_base": ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"],
+    "get_current_datetime": ["guest", "public", "user", "employee", "finance", "hr", "it", "admin"],
     "query_attendance_summary": ["user", "employee", "finance", "hr", "it", "admin"],
     "manage_company_calendar": ["user", "employee", "finance", "hr", "it", "admin"],
 }
 ```
 
-`manage_company_calendar` 还有 action 级权限：`query` 允许普通成员调用，`create/update/delete` 只有 `admin` 可以执行。这个检查在工具内部执行，并把拒绝结果写入 trace / audit events。
+新执行链优先使用 action 级权限：
+
+```python
+TOOL_ACTION_PERMISSIONS = {
+    "search_knowledge_base": {"*": {"guest", "public", "user", "employee", "finance", "hr", "it", "admin"}},
+    "get_current_datetime": {"*": {"guest", "public", "user", "employee", "finance", "hr", "it", "admin"}},
+    "query_attendance_summary": {"*": {"user", "employee", "finance", "hr", "it", "admin"}},
+    "manage_company_calendar": {
+        "query": {"user", "employee", "finance", "hr", "it", "admin"},
+        "create": {"admin"},
+        "update": {"admin"},
+        "delete": {"admin"},
+    },
+}
+```
+
+Planner 看到的是按当前 role 和 role policy 过滤后的能力目录；Executor 仍然用 `assert_tool_action_permission()` 做最终权限校验。普通成员看不到 `manage_company_calendar.create/update/delete`，public/guest 看不到公司日程工具本身。管理员配置角色策略时既可以保存工具名，也可以保存 `tool.action` 形式的细粒度策略，例如 `manage_company_calendar.query`。
 
 ## 6. 面试回答模板
 
 如果面试官问“你怎么防止模型误调用危险工具？”，可以回答：
 
-> 我不会只依赖 prompt。我的系统有两层权限：API Gateway 做 endpoint 级校验，Tool Layer 在工具真正执行前做程序侧权限检查。比如 guest 只能用 search_knowledge_base 和 get_current_datetime，不能查考勤或日程；普通成员可以查询日程，但 create/update/delete 日程会被工具内部 action 权限拒绝。所有拦截都会进入 trace / audit events。
+> 我不会只依赖 prompt。我的系统有三道边界：API Gateway 做 endpoint 级校验，Planner 只能看到当前角色允许的工具/action，Tool Executor 在执行前再次做 `assert_tool_action_permission`。比如 public 只能看到 search_knowledge_base 和 get_current_datetime；普通成员可以看到日程 query，但看不到 create/update/delete；admin 才能写日程。所有拦截都会进入 trace / audit events。
 
 ## 7. 不提交真实密钥
 

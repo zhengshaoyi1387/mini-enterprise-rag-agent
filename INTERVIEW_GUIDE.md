@@ -6,7 +6,7 @@
 
 ## 2. 3 分钟架构介绍
 
-从请求进入 `/chat` 开始，API Gateway 从 Bearer token 解析当前用户和角色，生成 `trace_id`，做接口权限和轻量安全检查。然后请求进入 LangGraph Agent。Agent 先读取会话上下文和上一轮 `previous_tool_context`，再由 LLM 输出严格 JSON tool_plan，包含 route、selected_tool、tool_input、relative_time 等字段。制度、流程、FAQ 走 RAG；考勤统计走 CSV 工具；公司会议、培训、发薪日等走 JSON 日程工具；遇到“上周、下周、本月”等相对时间时，代码层内部调用当前时间工具标准化日期范围，避免模型猜日期。需要检索时，Retrieval Planner 生成 search task，检索层用向量召回和 BM25 召回，再用 RRF 融合、rerank 精排。最后把节点耗时、工具调用、current_tool_context 和来源写入 trace。
+从请求进入 `/chat` 开始，API Gateway 从 Bearer token 解析当前用户和角色，生成 `trace_id`，做接口权限和轻量安全检查。然后请求进入 LangGraph Agent。Agent 先读取会话上下文和上一轮 `previous_tool_context`，再由 ToolRegistry 生成当前角色可见的 capability catalog。LLM Planner 只能基于这个目录输出严格 JSON tool_plan，包含 message_type、context_usage、route、selected_tool、selected_action、tool_input、relative_time 等字段。Planner 输出后，程序侧还有一层 contract normalizer，专门修正 `route` 和 `selected_tool/action` 的结构化冲突，并清理 smalltalk、权限不足、拒答这类 direct-only 消息里的工具字段。相对日期还有单独的 current datetime middleware：上下文可以帮助理解追问主题，但“今天、下周、本月”等日期范围必须由 `get_current_datetime` 重新解析。制度、流程、FAQ 走 RAG；考勤统计走 CSV 工具；公司会议、培训、发薪日等走 JSON 日程工具。需要检索时，Retrieval Planner 生成 search task，检索层用向量召回和 BM25 召回，再用 RRF 融合、rerank 精排。最后把节点耗时、工具调用、current_tool_context 和来源写入 trace。
 
 ## 3. 高频追问与回答
 
@@ -24,7 +24,7 @@
 
 ### Q4：怎么防止越权工具调用？
 
-我做了两层权限。API Gateway 检查 endpoint permission，比如 trace 和管理接口只有 admin 能看。工具执行前再检查 tool permission，比如 search_knowledge_base 和 get_current_datetime 对 guest 开放，但 query_attendance_summary 和 manage_company_calendar 不对 guest 开放。日程工具还有 action 级权限：普通成员只能 query，create/update/delete 只有 admin 能执行。安全边界在程序侧，不依赖 prompt。
+我做了三层权限。API Gateway 检查 endpoint permission，比如 trace 和管理接口只有 admin 能看。Planner 之前先生成 permission-aware capability catalog，模型只能看到当前角色允许的工具和 action，比如员工只看到 `manage_company_calendar.query`，看不到 create/update/delete。工具执行前再做 `assert_tool_action_permission`，即使模型被诱导输出越权 action，也会被程序侧拦截。安全边界不依赖 prompt。
 
 ### Q5：trace_id 有什么用？
 
@@ -32,14 +32,17 @@ trace_id 把一次请求中的 API、Router、检索、工具调用、证据反�
 
 ### Q6：为什么不直接用关键词规则调用工具？
 
-关键词规则只能判断“可能是什么工具”，但不能稳定规划参数，也处理不好多轮追问。比如用户先问“昨天公司的出勤情况如何？”，下一轮问“谁迟到了？”，系统需要知道上一轮日期并补齐 `status_filter=late`、`include_records=true`。所以我把规则降级为 `candidate_tool` hint，真正的 route、tool_input 和相对时间意图由 LLM 输出 JSON tool_plan；代码层再负责 RBAC、日期解析、必填参数校验和工具执行。
+关键词规则只能判断“可能是什么工具”，但不能稳定规划参数，也处理不好权限和 action。比如 public 用户问公司日程时，Planner 根本不应该看到日程工具；员工问新增日程时，Planner 只能看到 query action，所以应输出 `permission_required`。因此我取消了关键词主路由，用权限过滤后的工具目录约束 LLM tool_plan；代码层再负责 Planner contract 归一化、action-level RBAC、日期解析、Schema 校验和工具执行。
 
 ## 4. 当前项目亮点
 
 - LangGraph 状态机，而不是普通 chain。
 - 混合检索 + RRF + rerank。
 - LLM Tool Planner + Retrieval Planner + Evidence Reflector。
-- LLM Tool Planning：规则只做候选提示，LLM 产出可执行 tool_input。
+- Permission-aware Tool Catalog：Planner 只看到当前角色允许的工具和 action。
+- LLM Tool Planning：LLM 产出 message_type、context_usage、selected_action 和可执行 tool_input。
+- Planner Contract Normalizer：修正 route/tool/action 字段冲突，避免多轮追问跳过工具。
+- Current Datetime Middleware：相对日期永远调用当前时间工具解析，不继承上一轮日期。
 - FastAPI Gateway 服务化。
 - 登录会话 + role 权限。
 - 工具执行前程序侧权限检查。

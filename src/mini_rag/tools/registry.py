@@ -4,6 +4,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from mini_rag.security.permissions import RolePolicyMap, get_allowed_tool_actions, normalize_role
+
 ToolFunc = Callable[[dict[str, Any]], dict[str, Any]]
 
 
@@ -15,6 +17,7 @@ class RegisteredTool:
     func: ToolFunc
     input_schema: dict[str, Any] = field(default_factory=dict)
     examples: list[dict[str, Any]] = field(default_factory=list)
+    action_contracts: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 class ToolRegistry:
@@ -29,6 +32,7 @@ class ToolRegistry:
         risk_level: str = "low",
         input_schema: dict[str, Any] | None = None,
         examples: list[dict[str, Any]] | None = None,
+        action_contracts: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         self._tools[name] = RegisteredTool(
             name=name,
@@ -37,6 +41,7 @@ class ToolRegistry:
             risk_level=risk_level,
             input_schema=input_schema or {},
             examples=examples or [],
+            action_contracts=action_contracts or {},
         )
 
     def invoke(self, name: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -61,6 +66,7 @@ class ToolRegistry:
                 "risk_level": tool.risk_level,
                 "input_schema": tool.input_schema,
                 "examples": tool.examples,
+                "actions": tool.action_contracts,
             }
             for tool in self._tools.values()
         ]
@@ -68,60 +74,56 @@ class ToolRegistry:
     def has_tool(self, name: str | None) -> bool:
         return bool(name and name in self._tools)
 
-    def format_tool_contracts_for_prompt(self, candidate_tool: str | None = None) -> str:
-        """Return compact tool contracts for LLM tool planning.
+    def format_tool_contracts_for_prompt(
+        self,
+        role: str | None = None,
+        role_policies: RolePolicyMap | None = None,
+        candidate_tool: str | None = None,
+    ) -> str:
+        """Return compact permission-aware tool contracts for LLM planning.
 
-        The LLM should decide which tool to call from all available tools.
         ``candidate_tool`` is accepted for backward compatibility but ignored on
         purpose, so keyword hints cannot bias tool selection.
         """
-        contracts = [self._compact_contract(tool) for tool in self._tools.values()]
+        role = normalize_role(role)
+        contracts: list[dict[str, Any]] = []
+        search_actions = get_allowed_tool_actions(role, "search_knowledge_base", role_policies=role_policies)
+        if search_actions:
+            contracts.append(
+                {
+                    "name": "search_knowledge_base",
+                    "description": "查询当前角色可访问的企业知识库；制度、流程、FAQ、政策解释和产品文档问题应使用 route=rag。",
+                    "risk_level": "low",
+                    "actions": {
+                        "*": {
+                            "input": {"query": "语义完整的知识库检索问题"},
+                            "notes": ["route 应为 rag；不要把 search_knowledge_base 作为 daily tool 执行。"],
+                        }
+                    },
+                }
+            )
+        for tool in self._tools.values():
+            allowed_actions = get_allowed_tool_actions(role, tool.name, role_policies=role_policies)
+            if not allowed_actions:
+                continue
+            contracts.append(self._compact_contract(tool, allowed_actions))
         return json.dumps(contracts, ensure_ascii=False, separators=(",", ":"))
 
     @staticmethod
-    def _compact_contract(tool: RegisteredTool) -> dict[str, Any]:
+    def _compact_contract(tool: RegisteredTool, allowed_actions: set[str]) -> dict[str, Any]:
         """Hand the LLM the smallest useful contract, not full JSON Schema."""
-        if tool.name == "get_current_datetime":
-            return {
-                "name": tool.name,
-                "description": tool.description,
-                "risk_level": tool.risk_level,
-                "input": {"timezone": "Asia/Shanghai"},
-                "notes": ["Use to resolve relative dates."],
+        action_contracts = tool.action_contracts
+        if allowed_actions != {"*"}:
+            action_contracts = {
+                action: contract
+                for action, contract in action_contracts.items()
+                if action in allowed_actions
             }
-        if tool.name == "query_attendance_summary":
-            return {
-                "name": tool.name,
-                "description": tool.description,
-                "risk_level": tool.risk_level,
-                "input": {
-                    "start_date": "YYYY-MM-DD",
-                    "end_date": "YYYY-MM-DD",
-                    "department": "all",
-                    "employee_name": None,
-                    "group_by": "none|department|employee",
-                    "status_filter": "present|late|leave|absent|null",
-                    "include_records": False,
-                },
-                "required": ["start_date", "end_date"],
-                "notes": ["include_records=true only when asking who/which employees"],
-            }
-        if tool.name == "manage_company_calendar":
-            return {
-                "name": tool.name,
-                "description": tool.description,
-                "risk_level": tool.risk_level,
-                "actions": {
-                    "query": {"required": ["action", "start_date", "end_date"], "input": {"action": "query", "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD", "event_type": "all", "department": "all"}},
-                    "create": {"required": ["action", "title", "date", "time"], "input": {"action": "create", "title": "...", "type": "meeting|training|payday|holiday|activity|maintenance|other", "date": "YYYY-MM-DD", "time": "HH:MM-HH:MM or 全天", "department": "all", "location": "", "description": ""}},
-                    "update": {"required": ["action", "event_id"], "input": {"action": "update", "event_id": "EVT-...", "title": "...", "date": "YYYY-MM-DD", "time": "HH:MM-HH:MM"}},
-                    "delete": {"required": ["action", "event_id"], "input": {"action": "delete", "event_id": "EVT-..."}},
-                },
-                "notes": ["action=query/create/update/delete", "create uses date/time, not start_date/end_date", "use time, not start_time/end_time"],
-            }
+        if not action_contracts and "*" in allowed_actions:
+            action_contracts = {"*": {"input_schema": tool.input_schema}}
         return {
             "name": tool.name,
             "description": tool.description,
             "risk_level": tool.risk_level,
-            "input_schema": tool.input_schema,
+            "actions": action_contracts,
         }

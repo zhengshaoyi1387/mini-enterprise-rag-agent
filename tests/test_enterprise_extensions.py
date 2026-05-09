@@ -29,9 +29,9 @@ def test_daily_tool_registry_contains_real_business_tools_only() -> None:
     registry = build_default_tool_registry()
     names = {tool["name"] for tool in registry.list_tools()}
     assert names == {"get_current_datetime", "query_attendance_summary", "manage_company_calendar"}
-    assert select_daily_tool_by_rule("上周公司的出勤情况怎么样？") == "query_attendance_summary"
-    assert select_daily_tool_by_rule("下周公司有哪些会议安排？") == "manage_company_calendar"
-    assert select_daily_tool_by_rule("今天星期几？") == "get_current_datetime"
+    assert select_daily_tool_by_rule("上周公司的出勤情况怎么样？") is None
+    assert select_daily_tool_by_rule("下周公司有哪些会议安排？") is None
+    assert select_daily_tool_by_rule("今天星期几？") is None
 
 
 def test_policy_lookup_questions_do_not_trigger_reimbursement_tool() -> None:

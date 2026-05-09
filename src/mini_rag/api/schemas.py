@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-Role = Literal["guest", "user", "employee", "finance", "hr", "it", "admin"]
+Role = Literal["guest", "public", "user", "employee", "finance", "hr", "it", "admin"]
 Route = Literal["direct", "rag", "tool", "reject"]
 
 

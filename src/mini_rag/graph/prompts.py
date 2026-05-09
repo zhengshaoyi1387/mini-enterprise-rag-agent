@@ -6,20 +6,23 @@ from typing import Any
 from mini_rag.graph.utils import strip_citations_and_metadata, truncate
 
 UNDERSTAND_QUERY_SYSTEM = """
-你是企业 Agent 的轻量工具规划节点。只输出合法 JSON，不回答问题。
-
-你会收到 available_tool_contracts，其中列出所有可用工具的用途和输入协议。
-必须由你根据用户语义自行决定 route、selected_tool 和 tool_input；不要依赖关键词候选。
+你是企业 Agent 的结构化 Planner。只输出合法 JSON，不回答问题。
+你必须先理解“当前消息本身”，再决定是否使用历史或 previous_tool_context。
+你会收到 available_tool_contracts，其中只列出当前角色允许使用的工具和 action。
+你只能选择 available_tool_contracts 中存在的工具和 action；如果能力不可见，必须输出 permission_required direct。
 
 输出 schema：
 {
-  "intent": "rag_fact|daily_tool|direct|reject",
-  "route": "rag|tool|direct|reject",
+  "message_type": "smalltalk|business_question|followup_question|command|unsafe",
+  "context_usage": "none|use_history|use_previous_tool_context",
+  "intent": "smalltalk|rag_fact|daily_tool|permission_required|direct|reject",
+  "route": "direct|rag|tool|reject",
   "standalone_query": "语义完整问题",
   "topic": "",
   "entities": [],
   "risk_level": "low|medium|high",
-  "selected_tool": "get_current_datetime|query_attendance_summary|manage_company_calendar|null",
+  "selected_tool": "string|null",
+  "selected_action": "string|null",
   "required_tools": [],
   "tool_input": {},
   "needs_time_resolution": false,
@@ -29,35 +32,39 @@ UNDERSTAND_QUERY_SYSTEM = """
 }
 
 选择原则：
-- 制度、流程、FAQ、产品/项目文档、政策解释 => route=rag, selected_tool=null。
-- 如果涉及到时间或者日期，如“今天星期几/现在几点/下周日期范围”， 必须调用工具=> selected_tool=get_current_datetime。严禁自己猜时间日期。
-- 考勤、出勤、迟到、缺勤、请假统计 => selected_tool=query_attendance_summary。
-- 公司日程、活动、会议、培训、发薪日、放假、团建 => selected_tool=manage_company_calendar。
+- 当前消息优先。不要被历史上下文过度牵引。
+- smalltalk 例如“你好/在吗/谢谢/好的/再见”：message_type=smalltalk, context_usage=none, intent=smalltalk, route=direct, selected_tool=null, selected_action=null, tool_input={}，禁止使用 previous_tool_context。
+- followup_question 例如“谁迟到了/还有别的吗/具体是哪几个/那下周呢”：只有当前问题明显依赖上一轮业务内容时，才允许 context_usage=use_history 或 use_previous_tool_context。
+- 制度、流程、FAQ、产品/项目文档、政策解释 => route=rag, selected_tool=null, selected_action=null。
+- 纯日期时间问题，如“今天星期几/现在几点/下周日期范围”必须调用工具 => selected_tool=get_current_datetime, selected_action="*"。严禁猜具体日期。
+- 考勤、出勤、迟到、缺勤、请假统计 => selected_tool=query_attendance_summary, selected_action="*"。
+- 公司日程、会议、培训、发薪日、放假、团建 => selected_tool=manage_company_calendar，并按可见 actions 选择 query/create/update/delete。
+- 如果用户请求的工具或 action 不在 available_tool_contracts 中：intent=permission_required, route=direct, selected_tool=null, selected_action=null, tool_input={}。
 - 相对时间值只能是 today/yesterday/tomorrow/this_week/last_week/next_week/this_month/last_month/next_month。不要猜具体日期；设置 needs_time_resolution=true 和 relative_time。
+- 业务数据问题中 get_current_datetime 只是内部时间解析依赖，不是最终 selected_tool；日程问题最终选择 manage_company_calendar，考勤问题最终选择 query_attendance_summary。
 - tool_input 必须遵守 selected_tool 的 contract。枚举值只用 contract 里的值。
-- 多轮省略的日期、部门、状态、事件，可从 previous_tool_context 补全。
-- reason 最多25字。
+- reason 最多30个中文字符。
 """.strip()
 
-ROUTE_SYSTEM = """
-你是企业级 Agent 的路由节点。你只判断下一步，不回答问题。
-请只输出合法 JSON：
+TIME_REFERENCE_SYSTEM = """
+你是企业 Agent 的时间引用归一化器。只输出合法 JSON，不回答问题。
+你只判断“当前用户消息本身”是否包含需要用当前日期时间解析的时间引用；不要从历史或 previous_tool_context 继承日期。
+
+输出 schema：
 {
-  "route": "direct | rag | tool | reject",
-  "risk_level": "low | medium | high",
-  "required_tools": [],
-  "reason": "路由理由"
+  "has_time_reference": false,
+  "needs_time_resolution": false,
+  "relative_time": null,
+  "is_datetime_only": false,
+  "reason": "不超过20字"
 }
-判断标准：
-- 制度、流程、FAQ、产品文档等非结构化知识问题 route=rag。
-- 出勤、考勤、迟到、缺勤、请假统计 route=tool，使用 query_attendance_summary。
-- 公司日程、会议、培训、发薪日、节假日、放假、团建 route=tool，使用 manage_company_calendar。
-- 当前日期、今天、昨天、上周、下周、本月、星期几等相对时间 route=tool，使用 get_current_datetime。
-- 包含相对时间的业务工具问题应先用 get_current_datetime 标准化日期范围，不要让 LLM 直接猜日期。
-- 需要企业知识库、内部文档、产品手册、项目文档证据时 route=rag。
-- 通用问题、模型身份、普通解释且无需内部知识时 route=direct。
-- 需要安全工具执行受控任务时 route=tool。
-- 不安全请求 route=reject。
+
+约束：
+- relative_time 只能是 null 或以下规范值之一：today/yesterday/tomorrow/this_week/last_week/next_week/this_month/last_month/next_month。
+- 不输出具体日期，不猜测日期范围；具体日期只能由 get_current_datetime 工具结果产生。
+- 如果当前消息只是询问日期、时间、星期、日期范围，is_datetime_only=true。
+- 如果当前消息是业务问题但带时间引用，is_datetime_only=false；业务工具仍是最终工具，get_current_datetime 只是内部依赖。
+- 如果当前消息没有时间引用，has_time_reference=false, needs_time_resolution=false, relative_time=null。
 """.strip()
 
 PLAN_RETRIEVAL_SYSTEM = """
@@ -157,27 +164,33 @@ def format_understand_user(
     candidate_tool: str | None = None,
     previous_tool_context: dict[str, Any] | None = None,
     available_tool_contracts: str = "[]",
+    role: str | None = None,
 ) -> str:
+    _ = candidate_tool
     return "\n\n".join(
         [
             f"当前问题：{question}",
+            f"当前角色：{role or 'unknown'}",
             f"会话摘要：{truncate(summary or '无', 180)}",
             "最近历史：\n" + format_history(history),
             "previous_tool_context：" + json.dumps(previous_tool_context or {}, ensure_ascii=False, separators=(",", ":")),
             "available_tool_contracts：" + available_tool_contracts,
-            "从 available_tool_contracts 中自行选择最合适工具，并按系统 schema 输出 JSON。",
+            "只能从 available_tool_contracts 中选择工具和 action；如果能力不可见，输出 permission_required direct。",
         ]
     )
 
 
-def format_route_user(question: str, standalone_query: str, intent: str, topic: str, entities: list[str]) -> str:
-    return "\n".join(
+def format_time_reference_user(
+    question: str,
+    standalone_query: str,
+    planner_context: dict[str, Any] | None = None,
+) -> str:
+    return "\n\n".join(
         [
-            f"原始问题：{question}",
-            f"独立问题：{standalone_query}",
-            f"初步 intent：{intent}",
-            f"topic：{topic or '无'}",
-            "entities：" + ("、".join(entities) if entities else "无"),
+            f"当前用户消息：{question}",
+            f"planner_standalone_query：{standalone_query}",
+            "planner_context：" + json.dumps(planner_context or {}, ensure_ascii=False, separators=(",", ":")),
+            "只判断当前用户消息本身的时间引用；不要从 planner_context 或历史继承日期。",
         ]
     )
 
