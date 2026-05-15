@@ -14,8 +14,8 @@ class AgenticRAGWorkflow:
     load_context -> check_permission -> build_capability_catalog ->
     build_planning_context -> plan_intent -> validate_plan -> route
 
-    route=rag  -> plan_retrieval -> retrieve -> reflect -> generate_answer
-    route=tool -> call_tool -> generate_answer
+    route=rag -> plan_retrieval -> retrieve -> completion_reflect -> generate_answer
+    route=tool -> call_tool -> completion_reflect -> generate_answer
     route=direct/reject -> generate_answer
     generate_answer -> update_memory -> END
     """
@@ -104,8 +104,8 @@ class AgenticRAGWorkflow:
         workflow.add_node("route", self.nodes.route)
         workflow.add_node("plan_retrieval", self.nodes.plan_retrieval)
         workflow.add_node("retrieve", self.nodes.retrieve)
-        workflow.add_node("reflect_evidence", self.nodes.reflect_evidence)
         workflow.add_node("call_tool", self.nodes.call_tool)
+        workflow.add_node("completion_reflect", self.nodes.completion_reflect)
         workflow.add_node("generate_answer", self.nodes.generate_answer)
         workflow.add_node("update_memory", self.nodes.update_memory)
 
@@ -125,21 +125,15 @@ class AgenticRAGWorkflow:
                 "generate_answer": "generate_answer",
             },
         )
-        workflow.add_edge("call_tool", "generate_answer")
         workflow.add_edge("plan_retrieval", "retrieve")
+        workflow.add_edge("retrieve", "completion_reflect")
+        workflow.add_edge("call_tool", "completion_reflect")
         workflow.add_conditional_edges(
-            "retrieve",
-            self.nodes.after_retrieve,
+            "completion_reflect",
+            self.nodes.after_completion_reflect,
             {
-                "reflect_evidence": "reflect_evidence",
-                "generate_answer": "generate_answer",
-            },
-        )
-        workflow.add_conditional_edges(
-            "reflect_evidence",
-            self.nodes.after_reflect,
-            {
-                "retrieve": "retrieve",
+                "plan_retrieval": "plan_retrieval",
+                "call_tool": "call_tool",
                 "generate_answer": "generate_answer",
             },
         )
@@ -162,17 +156,12 @@ class AgenticRAGWorkflow:
         state = self.nodes.validate_plan(state)
         state = self.nodes.route(state)
         next_node = self.nodes.next_after_route(state)
-        if next_node == "call_tool":
-            state = self.nodes.call_tool(state)
-        elif next_node == "plan_retrieval":
-            state = self.nodes.plan_retrieval(state)
-            state = self.nodes.retrieve(state)
-            if self.nodes.after_retrieve(state) == "reflect_evidence":
-                state = self.nodes.reflect_evidence(state)
-                while self.nodes.after_reflect(state) == "retrieve":
-                    state = self.nodes.retrieve(state)
-                    if self.nodes.after_retrieve(state) == "reflect_evidence":
-                        state = self.nodes.reflect_evidence(state)
-                    else:
-                        break
+        while next_node in {"plan_retrieval", "call_tool"}:
+            if next_node == "plan_retrieval":
+                state = self.nodes.plan_retrieval(state)
+                state = self.nodes.retrieve(state)
+            elif next_node == "call_tool":
+                state = self.nodes.call_tool(state)
+            state = self.nodes.completion_reflect(state)
+            next_node = self.nodes.after_completion_reflect(state)
         return state

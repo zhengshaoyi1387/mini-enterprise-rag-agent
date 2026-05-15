@@ -328,7 +328,7 @@ def test_trace_contains_total_latency_and_llm_call_details(tmp_path):
 
     assert trace["total_latency_ms"] >= 0
     assert len(trace["llm_calls"]) == 2
-    assert trace["llm_calls"][0]["node"] == "understand_query"
+    assert trace["llm_calls"][0]["node"] == "plan_intent"
     assert trace["llm_calls"][0]["prompt_chars"] > 0
 
 

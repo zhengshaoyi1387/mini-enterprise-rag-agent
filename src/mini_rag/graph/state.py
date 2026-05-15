@@ -34,6 +34,11 @@ class AgentState(TypedDict, total=False):
     planning_context: dict[str, Any]
     raw_plan: dict[str, Any]
     plan_validation: dict[str, Any]
+    execution_plan: dict[str, Any]
+    task_queue: list[dict[str, Any]]
+    current_task: dict[str, Any]
+    task_results: list[dict[str, Any]]
+    completed_tasks: list[str]
     time_requirement: dict[str, Any]
     knowledge_requirement: dict[str, Any]
     prepared_tool_input: dict[str, Any]
@@ -71,6 +76,8 @@ class AgentState(TypedDict, total=False):
 
     # reflection / generation
     evidence_assessment: dict[str, Any]
+    completion_assessment: dict[str, Any]
+    completion_reflect_round: int
     skipped_reflection_reason: str | None
     reflect_round: int
     final_answer: str

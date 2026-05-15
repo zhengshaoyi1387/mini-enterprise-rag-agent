@@ -107,11 +107,11 @@ Qwen3-Embedding / text-embedding-v4 向量化
   ↓
 少量真实企业工具：知识库检索 / 当前时间 / 考勤 CSV / 公司日程 JSON
   ↓
-LangGraph 状态机 Agent：load_context -> understand_query(tool_plan) -> route -> call_tool/retrieve -> reflect -> generate_answer
+LangGraph 状态机 Agent：load_context -> plan_intent(execution_plan) -> rag/tool 分支 -> completion_reflect -> generate_answer
   ↓
 LLM 检索规划：单问题单 query，多模块问题拆成多个子 query
   ↓
-LLM 证据评估：证据不足时生成 followup query 继续检索
+LLM 完成度反思：判断所有子任务是否完成，缺失时补任务后再回答
   ↓
 Qwen 基于证据和评估生成带引用答案，并持久化上下文
   ↓
@@ -129,10 +129,10 @@ Trace 记录检索、工具、LLM、总耗时
 - **混合检索与重排**：向量检索 + BM25 + RRF 融合，并默认调用 Qwen `qwen3-rerank` 做二次排序。
 - **本地向量库**：使用 Chroma 持久化到 `storage/chroma`。
 - **Agent 工具调用**：不堆砌 prompt wrapper，只保留 `search_knowledge_base`、`get_current_datetime`、`query_attendance_summary`、`manage_company_calendar` 这 4 个真实、有边界的企业日常工具。
-- **Permission-aware Tool Planning**：系统先按当前角色生成可用能力目录，Planner 只能看到被授权的工具和 action，再输出 `message_type/context_usage/route/selected_tool/selected_action/tool_input`。
+- **Permission-aware Multi-task Planning**：系统先按当前角色生成可用能力目录，Planner 只能看到被授权的工具和 action，再输出 `execution_plan.tasks[]`；简单问题 1 个 task，复合问题多个 task。
 - **LLM 上下文管理**：由 Qwen 维护会话摘要、选择相关历史、生成独立检索问题。
 - **LLM 检索规划**：需要检索时由 Qwen 判断是否拆成多个子查询，分别召回证据。
-- **LLM 证据评估**：每轮检索后由 Qwen 判断证据是否足够，不足时生成补充检索 query。
+- **LLM 完成度反思**：最终回答前由 Qwen 判断原始请求的全部子目标是否完成；未完成时补充 RAG/tool task，再统一生成答案。
 - **集中提示词目录**：所有阶段提示词集中在 `src/mini_rag/prompts/`，便于逐条审查和调优。
 - **SQLite 多轮会话**：支持 `session_id` 持久化上下文，服务重启后仍可追问。
 - **引用溯源**：回答要求引用 `source`、`title_path`、`chunk_id`。
@@ -162,28 +162,27 @@ Trace 记录检索、工具、LLM、总耗时
 用户问题
   -> load_context 读取 history 和 previous_tool_context
   -> ToolRegistry 按当前 role 生成 permission-aware available_tool_contracts
-  -> understand_query 由 LLM 输出 tool_plan JSON
+  -> plan_intent 由 LLM 输出 execution_plan JSON
   -> 代码做 Planner contract 归一化，修正 route/tool/action 字段冲突
-  -> 当前消息含相对时间时，强制由 get_current_datetime 解析日期范围
-  -> 代码校验 action 权限、参数和相对时间
-  -> 必要时内部调用 get_current_datetime 标准化日期范围
-  -> 执行业务工具
-  -> generate_answer 根据 tool_result 生成自然语言答案
+  -> 按当前 task 进入显式 RAG 分支或 tool 分支执行
+  -> 代码校验 action 权限、参数和相对时间；必要时内部调用 get_current_datetime
+  -> completion_reflect 判断所有子目标是否完成，不完整则补 task
+  -> generate_answer 由 LLM 综合 task_results / evidence / tool_result 生成最终答案
   -> current_tool_context 写入 trace，供下一轮追问参考
 ```
 
 典型多轮例子：
 
 1. 用户：“昨天公司的出勤情况如何？”
-   流程：LLM tool_plan -> 内部解析 `yesterday` -> `query_attendance_summary(start_date/end_date)`
+   流程：LLM execution_plan -> 内部解析 `yesterday` -> `query_attendance_summary(start_date/end_date)` -> completion_reflect -> LLM 答案
 2. 用户：“谁迟到了？”
-   流程：`previous_tool_context` 提供上一轮日期范围 -> LLM 输出完整 tool_plan -> `query_attendance_summary(status_filter=late, include_records=true)`
+   流程：`previous_tool_context` 提供上一轮业务上下文 -> LLM 输出完整 task -> `query_attendance_summary(status_filter=late, include_records=true)`
 3. 用户：“下周公司有哪些安排？”
-   流程：LLM tool_plan -> 内部解析 `next_week` -> `manage_company_calendar(action=query)`
+   流程：LLM execution_plan -> 内部解析 `next_week` -> `manage_company_calendar(action=query)`
 4. 普通用户：“帮我添加明天下午三点的全员会”
-   流程：LLM tool_plan -> 内部解析 `tomorrow` -> `manage_company_calendar(action=create)` -> 权限拒绝
+   流程：LLM execution_plan -> 内部解析 `tomorrow` -> `manage_company_calendar(action=create)` -> 权限拒绝
 5. admin：“帮我添加明天下午三点的全员会”
-   流程：LLM tool_plan -> 内部解析 `tomorrow` -> `manage_company_calendar(action=create)` -> 写入 JSON 成功
+   流程：LLM execution_plan -> 内部解析 `tomorrow` -> `manage_company_calendar(action=create)` -> 写入 JSON 成功
 
 Planner 输出的核心 schema：
 
@@ -196,8 +195,22 @@ Planner 输出的核心 schema：
   "selected_tool": "string | null",
   "selected_action": "string | null",
   "tool_input": {},
-  "needs_time_resolution": false,
-  "relative_time": null
+  "time_requirement": {},
+  "execution_plan": {
+    "tasks": [
+      {
+        "task_id": "t1",
+        "kind": "rag | tool | direct",
+        "objective": "子目标",
+        "query": "rag query",
+        "tool": "tool name",
+        "action": "tool action",
+        "tool_input": {},
+        "time_requirement": {},
+        "depends_on": []
+      }
+    ]
+  }
 }
 ```
 
@@ -205,7 +218,7 @@ Planner 输出的核心 schema：
 
 程序侧不会盲信 Planner 的单个字段。若 Planner 输出了合法 `selected_tool/selected_action`，但误把 `route` 写成 `direct`，状态机会按结构化 contract 归一化为 `route=tool` 后再执行；若是 `smalltalk`、`permission_required` 或 `reject`，则清空工具字段，避免历史上下文污染当前消息。
 
-日期处理也在程序侧收口：只要当前用户消息里出现“今天、昨天、下周、本月”等相对时间，系统就会以 `get_current_datetime` 的结果覆盖模型或上一轮上下文里的日期。`previous_tool_context` 只帮助理解业务对象，例如“下周呢？”延续上一轮日程主题，但“下周”的具体日期永远由当前时间工具给出。
+日期处理由 Planner 输出结构化 `time_requirement`，执行层只信任该 schema，不在代码里维护关键词路由。凡是相对时间，业务工具执行前都会内部调用 `get_current_datetime`，并用工具结果覆盖模型或上一轮上下文里的日期。`previous_tool_context` 只帮助理解业务对象，例如“下周呢？”延续上一轮日程主题，但“下周”的具体日期永远由当前时间工具给出。
 
 ## 3. 安装
 
@@ -301,6 +314,7 @@ AGENT_ENABLE_RETRIEVAL_CACHE=true
 AGENT_MAX_SEARCH_TASKS=3
 AGENT_MAX_FOLLOWUP_TASKS=2
 AGENT_REFLECT_MAX_ROUNDS=2
+AGENT_COMPLETION_MAX_REPLANS=2
 AGENT_EVIDENCE_CHAR_LIMIT=2200
 ```
 
@@ -316,8 +330,8 @@ AGENT_RUNTIME=legacy
 
 - Router 自己判断是否需要检索，不机械调用知识库。
 - 多模块、多对象问题进入检索规划阶段拆成多个子查询。
-- 每轮检索后由证据评估阶段判断是否足够回答。
-- 最终回答只能基于工具返回的证据和证据评估。
+- 最终回答前由完成度反思阶段判断所有子任务是否完成。
+- 最终回答只能基于工具返回、检索证据和完成度反思。
 - 证据不足时说明缺少哪部分信息。
 - 回答必须标注来源。
 
@@ -370,11 +384,11 @@ python scripts/eval.py
 
 第三阶段增强：
 
-- LangGraph 状态机 Agent：显式拆分 load_context、understand_query、route、call_tool/retrieve、reflect、generate_answer、update_memory。
-- LLM Tool Planner：模型基于当前角色可见的能力目录决定 rag/tool/direct/reject，并输出 selected_tool、selected_action、tool_input、relative_time。
+- LangGraph 状态机 Agent：显式拆分 load_context、capability catalog、plan_intent、RAG 分支、tool 分支、completion_reflect、generate_answer、update_memory。
+- LLM Multi-task Planner：模型基于当前角色可见的能力目录输出 execution_plan，可同时包含 RAG 和 tool 子任务。
 - LLM Context Manager：模型维护 summary、选择相关历史、生成 standalone query。
 - LLM Retrieval Planner：模型决定是否把一个问题拆成多个检索 query。
-- LLM Evidence Reflector：每轮检索后判断证据是否足够，不足时补充检索。
+- LLM Completion Reflector：最终回答前判断所有子目标是否完成，不足时补充 RAG/tool task。
 - `session_id` SQLite 多轮会话：能演示服务重启后的连续追问。
 - Trace 中记录 node_trace、observations、tool_calls、retrieval trace、rerank 状态，方便面试展示排查能力。
 
@@ -389,22 +403,22 @@ load_context        从 SQLite 读取 summary 和最近历史
   ↓
 check_permission    根据登录会话角色计算可访问知识库
   ↓
-understand_query    LLM 理解问题，结合 permission-aware contracts 与 previous_tool_context 输出 tool_plan
+plan_intent         LLM 理解问题，结合 permission-aware contracts 与 previous_tool_context 输出 execution_plan
   ↓
 Conditional Edge
-  ├─ rag  -> plan_retrieval -> retrieve(search_knowledge_base)
-  ├─ tool -> call_tool(get_current_datetime / query_attendance_summary / manage_company_calendar)
+  ├─ rag -> plan_retrieval -> retrieve
+  ├─ tool -> call_tool
   ├─ direct -> generate_answer
   └─ reject -> generate_answer
   ↓
-reflect_evidence    RAG 路径判断证据是否足够，不足时补充检索
+completion_reflect  判断原始请求所有子任务是否完成，不足时补 task
   ↓
-generate_answer     基于证据或工具结果生成最终自然语言答案
+generate_answer     LLM 基于 task_results、证据和工具结果生成最终自然语言答案
   ↓
 update_memory       写入 SQLite 上下文
 ```
 
-注意：RAG 本身仍然按 `search_knowledge_base` 工具动作记录在 trace 中，但实际执行位于 `retrieve` 节点；日常业务工具由 `call_tool` 节点通过 registry 执行。`select_daily_tool_by_rule` 已降级为兼容空壳，不参与主路由。
+注意：RAG 本身仍然按 `search_knowledge_base` 工具动作记录在 trace 中，并由显式 `plan_retrieval -> retrieve` 分支执行；日常业务工具由显式 `call_tool` 分支通过 registry 执行。`completion_reflect` 负责判断是否还有计划任务或补救任务，并把下一步分发回 RAG/tool 分支。`select_daily_tool_by_rule` 已降级为兼容空壳，不参与主路由。
 
 ## 10. 检索对比
 
@@ -464,8 +478,8 @@ mini-enterprise-rag-agent/
 4. `src/mini_rag/ingestion/build_index.py`：理解离线索引构建。
 5. `src/mini_rag/retrieval/retriever.py`：理解 Chroma 检索。
 6. `src/mini_rag/agent/context_store.py`：理解 SQLite 上下文持久化。
-7. `src/mini_rag/graph/prompts.py`：理解 LLM tool_plan、检索规划、证据反思和答案生成提示词。
-8. `src/mini_rag/graph/nodes.py`：理解 LangGraph 节点、程序侧权限校验、相对时间解析和工具执行。
+7. `src/mini_rag/graph/prompts.py`：理解 LLM execution_plan、检索规划、完成度反思和答案生成提示词。
+8. `src/mini_rag/graph/nodes.py`：理解 LangGraph 节点、任务队列、程序侧权限校验、相对时间解析和工具执行。
 9. `src/mini_rag/tools/daily_tools.py`：理解真实 daily tools contract 和 event_type 字段语义。
 10. `src/mini_rag/tools/attendance_tool.py`：理解 CSV 考勤统计和明细过滤。
 11. `src/mini_rag/tools/calendar_tool.py`：理解 JSON 公司日程查询和 admin 写权限。
@@ -476,7 +490,7 @@ mini-enterprise-rag-agent/
 
 你可以这样介绍项目：
 
-> 我做了一个企业知识库 RAG Agent。离线阶段使用 LangChain DirectoryLoader 接入 Markdown、TXT、PDF、Word，通过 manifest 做增量索引。在线阶段使用向量召回 + BM25 + RRF 融合，再用 Qwen qwen3-rerank 重排证据。Agent 层从脚本式 create_agent 升级为 LangGraph 状态机，包含 load_context、permission-aware tool catalog、understand_query、route、call_tool/retrieve、reflect、generate_answer、update_memory 等节点。工具路线不是关键词直调，而是由当前角色可见能力目录约束 LLM 输出严格 JSON tool_plan，代码层做 action-level RBAC、Schema 校验和相对时间补全；多轮追问通过 previous_tool_context 给 LLM 提供上一轮工具上下文。Trace 记录 node_trace、tool_calls、observations、retrieval、current_tool_context 和证据评估，方便排查和面试展示。
+> 我做了一个企业知识库 RAG Agent。离线阶段使用 LangChain DirectoryLoader 接入 Markdown、TXT、PDF、Word，通过 manifest 做增量索引。在线阶段使用向量召回 + BM25 + RRF 融合，再用 Qwen qwen3-rerank 重排证据。Agent 层从脚本式 create_agent 升级为 LangGraph 状态机，包含 load_context、permission-aware tool catalog、plan_intent、显式 RAG/tool 分支、completion_reflect、generate_answer、update_memory 等节点。工具路线不是关键词直调，而是由当前角色可见能力目录约束 LLM 输出严格 JSON execution_plan，代码层做 action-level RBAC、Schema 校验和相对时间补全；复杂问题会拆成多个 RAG/tool task，由 completion_reflect 把下一项任务分发回对应分支，最终回答前再判断子任务是否全部完成。Trace 记录 node_trace、tool_calls、task_results、retrieval、current_tool_context 和完成度评估，方便排查和面试展示。
 
 ## 14. 当前限制
 
@@ -497,7 +511,7 @@ mini-enterprise-rag-agent/
 - 多知识库：`public / hr / finance / it / product`
 - 知识库级权限：不同 role 只能检索授权知识库
 - 检索前权限过滤：无权限文档不会进入模型上下文
-- LangGraph 主流程：`load_context -> check_permission -> understand_query(LLM tool_plan) -> route -> rag/tool -> generate_answer -> update_memory`
+- LangGraph 主流程：`load_context -> check_permission -> capability catalog -> plan_intent(execution_plan) -> rag/tool 分支 -> completion_reflect -> generate_answer -> update_memory`
 - 企业日常工具：当前时间、考勤 CSV 汇总、公司日程 JSON 查询/管理
 - Audit 日志：`logs/audit.jsonl`
 - 前端页面：启动服务后访问 `http://127.0.0.1:8000/`

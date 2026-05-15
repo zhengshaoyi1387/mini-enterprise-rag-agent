@@ -9,6 +9,7 @@ from uuid import uuid4
 from mini_rag.agent.context_store import SQLiteContextStore
 from mini_rag.config import Settings
 from mini_rag.graph.prompts import (
+    COMPLETION_REFLECT_SYSTEM,
     GENERATE_ANSWER_SYSTEM,
     MEMORY_UPDATE_SYSTEM,
     PLAN_RETRIEVAL_SYSTEM,
@@ -16,6 +17,7 @@ from mini_rag.graph.prompts import (
     ROUTE_SYSTEM,
     UNDERSTAND_QUERY_SYSTEM,
     format_answer_user,
+    format_completion_reflect_user,
     format_memory_user,
     format_plan_user,
     format_reflect_user,
@@ -381,10 +383,13 @@ class AgenticRAGNodes:
         with NodeTimer(state, "call_tool"):
             role = normalize_role(state.get("role"))
             tool_name = str(state.get("selected_tool") or (state.get("required_tools") or [None])[0] or "")
+            before_tool_calls = len(state.get("tool_calls") or [])
             if not tool_name:
                 state["route"] = "reject"
                 state["error"] = "No tool selected"
                 state["final_answer"] = "没有识别到可执行的企业能力。"
+                state["tool_result"] = {"error": "no tool selected"}
+                self._record_tool_task_result(state, before_tool_calls)
                 return state
             if not self.tool_registry.has_tool(tool_name):
                 state["error"] = f"Unknown tool: {tool_name}"
@@ -394,12 +399,16 @@ class AgenticRAGNodes:
                 state.setdefault("audit_events", []).append(
                     {"event": "tool_call", "tool_name": tool_name, "role": role, "decision": "blocked", "reason": "unknown tool"}
                 )
+                self._record_tool_task_result(state, before_tool_calls)
                 return state
             try:
                 payload = self._build_tool_payload(state, tool_name, role)
                 action = str(state.get("selected_action") or payload.get("action") or "*").strip().lower() or "*"
                 assert_tool_action_permission(role, tool_name, action, role_policies=self._get_role_policies(state))
                 result = self.tool_registry.invoke(tool_name, payload)
+                if isinstance(result, dict):
+                    result = dict(result)
+                    result.setdefault("tool_name", tool_name)
                 state["tool_input"] = payload
                 state["tool_result"] = result
                 if result.get("error"):
@@ -408,7 +417,7 @@ class AgenticRAGNodes:
                     current_context = self._build_current_tool_context(tool_name, payload, result)
                     current_context["trace_id"] = state.get("trace_id")
                     state["current_tool_context"] = current_context
-                    state["final_answer"] = self._format_tool_result(tool_name, result)
+                    state["final_answer"] = ""
                 state.setdefault("tool_calls", []).append(
                     {
                         "tool_name": tool_name,
@@ -453,6 +462,91 @@ class AgenticRAGNodes:
                 state.setdefault("audit_events", []).append(
                     {"event": "tool_call", "tool_name": tool_name, "role": role, "decision": "blocked", "reason": "tool_input_validation_failed"}
                 )
+            self._record_tool_task_result(state, before_tool_calls)
+        return state
+
+    def completion_reflect(self, state: AgentState) -> AgentState:
+        with NodeTimer(state, "completion_reflect"):
+            if state.get("route") in {"reject", "direct"} and not state.get("task_results"):
+                state["completion_assessment"] = {
+                    "ready_to_answer": True,
+                    "completed_objectives": [],
+                    "missing_objectives": [],
+                    "unsupported_parts": [],
+                    "next_action": "answer",
+                    "reason": "direct route",
+                }
+                return state
+            next_planned_task = self._prime_next_task(state)
+            if next_planned_task:
+                state["completion_assessment"] = {
+                    "ready_to_answer": False,
+                    "completed_objectives": [str(x) for x in state.get("completed_tasks", [])],
+                    "missing_objectives": [str(next_planned_task.get("objective") or next_planned_task.get("task_id") or "")],
+                    "unsupported_parts": [],
+                    "next_action": "continue",
+                    "followup_tasks": [next_planned_task],
+                    "reason": "planned task remains",
+                }
+                state.setdefault("observations", []).append({"type": "completion_reflection", **state["completion_assessment"]})
+                return state
+            completion_round = int(state.get("completion_reflect_round") or 0) + 1
+            state["completion_reflect_round"] = completion_round
+            evidence_text = state.get("evidence_brief") or compact_evidence_text(state.get("retrieved_docs", []), entities=state.get("entities", []))
+            payload = self._invoke_json(
+                state=state,
+                node="completion_reflect",
+                system=COMPLETION_REFLECT_SYSTEM,
+                user=format_completion_reflect_user(
+                    question=state.get("question", ""),
+                    execution_plan=state.get("execution_plan", {}),
+                    task_results=state.get("task_results", []),
+                    evidence_text=evidence_text,
+                    sources=state.get("sources", []),
+                    completion_round=completion_round,
+                ),
+                default={
+                    "ready_to_answer": True,
+                    "completed_objectives": [],
+                    "missing_objectives": [],
+                    "unsupported_parts": [],
+                    "next_action": "answer",
+                    "followup_tasks": [],
+                    "reason": "completion reflection fallback",
+                },
+            )
+            followups = [
+                self._normalize_execution_task(task, idx, state.get("raw_plan", {}))
+                for idx, task in enumerate(coerce_list(payload.get("followup_tasks")))
+                if isinstance(task, dict)
+            ]
+            completed = set(state.get("completed_tasks") or [])
+            followups = [task for task in followups if task.get("task_id") not in completed and task.get("kind")]
+            max_replans = max(0, int(getattr(self.settings, "agent_completion_max_replans", 2) or 0))
+            ready = bool(payload.get("ready_to_answer"))
+            next_action = str(payload.get("next_action") or "answer").lower()
+            if completion_round > max_replans:
+                ready = True
+                next_action = "answer"
+                followups = []
+            elif not ready and next_action in {"continue", "replan"} and followups:
+                state["task_queue"] = list(state.get("task_queue") or []) + followups
+                self._prime_next_task(state)
+            else:
+                followups = []
+                if not ready:
+                    next_action = "answer"
+                    ready = True
+            state["completion_assessment"] = {
+                "ready_to_answer": ready,
+                "completed_objectives": [str(x) for x in coerce_list(payload.get("completed_objectives"))],
+                "missing_objectives": [str(x) for x in coerce_list(payload.get("missing_objectives"))],
+                "unsupported_parts": [str(x) for x in coerce_list(payload.get("unsupported_parts"))],
+                "next_action": next_action,
+                "followup_tasks": followups,
+                "reason": str(payload.get("reason") or ""),
+            }
+            state.setdefault("observations", []).append({"type": "completion_reflection", **state["completion_assessment"]})
         return state
 
     def plan_retrieval(self, state: AgentState) -> AgentState:
@@ -510,6 +604,7 @@ class AgenticRAGNodes:
             pending = state.get("pending_search_tasks") or []
             if not pending:
                 state.setdefault("observations", []).append({"type": "retrieve", "message": "没有待检索任务，跳过。"})
+                self._record_rag_task_result(state)
                 return state
 
             all_docs = list(state.get("retrieved_docs") or [])
@@ -637,6 +732,7 @@ class AgenticRAGNodes:
                 entities=state.get("entities", []),
                 max_total_chars=int(getattr(self.settings, "agent_evidence_char_limit", 4200) or 4200),
             )
+            self._record_rag_task_result(state)
         return state
 
     def reflect_evidence(self, state: AgentState) -> AgentState:
@@ -709,13 +805,11 @@ class AgenticRAGNodes:
             if state.get("route") == "reject":
                 state["final_answer"] = state.get("final_answer") or "抱歉，这个请求存在安全风险，我不能执行。"
                 return state
-            if state.get("route") == "tool" and state.get("final_answer"):
-                return state
             if state.get("route") == "direct" and state.get("intent") == "smalltalk":
                 state["final_answer"] = state.get("final_answer") or "你好，我是企业知识库助手。你可以问我公司制度、考勤、公司日程等问题。"
                 return state
             if state.get("route") == "direct" and state.get("intent") == "permission_required":
-                state["final_answer"] = state.get("final_answer") or "你当前角色无权使用该企业能力，请切换到有权限的账号后再试。"
+                state["final_answer"] = state.get("final_answer") or self._permission_required_direct_answer(state)
                 return state
             evidence_text = state.get("evidence_brief") or compact_evidence_text(state.get("retrieved_docs", []), entities=state.get("entities", []))
             user_prompt = format_answer_user(
@@ -729,6 +823,9 @@ class AgenticRAGNodes:
                 tool_input=state.get("tool_input", {}),
                 tool_result=state.get("tool_result", {}),
                 current_tool_context=state.get("current_tool_context", {}),
+                execution_plan=state.get("execution_plan", {}),
+                task_results=state.get("task_results", []),
+                completion_assessment=state.get("completion_assessment", {}),
             )
             answer = self._invoke_text(
                 state=state,
@@ -747,15 +844,12 @@ class AgenticRAGNodes:
                 state["final_answer"] = state.get("final_answer") or "抱歉，这个请求存在安全风险，我不能执行。"
                 yield state["final_answer"]
                 return
-            if state.get("route") == "tool" and state.get("final_answer"):
-                yield state["final_answer"]
-                return
             if state.get("route") == "direct" and state.get("intent") == "smalltalk":
                 state["final_answer"] = state.get("final_answer") or "你好，我是企业知识库助手。你可以问我公司制度、考勤、公司日程等问题。"
                 yield state["final_answer"]
                 return
             if state.get("route") == "direct" and state.get("intent") == "permission_required":
-                state["final_answer"] = state.get("final_answer") or "你当前角色无权使用该企业能力，请切换到有权限的账号后再试。"
+                state["final_answer"] = state.get("final_answer") or self._permission_required_direct_answer(state)
                 yield state["final_answer"]
                 return
 
@@ -771,6 +865,9 @@ class AgenticRAGNodes:
                 tool_input=state.get("tool_input", {}),
                 tool_result=state.get("tool_result", {}),
                 current_tool_context=state.get("current_tool_context", {}),
+                execution_plan=state.get("execution_plan", {}),
+                task_results=state.get("task_results", []),
+                completion_assessment=state.get("completion_assessment", {}),
             )
 
             start = time.perf_counter()
@@ -877,6 +974,16 @@ class AgenticRAGNodes:
             return "plan_retrieval"
         return "generate_answer"
 
+    def after_completion_reflect(self, state: AgentState) -> str:
+        assessment = state.get("completion_assessment") or {}
+        if not assessment.get("ready_to_answer"):
+            route = state.get("route") or "rag"
+            if route == "tool":
+                return "call_tool"
+            if route == "rag":
+                return "plan_retrieval"
+        return "generate_answer"
+
     def should_retrieve(self, state: AgentState) -> str:
         """Backward-compatible helper used by older tests."""
         route = state.get("route") or "rag"
@@ -915,6 +1022,9 @@ class AgenticRAGNodes:
             "context_usage": state.get("context_usage"),
             "time_requirement": state.get("time_requirement", {}),
             "knowledge_requirement": state.get("knowledge_requirement", {}),
+            "execution_plan": state.get("execution_plan", {}),
+            "task_results": state.get("task_results", []),
+            "completed_tasks": state.get("completed_tasks", []),
             "plan_validation": state.get("plan_validation", {}),
             "risk_level": state.get("risk_level"),
             "standalone_query": state.get("standalone_query"),
@@ -924,6 +1034,7 @@ class AgenticRAGNodes:
             "executed_queries": state.get("executed_queries", []),
             "evidence_brief_chars": len(state.get("evidence_brief", "") or ""),
             "evidence_assessment": state.get("evidence_assessment", {}),
+            "completion_assessment": state.get("completion_assessment", {}),
             "skipped_reflection_reason": state.get("skipped_reflection_reason"),
             "node_trace": state.get("node_trace", []),
             "llm_calls": state.get("llm_calls", []),
@@ -984,6 +1095,7 @@ class AgenticRAGNodes:
             "tool_input": state.get("tool_input") or {},
             "time_requirement": state.get("time_requirement") or state.get("time_reference") or {},
             "knowledge_requirement": state.get("knowledge_requirement") or {},
+            "execution_plan": state.get("execution_plan") or {},
             "missing_required_slots": state.get("missing_required_slots") or [],
             "reason": state.get("query_reason") or "",
         }
@@ -1055,6 +1167,234 @@ class AgenticRAGNodes:
             "should_use_rag": bool(value.get("should_use_rag")),
         }
 
+    def _execution_plan_from_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        value = payload.get("execution_plan") if isinstance(payload.get("execution_plan"), dict) else {}
+        raw_tasks = value.get("tasks") if isinstance(value.get("tasks"), list) else None
+        if raw_tasks is None:
+            raw_tasks = payload.get("tasks") if isinstance(payload.get("tasks"), list) else None
+        tasks = [self._normalize_execution_task(task, idx, payload) for idx, task in enumerate(raw_tasks or [])]
+        tasks = [task for task in tasks if task.get("kind")]
+        if not tasks:
+            fallback = self._fallback_execution_task(payload)
+            if fallback:
+                tasks = [fallback]
+        return {
+            "tasks": tasks,
+            "strategy": str(value.get("strategy") or payload.get("reason") or "").strip(),
+        }
+
+    def _normalize_execution_task(self, task: Any, idx: int, plan_payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        task = task if isinstance(task, dict) else {}
+        plan_payload = plan_payload or {}
+        kind = str(task.get("kind") or task.get("route") or "").strip().lower()
+        tool = str(task.get("tool") or task.get("tool_name") or task.get("selected_tool") or "").strip() or None
+        action = str(task.get("action") or task.get("selected_action") or "").strip() or None
+        if not kind:
+            if tool:
+                kind = "tool"
+            elif task.get("query"):
+                kind = "rag"
+        if kind not in {"rag", "tool", "direct"}:
+            kind = ""
+        tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
+        time_requirement = self._time_requirement_from_payload(task)
+        if not time_requirement.get("has_time_requirement"):
+            time_requirement = self._time_requirement_from_payload(plan_payload)
+        normalized = {
+            "task_id": str(task.get("task_id") or f"t{idx + 1}"),
+            "kind": kind,
+            "objective": str(task.get("objective") or task.get("standalone_query") or task.get("query") or "").strip(),
+            "query": str(task.get("query") or task.get("standalone_query") or task.get("objective") or "").strip(),
+            "tool": tool,
+            "action": action,
+            "tool_input": dict(tool_input),
+            "time_requirement": time_requirement,
+            "depends_on": [str(x) for x in coerce_list(task.get("depends_on"))],
+        }
+        if normalized["kind"] == "tool":
+            normalized["query"] = ""
+            if normalized["tool"] == "manage_company_calendar" and normalized["action"] and not normalized["tool_input"].get("action"):
+                normalized["tool_input"]["action"] = normalized["action"]
+        return {key: value for key, value in normalized.items() if value not in (None, "", [], {}) or key in {"task_id", "kind", "tool_input"}}
+
+    def _fallback_execution_task(self, payload: dict[str, Any]) -> dict[str, Any] | None:
+        route = str(payload.get("route") or "direct")
+        standalone = str(payload.get("standalone_query") or payload.get("question") or "").strip()
+        selected_tool = str(payload.get("selected_tool") or "").strip()
+        if selected_tool:
+            action = str(payload.get("selected_action") or (payload.get("tool_input") or {}).get("action") or "").strip() or None
+            tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+            return {
+                "task_id": "t1",
+                "kind": "tool",
+                "objective": standalone or f"执行 {selected_tool}",
+                "tool": selected_tool,
+                "action": action,
+                "tool_input": dict(tool_input),
+                "time_requirement": self._time_requirement_from_payload(payload),
+                "depends_on": [],
+            }
+        if route == "rag":
+            return {
+                "task_id": "t1",
+                "kind": "rag",
+                "objective": standalone or "查询企业知识库",
+                "query": standalone,
+                "tool_input": {},
+                "time_requirement": self._time_requirement_from_payload(payload),
+                "depends_on": [],
+            }
+        if route == "tool":
+            tool = str(payload.get("selected_tool") or "").strip()
+            if not tool:
+                return None
+            action = str(payload.get("selected_action") or (payload.get("tool_input") or {}).get("action") or "").strip() or None
+            tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+            return {
+                "task_id": "t1",
+                "kind": "tool",
+                "objective": standalone or f"执行 {tool}",
+                "tool": tool,
+                "action": action,
+                "tool_input": dict(tool_input),
+                "time_requirement": self._time_requirement_from_payload(payload),
+                "depends_on": [],
+            }
+        if route == "direct" and payload.get("intent") not in {"smalltalk", "permission_required"}:
+            return {
+                "task_id": "t1",
+                "kind": "direct",
+                "objective": standalone or "直接回答",
+                "tool_input": {},
+                "time_requirement": self._time_requirement_from_payload(payload),
+                "depends_on": [],
+            }
+        return None
+
+    def _prime_next_task(self, state: AgentState) -> dict[str, Any] | None:
+        """Move the next unfinished planned task into the explicit graph branch.
+
+        The workflow no longer has a hidden queue executor node. This helper
+        only maps one structured task at a time onto the normal RAG or tool
+        branch, so node traces show the real execution path.
+        """
+
+        queue = [dict(task) for task in list(state.get("task_queue") or []) if isinstance(task, dict)]
+        if not queue:
+            return None
+        completed = set(state.get("completed_tasks") or [])
+        max_steps = max(1, int(getattr(self.settings, "agent_max_steps", 10) or 10))
+        if len(completed) >= max_steps:
+            state["task_queue"] = []
+            return None
+        while queue:
+            task = dict(queue.pop(0))
+            task_id = str(task.get("task_id") or f"t{len(completed) + 1}")
+            task["task_id"] = task_id
+            if task_id in completed:
+                continue
+            state["task_queue"] = queue
+            state["current_task"] = task
+            self._apply_execution_task_to_state(state, task)
+            return task
+        state["task_queue"] = []
+        return None
+
+    def _apply_execution_task_to_state(self, state: AgentState, task: dict[str, Any]) -> None:
+        kind = str(task.get("kind") or "").lower()
+        objective = str(task.get("objective") or "").strip()
+        if kind == "tool":
+            tool_name = str(task.get("tool") or "").strip()
+            action = str(task.get("action") or (task.get("tool_input") or {}).get("action") or "").strip() or None
+            tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
+            task_time = task.get("time_requirement") if isinstance(task.get("time_requirement"), dict) else {}
+            time_requirement = self._normalize_time_requirement(task_time)
+            state["route"] = "tool"
+            state["intent"] = "daily_tool"
+            state["selected_tool"] = tool_name or None
+            state["selected_action"] = action
+            state["required_tools"] = [tool_name] if tool_name else []
+            state["tool_input"] = dict(tool_input)
+            state["time_requirement"] = time_requirement
+            state["time_reference"] = time_requirement
+            state["needs_time_resolution"] = bool(time_requirement.get("requires_current_datetime"))
+            state["relative_time"] = str(time_requirement.get("canonical_relative") or "") or None
+            if objective:
+                state["standalone_query"] = objective
+            return
+
+        if kind == "rag":
+            query = str(task.get("query") or objective or state.get("standalone_query") or state.get("question") or "").strip()
+            previous_intent = str(state.get("intent") or "")
+            state["route"] = "rag"
+            state["intent"] = previous_intent if previous_intent.startswith("rag_") else "rag_fact"
+            state["standalone_query"] = query
+            state["selected_tool"] = None
+            state["selected_action"] = None
+            state["required_tools"] = []
+            state["tool_input"] = {}
+            return
+
+        state["route"] = "direct"
+        if objective:
+            state["standalone_query"] = objective
+
+    def _record_tool_task_result(self, state: AgentState, before_tool_calls: int = 0) -> None:
+        task = state.get("current_task") or {}
+        if not isinstance(task, dict) or str(task.get("kind") or "").lower() != "tool":
+            return
+        task_id = str(task.get("task_id") or "")
+        if not task_id or task_id in set(state.get("completed_tasks") or []):
+            return
+        result = dict(state.get("tool_result") or {})
+        tool_name = str(state.get("selected_tool") or task.get("tool") or "")
+        action = str(state.get("selected_action") or task.get("action") or (state.get("tool_input") or {}).get("action") or "*")
+        new_calls = list(state.get("tool_calls") or [])[max(0, before_tool_calls):]
+        status = "error" if result.get("error") or state.get("error") else "ok"
+        state.setdefault("task_results", []).append(
+            {
+                "task_id": task_id,
+                "kind": "tool",
+                "objective": task.get("objective") or tool_name,
+                "status": status,
+                "tool_name": tool_name,
+                "action": action,
+                "tool_input": {
+                    key: value
+                    for key, value in (state.get("tool_input") or {}).items()
+                    if key not in {"query", "user_id", "role"}
+                },
+                "tool_result": result,
+                "tool_calls": new_calls,
+                "result_summary": self._format_tool_result(tool_name, result) if result else "",
+                "error_message": state.get("final_answer") if status == "error" else "",
+            }
+        )
+        state.setdefault("completed_tasks", []).append(task_id)
+
+    def _record_rag_task_result(self, state: AgentState) -> None:
+        task = state.get("current_task") or {}
+        if not isinstance(task, dict) or str(task.get("kind") or "").lower() != "rag":
+            return
+        task_id = str(task.get("task_id") or "")
+        if not task_id or task_id in set(state.get("completed_tasks") or []):
+            return
+        query = str(task.get("query") or task.get("objective") or state.get("standalone_query") or state.get("question") or "").strip()
+        sources = list(state.get("sources") or [])
+        state.setdefault("task_results", []).append(
+            {
+                "task_id": task_id,
+                "kind": "rag",
+                "objective": task.get("objective") or query,
+                "status": "ok" if sources or state.get("retrieved_docs") else "no_evidence",
+                "query": query,
+                "executed_queries": list(state.get("executed_queries") or []),
+                "sources": sources,
+                "evidence_summary": truncate(state.get("evidence_brief") or "", 900),
+            }
+        )
+        state.setdefault("completed_tasks", []).append(task_id)
+
     def _apply_plan_payload_to_state(self, state: AgentState, payload: dict[str, Any], normalize: bool = False) -> None:
         question = state.get("question", "")
         payload = dict(payload or {})
@@ -1069,6 +1409,7 @@ class AgenticRAGNodes:
         required_tools = [str(x) for x in coerce_list(payload.get("required_tools"))]
         if route == "tool" and selected_tool and selected_tool not in required_tools:
             required_tools = [selected_tool]
+        execution_plan = self._execution_plan_from_payload(payload)
         state["message_type"] = str(payload.get("message_type") or "business_question")
         state["context_usage"] = str(payload.get("context_usage") or "none")
         state["intent"] = str(payload.get("intent") or "rag_fact")
@@ -1081,6 +1422,8 @@ class AgenticRAGNodes:
         state["selected_action"] = selected_action
         state["required_tools"] = required_tools
         state["tool_input"] = tool_input
+        state["execution_plan"] = execution_plan
+        state["task_queue"] = list(execution_plan.get("tasks") or [])
         state["time_requirement"] = time_requirement
         state["knowledge_requirement"] = knowledge_requirement
         state["time_reference"] = time_requirement  # legacy compatibility
@@ -1089,6 +1432,7 @@ class AgenticRAGNodes:
         state["missing_required_slots"] = [str(x) for x in coerce_list(payload.get("missing_required_slots"))]
         state["query_reason"] = str(payload.get("reason") or "")
         state["router_reason"] = str(payload.get("reason") or "")
+        self._prime_next_task(state)
 
     def _normalize_planner_contract(
         self,
@@ -1106,6 +1450,23 @@ class AgenticRAGNodes:
         selected_tool = str(payload.get("selected_tool") or "") or None
         selected_action = str(payload.get("selected_action") or (payload.get("tool_input") or {}).get("action") or "") or None
         tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+        raw_execution_plan = payload.get("execution_plan") if isinstance(payload.get("execution_plan"), dict) else {}
+        raw_tasks = raw_execution_plan.get("tasks") if isinstance(raw_execution_plan.get("tasks"), list) else payload.get("tasks")
+        has_explicit_tasks = bool(raw_tasks)
+        payload["execution_plan"] = self._execution_plan_from_payload(payload)
+        tasks = list((payload.get("execution_plan") or {}).get("tasks") or [])
+
+        if has_explicit_tasks and tasks and route == "direct" and message_type != "smalltalk":
+            route = "tool" if any(task.get("kind") == "tool" for task in tasks) else "rag"
+            payload["route"] = route
+        first_tool_task = next((task for task in tasks if task.get("kind") == "tool" and task.get("tool")), None)
+        if first_tool_task and not selected_tool:
+            selected_tool = str(first_tool_task.get("tool") or "") or None
+            selected_action = selected_action or str(first_tool_task.get("action") or "") or None
+            payload["selected_tool"] = selected_tool
+            payload["selected_action"] = selected_action
+            tool_input = first_tool_task.get("tool_input") if isinstance(first_tool_task.get("tool_input"), dict) else tool_input
+            payload["tool_input"] = tool_input
 
         if message_type == "smalltalk":
             payload.update(
@@ -1117,13 +1478,14 @@ class AgenticRAGNodes:
                     "selected_action": None,
                     "tool_input": {},
                     "required_tools": [],
+                    "execution_plan": {"tasks": [], "strategy": ""},
                     "normalization_reason": "smalltalk clears tool plan",
                 }
             )
             return payload
 
         knowledge_requirement = payload.get("knowledge_requirement") or {}
-        if knowledge_requirement.get("should_use_rag"):
+        if knowledge_requirement.get("should_use_rag") and not has_explicit_tasks:
             payload.update(
                 {
                     "intent": "rag_fact" if payload.get("intent") in {None, "", "daily_tool"} else payload.get("intent"),
@@ -1173,6 +1535,8 @@ class AgenticRAGNodes:
                     "normalization_reason": "previous tool context requires executable tool plan",
                 }
             )
+            fallback_task = self._fallback_execution_task(payload)
+            payload["execution_plan"] = {"tasks": [fallback_task] if fallback_task else [], "strategy": str(payload.get("reason") or "")}
             route = "tool"
 
         if selected_tool and route == "direct":
@@ -1182,6 +1546,8 @@ class AgenticRAGNodes:
             # execution time.
             payload["route"] = "tool"
             payload.setdefault("normalization_reason", "selected tool implies tool route")
+            fallback_task = self._fallback_execution_task(payload)
+            payload["execution_plan"] = {"tasks": [fallback_task] if fallback_task else [], "strategy": str(payload.get("reason") or "")}
             route = "tool"
 
         if route == "rag":
@@ -1201,6 +1567,7 @@ class AgenticRAGNodes:
                         "selected_action": None,
                         "tool_input": {},
                         "required_tools": [],
+                        "execution_plan": {"tasks": [], "strategy": ""},
                         "normalization_reason": "selected tool not visible",
                     }
                 )
@@ -1216,6 +1583,7 @@ class AgenticRAGNodes:
                         "selected_action": None,
                         "tool_input": {},
                         "required_tools": [],
+                        "execution_plan": {"tasks": [], "strategy": ""},
                         "normalization_reason": "selected action not visible",
                     }
                 )
@@ -1260,14 +1628,18 @@ class AgenticRAGNodes:
                 "current_datetime_result：" + self._safe_json_dumps(datetime_result or {}),
                 f"validation_error：{validation_error or '无'}",
                 "input_schema：" + self._safe_json_dumps(input_schema),
-                "只输出修正后的 JSON tool_input，严格符合 input_schema，不要解释。",
+                "action_field_contract：manage_company_calendar.query 使用 start_date/end_date；manage_company_calendar.create/update 使用 date；delete 使用 event_id。",
+                "如果当前消息包含相对日期，请只基于 current_datetime_result 推导日期，不要凭模型常识猜当前日期。",
+                "weekday_derivation：如果 current_datetime_result.ranges.next_week 存在，则 next_week.start_date 是周一；周二 = start_date + 1 天，周三 = start_date + 2 天，周四 = start_date + 3 天，周五 = start_date + 4 天，周六 = start_date + 5 天，周日 = start_date + 6 天。",
+                "同理 this_week、last_week、week_after_next 的 start_date 都是该周周一。遇到“下周二/本周五/上周三”必须按对应周范围和星期偏移计算 date。",
+                "只输出修正后的 JSON tool_input，严格符合 selected_action 的字段契约，不要解释。",
             ]
         )
 
         fixed = self._invoke_json(
             state=state,
             node="finalize_tool_input",
-            system="你是工具参数生成器。你只能输出严格 JSON。根据当前消息、time_reference、日期工具结果和 input_schema 生成可执行 tool_input。",
+            system="你是企业工具参数修复器。你只能输出严格 JSON。根据 selected_action、time_reference、日期工具结果和 input_schema 生成可执行 tool_input；不要回答用户。",
             user=user_prompt,
             default=payload,
         )
@@ -1302,6 +1674,7 @@ class AgenticRAGNodes:
             self._apply_datetime_range_if_possible(state, tool_name, payload, datetime_result)
 
         runtime_extras = {key: payload[key] for key in ("file_path",) if key in payload}
+        self._normalize_tool_payload_for_action_contract(tool_name, payload, state=state)
         try:
             payload = validate_tool_input(tool_name, payload)
         except ValidationError as exc:
@@ -1312,8 +1685,10 @@ class AgenticRAGNodes:
                 datetime_result=datetime_result,
                 validation_error=str(exc),
             )
+            self._normalize_tool_payload_for_action_contract(tool_name, payload, state=state)
             runtime_extras.update({key: payload[key] for key in ("file_path",) if key in payload})
             payload = validate_tool_input(tool_name, payload)
+        payload = self._prune_tool_payload_for_action_contract(tool_name, payload)
         payload.update(runtime_extras)
 
         payload.update({"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role})
@@ -1405,7 +1780,8 @@ class AgenticRAGNodes:
             if action == "query":
                 payload["start_date"] = start_date
                 payload["end_date"] = end_date
-                payload.setdefault("query_scope", "all_events")
+                if not payload.get("query_scope"):
+                    payload["query_scope"] = "all_events" if str(payload.get("event_type") or "all") == "all" else "type_filtered"
                 if payload.get("query_scope") == "all_events":
                     payload["event_type"] = "all"
                 payload.setdefault("department", "all")
@@ -1414,6 +1790,45 @@ class AgenticRAGNodes:
             if action in {"create", "update"} and start_date == end_date:
                 payload.setdefault("date", start_date)
                 payload["_relative_range"] = range_key
+
+    @staticmethod
+    def _normalize_tool_payload_for_action_contract(tool_name: str, payload: dict[str, Any], state: AgentState | None = None) -> None:
+        """Align cross-stage payloads with the selected tool/action contract.
+
+        Planner and finalizer stages may use range-shaped fields while a write
+        action needs a single date. This helper performs schema-level coercion
+        only; it does not infer business semantics from the user text.
+        """
+
+        if tool_name != "manage_company_calendar":
+            return
+        action = str(payload.get("action") or (state or {}).get("selected_action") or "query").strip().lower() or "query"
+        payload["action"] = action
+        if action not in {"create", "update", "delete"}:
+            return
+        start_date = str(payload.get("start_date") or "").strip()
+        end_date = str(payload.get("end_date") or "").strip()
+        if not payload.get("date") and start_date and start_date == end_date:
+            payload["date"] = start_date
+        for query_field in ("start_date", "end_date", "query_scope", "event_type"):
+            payload.pop(query_field, None)
+
+    @staticmethod
+    def _prune_tool_payload_for_action_contract(tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if tool_name != "manage_company_calendar":
+            return payload
+        action = str(payload.get("action") or "query").strip().lower() or "query"
+        if action == "query":
+            allowed = {"action", "start_date", "end_date", "query_scope", "event_type", "department"}
+        elif action == "create":
+            allowed = {"action", "title", "type", "date", "time", "department", "location", "description"}
+        elif action == "update":
+            allowed = {"action", "event_id", "title", "type", "date", "time", "department", "location", "description"}
+        elif action == "delete":
+            allowed = {"action", "event_id"}
+        else:
+            return payload
+        return {key: value for key, value in payload.items() if key in allowed}
 
     @staticmethod
     def _safe_json_dumps(value: Any) -> str:
@@ -1464,6 +1879,19 @@ class AgenticRAGNodes:
         if tool_name == "query_attendance_summary":
             return "你当前角色无法查看公司内部考勤数据，请使用员工或管理员账号登录后再查询。"
         return "你当前角色没有权限使用该企业能力。"
+
+    @staticmethod
+    def _permission_required_direct_answer(state: AgentState) -> str:
+        topic = str(state.get("topic") or "").lower()
+        standalone = str(state.get("standalone_query") or state.get("question") or "")
+        text = f"{topic} {standalone}"
+        if "calendar_write" in topic:
+            return "你没有权限修改公司日程。只有 admin 可以新增、更新或删除日程。"
+        if "calendar" in topic or "日程" in text:
+            return "你当前角色无法查看公司内部日程，请使用员工或管理员账号登录后再查询。"
+        if "attendance" in topic or "考勤" in text:
+            return "你当前角色无法查看公司内部考勤数据，请使用员工或管理员账号登录后再查询。"
+        return "你当前角色无权使用该企业能力，请切换到有权限的账号后再试。"
 
     def _build_current_tool_context(self, tool_name: str, payload: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
         domain = {
@@ -1797,6 +2225,11 @@ def create_initial_state(
         "planning_context": {},
         "raw_plan": {},
         "plan_validation": {},
+        "execution_plan": {"tasks": []},
+        "task_queue": [],
+        "current_task": {},
+        "task_results": [],
+        "completed_tasks": [],
         "time_requirement": {},
         "knowledge_requirement": {},
         "prepared_tool_input": {},
@@ -1828,6 +2261,8 @@ def create_initial_state(
         "observations": [],
         "tool_calls": [],
         "evidence_assessment": {},
+        "completion_assessment": {},
+        "completion_reflect_round": 0,
         "reflect_round": 0,
         "final_answer": "",
         "memory_update": {},

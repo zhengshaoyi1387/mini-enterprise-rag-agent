@@ -93,6 +93,7 @@ class Settings(BaseSettings):
     agent_retrieval_workers: int = Field(default=4, alias="AGENT_RETRIEVAL_WORKERS")
     agent_max_search_tasks: int = Field(default=3, alias="AGENT_MAX_SEARCH_TASKS")
     agent_max_followup_tasks: int = Field(default=2, alias="AGENT_MAX_FOLLOWUP_TASKS")
+    agent_completion_max_replans: int = Field(default=2, alias="AGENT_COMPLETION_MAX_REPLANS")
     agent_enable_retrieval_cache: bool = Field(default=True, alias="AGENT_ENABLE_RETRIEVAL_CACHE")
     agent_entity_top_k: int = Field(default=2, alias="AGENT_ENTITY_TOP_K")
     agent_entity_candidate_k: int = Field(default=6, alias="AGENT_ENTITY_CANDIDATE_K")

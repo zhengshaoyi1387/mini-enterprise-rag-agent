@@ -35,6 +35,21 @@ PLAN_INTENT_SYSTEM = """
     "known_from_user_message": false,
     "should_use_rag": false
   },
+  "execution_plan": {
+    "tasks": [
+      {
+        "task_id": "t1",
+        "kind": "rag | tool | direct",
+        "objective": "要完成的子目标",
+        "query": "rag 检索问题，可为空",
+        "tool": "工具名，可为空",
+        "action": "工具 action，可为空",
+        "tool_input": {},
+        "time_requirement": {},
+        "depends_on": []
+      }
+    ]
+  },
   "missing_required_slots": [],
   "reason": "short"
 }
@@ -50,7 +65,13 @@ PLAN_INTENT_SYSTEM = """
 - “下下周/再下一周”使用 canonical_relative=week_after_next；“下下月/再下一月”使用 canonical_relative=month_after_next。
 - 绝对日期或明确范围可直接写 absolute_date/date_range。
 - get_current_datetime 只在纯日期时间问题中作为最终工具；业务查询中的时间处理由执行层内部调用。
-- tool_input 只写业务字段；相对时间不要填猜测日期。
+- tool_input 只写业务字段；相对时间不要填猜测出来的 start_date/end_date/date。
+- manage_company_calendar 的字段契约：query 使用 start_date/end_date；create/update 使用 date；delete 使用 event_id。
+- execution_plan.tasks 必须覆盖用户当前消息中的所有子目标。简单问题也输出一个 task；复合问题输出多个 task。
+- 用户宽泛询问“某制度/某政策/某流程”时，只规划该制度/政策/流程本身；不要自动扩展成限额数值、评分细则、审计细则、例外条款等未被点名的深挖目标。
+- 只有用户明确要求“详细限额/评分标准/审计规则/逐项对比/所有细则”等细粒度目标时，才把这些目标拆成独立 task。
+- task.kind=rag 表示查询非结构化知识库；task.kind=tool 表示执行结构化工具；task.kind=direct 只用于无需知识库/工具的直接回复。
+- 顶层 route/selected_tool/selected_action 保持兼容，可对应第一个可执行 task；真正执行以 execution_plan.tasks 为准。
 - reason 不超过 20 个中文字符。
 """.strip()
 
@@ -110,15 +131,46 @@ REFLECT_EVIDENCE_SYSTEM = """
 """.strip()
 
 
+COMPLETION_REFLECT_SYSTEM = """
+你是企业 Agent 的任务完成度反思节点。只输出 JSON，不回答用户。
+
+你的任务是判断当前执行结果是否已经覆盖用户原始请求的全部子目标。你可以要求继续执行缺失任务，但不能自己编造答案。
+
+输出 schema：
+{
+  "ready_to_answer": true,
+  "completed_objectives": [],
+  "missing_objectives": [],
+  "unsupported_parts": [],
+  "next_action": "answer | continue | replan",
+  "followup_tasks": [],
+  "reason": "short"
+}
+
+规则：
+- ready_to_answer=true 表示已有 task_results、工具结果和证据足以生成完整回答。
+- 如果用户请求包含多个子目标，但 task_results 只覆盖其中一部分，ready_to_answer=false。
+- next_action=continue/replan 时，followup_tasks 必须使用 execution_plan task schema，且只补缺失子目标。
+- 不要重复已经完成的 task_id 或 objective。
+- 只根据结构化执行结果判断完成度，不根据常识假设任务已经完成。
+- 不得新增用户没有明确要求的细节目标。宽泛询问制度、政策、流程时，只检查该制度、政策、流程是否有可回答证据。
+- 不要把制度自动扩展成限额、评分细则、审计细则、例外条款、实施案例等更深层目标；除非这些词在用户问题或 execution_plan 里已经明确出现。
+- 如果证据能回答宽泛问题但缺少某些未被要求的细节，ready_to_answer=true，把这些限制写入 unsupported_parts，不要继续补检索。
+""".strip()
+
+
 GENERATE_ANSWER_SYSTEM = """
 你是严谨的企业知识库 Agent。请基于输入中的证据、工具结果和证据评估回答用户。
 你不负责重新检索，不负责扩大问题范围，只负责基于已给证据或工具结果生成答案。
 要求：
+- 如果用户提出了你无法做到的事情，直接拒绝并说明原因。示例：“我没有能力或者权限做......”
 - 回答当前用户问题，不要复读历史无关内容。
 - 使用自然、简洁、结构清晰的中文。
-- 证据不足时说明不足，但不要输出 debug 风格的 chunk 罗列。
+- 证据不足时说明不足，但不要输出 debug 风格的 chunk 罗列。证据无法完整回答用户问题时只回答能回答的部分，并说明缺什么信息。示例：“根据可访问证据，......”
 - RAG 答案末尾列出引用来源，包含 source、title_path、chunk_id。
 - 工具答案不要直接输出原始 JSON，要把 tool_result 转成自然语言；权限或参数错误要用用户能理解的话解释。
+- 工具结果里没有 weekday 字段时，不要自行补充星期几；只展示工具返回的 date/time。
+- 不要声明系统时间偏差、日期推算异常或“周一/周二矛盾”，除非 tool_result 或 completion_assessment 明确提供该错误。
 """.strip()
 
 
@@ -278,6 +330,9 @@ def format_answer_user(
     tool_input: dict[str, Any] | None = None,
     tool_result: dict[str, Any] | None = None,
     current_tool_context: dict[str, Any] | None = None,
+    execution_plan: dict[str, Any] | None = None,
+    task_results: list[dict[str, Any]] | None = None,
+    completion_assessment: dict[str, Any] | None = None,
 ) -> str:
     compact_assessment = compact_evidence_assessment(evidence_assessment)
     return "\n\n".join(
@@ -286,12 +341,43 @@ def format_answer_user(
             f"独立问题：{standalone_query}",
             f"route：{route}",
             f"当前项目配置的聊天模型：{model_name}",
+            "execution_plan：\n" + json.dumps(execution_plan or {}, ensure_ascii=False, indent=2),
+            "task_results：\n" + json.dumps(task_results or [], ensure_ascii=False, indent=2),
+            "completion_assessment：\n" + json.dumps(completion_assessment or {}, ensure_ascii=False, indent=2),
             f"selected_tool：{selected_tool or '无'}",
             "tool_input：\n" + json.dumps(tool_input or {}, ensure_ascii=False, indent=2),
             "tool_result：\n" + json.dumps(tool_result or {}, ensure_ascii=False, indent=2),
             "current_tool_context：\n" + json.dumps(current_tool_context or {}, ensure_ascii=False, indent=2),
             f"证据评估：{compact_assessment or '无'}",
             "证据：\n" + (evidence_text or "无"),
+        ]
+    )
+
+
+def format_completion_reflect_user(
+    question: str,
+    execution_plan: dict[str, Any],
+    task_results: list[dict[str, Any]],
+    evidence_text: str,
+    sources: list[dict[str, Any]],
+    completion_round: int,
+) -> str:
+    compact_sources = [
+        {
+            "source": item.get("source"),
+            "title_path": item.get("title_path"),
+            "chunk_id": item.get("chunk_id"),
+        }
+        for item in sources[:8]
+    ]
+    return "\n\n".join(
+        [
+            f"原始问题：{question}",
+            f"completion_round：{completion_round}",
+            "execution_plan：\n" + json.dumps(execution_plan or {}, ensure_ascii=False, indent=2),
+            "task_results：\n" + json.dumps(task_results or [], ensure_ascii=False, indent=2),
+            "当前证据摘要：\n" + (evidence_text or "无"),
+            "sources：\n" + json.dumps(compact_sources, ensure_ascii=False, indent=2),
         ]
     )
 

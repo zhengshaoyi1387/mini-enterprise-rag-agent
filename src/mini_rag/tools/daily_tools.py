@@ -9,8 +9,25 @@ from mini_rag.tools.datetime_tool import get_current_datetime
 from mini_rag.tools.registry import ToolRegistry
 
 
+def _search_knowledge_base_registry_placeholder(_payload: dict) -> dict:
+    return {
+        "error": "search_knowledge_base is executed by the RAG retrieval node",
+        "tool_name": "search_knowledge_base",
+        "risk_level": "low",
+    }
+
+
 def build_default_tool_registry() -> ToolRegistry:
     registry = ToolRegistry()
+
+    registry.register(
+        "search_knowledge_base",
+        _search_knowledge_base_registry_placeholder,
+        "Unstructured enterprise knowledge base retrieval for policies, processes, FAQ and product documents. Executed by the RAG route.",
+        "low",
+        input_schema={"properties": {"query": {"type": "string"}}, "required": ["query"]},
+        action_contracts={"*": {"in": {"query": "standalone enterprise knowledge question"}}},
+    )
 
     registry.register(
         "get_current_datetime",

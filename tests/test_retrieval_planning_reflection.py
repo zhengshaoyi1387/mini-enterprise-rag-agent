@@ -124,7 +124,7 @@ def test_langgraph_agent_runs_planned_queries_and_reflects_before_final(tmp_path
             '{"intent":"rag_explain","route":"rag","standalone_query":"智能客服平台中服务质检、数据报表、系统配置这三个模块是什么？",'
             '"topic":"智能客服平台","entities":["服务质检","数据报表","系统配置"],"risk_level":"low","required_tools":[],"reason":"需要查企业知识库"}',
             '{"search_tasks":[{"query":"智能客服平台 服务质检 数据报表 系统配置 功能说明","purpose":"整体检索","target_entity":null}],"reason":"先整体检索"}',
-            '{"is_sufficient":true,"reason":"三个模块都有证据","missing_information":[],"followup_queries":[],"can_answer_partial":false}',
+            '{"ready_to_answer":true,"completed_objectives":["三个模块说明"],"missing_objectives":[],"unsupported_parts":[],"next_action":"answer","followup_tasks":[],"reason":"三个模块都有证据"}',
             "服务质检、数据报表、系统配置的简要说明。\n\n引用：manual.md",
         ]
     )
@@ -137,4 +137,4 @@ def test_langgraph_agent_runs_planned_queries_and_reflects_before_final(tmp_path
         "智能客服平台 服务质检 数据报表 系统配置 功能说明",
     ]
     assert result["trace"]["executed_queries"] == retriever.queries
-    assert result["trace"]["evidence_assessment"]["is_sufficient"] is True
+    assert result["trace"]["completion_assessment"]["ready_to_answer"] is True

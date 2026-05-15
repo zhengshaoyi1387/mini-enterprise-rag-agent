@@ -333,8 +333,12 @@ def test_current_relative_time_overrides_context_derived_planner_dates(tmp_path:
                     "department": "all",
                     "file_path": str(path),
                 },
-                needs_time_resolution=False,
-                relative_time=None,
+                time_requirement={
+                    "has_time_requirement": True,
+                    "time_reference_type": "relative",
+                    "canonical_relative": "next_week",
+                    "requires_current_datetime": True,
+                },
                 reason="使用历史上下文查询下周日程",
             )
         ]
@@ -379,13 +383,18 @@ def test_direct_datetime_question_is_normalized_to_datetime_tool(tmp_path: Path,
                 route="direct",
                 standalone_query="今天星期几？",
                 topic="日期时间",
-                selected_tool=None,
-                selected_action=None,
-                tool_input={},
-                needs_time_resolution=False,
-                relative_time=None,
+                selected_tool="get_current_datetime",
+                selected_action="*",
+                tool_input={"timezone": "Asia/Shanghai"},
+                time_requirement={
+                    "has_time_requirement": True,
+                    "time_reference_type": "relative",
+                    "canonical_relative": "today",
+                    "requires_current_datetime": True,
+                },
                 reason="日期问题",
-            )
+            ),
+            "当前日期：2026-05-09，星期：Saturday。",
         ]
     )
     nodes = AgenticRAGNodes(make_settings(tmp_path), llm=llm)
@@ -394,6 +403,7 @@ def test_direct_datetime_question_is_normalized_to_datetime_tool(tmp_path: Path,
     state = nodes.understand_query(state)
     state = nodes.route(state)
     state = nodes.call_tool(state)
+    state = nodes.generate_answer(state)
 
     assert state["route"] == "tool"
     assert state["selected_tool"] == "get_current_datetime"
@@ -512,7 +522,7 @@ def test_calendar_event_type_contract_keeps_generic_activity_as_all(tmp_path: Pa
 
     monkeypatch.setattr(nodes_module, "get_current_datetime", fake_datetime)
     contracts = build_default_tool_registry().format_tool_contracts_for_prompt(role="employee")
-    assert "公司有什么活动" in contracts
+    assert "query_scope" in contracts
     assert "event_type=all" in contracts
 
     path = calendar_path(tmp_path)
