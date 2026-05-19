@@ -27,6 +27,7 @@ class NodeTimer:
 
     def __exit__(self, exc_type, exc, tb):
         elapsed = round(now_ms() - self.start, 2)
+        extra: dict[str, Any] = {}
         # Keep trace useful but compact. The full state can be inspected via
         # top-level trace fields; per-node listing every key bloats logs without
         # improving debugging quality.
@@ -34,6 +35,7 @@ class NodeTimer:
             {
                 "node": self.node,
                 "latency_ms": elapsed,
+                **extra,
                 "route": self.state.get("route", ""),
                 "error": str(exc) if exc else self.state.get("error"),
                 "state": {

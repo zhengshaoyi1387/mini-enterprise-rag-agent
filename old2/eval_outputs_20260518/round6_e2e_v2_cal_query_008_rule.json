@@ -1,0 +1,418 @@
+{
+  "suite": "e2e",
+  "judge": "rule",
+  "mode": "hybrid",
+  "generated_at": "2026-05-17T12:24:58.179477+00:00",
+  "summary": {
+    "overall": {
+      "total_cases": 1,
+      "executed_cases": 1,
+      "infra_error_cases": 0,
+      "agent_passed_cases": 1,
+      "agent_failed_cases": 0,
+      "agent_pass_rate": 1.0,
+      "case_count": 1,
+      "passed": 1,
+      "failed": 0,
+      "pass_rate": 1.0,
+      "avg_latency_ms": 27958.45,
+      "p95_latency_ms": 27958.45,
+      "actual_success_no_blocked_tasks": 1.0,
+      "answer_must_contain_hit": 1.0,
+      "answer_must_not_contain_pass": 1.0,
+      "expected_source_citation": 1.0,
+      "expected_source_recall": 1.0,
+      "expected_status_pass": 1.0,
+      "expected_tool_coverage": 1.0,
+      "forbidden_actions_pass": 1.0,
+      "grounded_answer_rate": 1.0,
+      "multi_task_completion_rate": 1.0,
+      "no_unwanted_write": 1.0,
+      "refusal_accuracy": 1.0,
+      "task_success": 1.0,
+      "write_result_success": 1.0
+    },
+    "by_suite": {
+      "e2e": {
+        "total_cases": 1,
+        "executed_cases": 1,
+        "infra_error_cases": 0,
+        "agent_passed_cases": 1,
+        "agent_failed_cases": 0,
+        "agent_pass_rate": 1.0,
+        "case_count": 1,
+        "passed": 1,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "avg_latency_ms": 27958.45,
+        "p95_latency_ms": 27958.45,
+        "actual_success_no_blocked_tasks": 1.0,
+        "answer_must_contain_hit": 1.0,
+        "answer_must_not_contain_pass": 1.0,
+        "expected_source_citation": 1.0,
+        "expected_source_recall": 1.0,
+        "expected_status_pass": 1.0,
+        "expected_tool_coverage": 1.0,
+        "forbidden_actions_pass": 1.0,
+        "grounded_answer_rate": 1.0,
+        "multi_task_completion_rate": 1.0,
+        "no_unwanted_write": 1.0,
+        "refusal_accuracy": 1.0,
+        "task_success": 1.0,
+        "write_result_success": 1.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_query_008",
+      "question": "先告诉我今天日期，再查明天的会议和后天的培训。",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 27958.45,
+      "route": "tool",
+      "trace_id": "eval_trace_0d4c69acaf1243b284dbca49991e4900",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 27958.45
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai",
+            "query": "先告诉我今天日期，再查明天的会议和后天的培训。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "type_filtered",
+            "event_type": "meeting",
+            "department": "all",
+            "query": "先告诉我今天日期，再查明天的会议和后天的培训。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-19",
+            "end_date": "2026-05-19",
+            "query_scope": "type_filtered",
+            "event_type": "training",
+            "department": "all",
+            "query": "先告诉我今天日期，再查明天的会议和后天的培训。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "先告诉我今天日期，再查明天的会议和后天的培训",
+          "status": "ok",
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "tool_input": {
+            "timezone": "Asia/Shanghai"
+          },
+          "result_summary": "当前日期：2026-05-17，时间：20:24:51，星期：Sunday，时区：Asia/Shanghai。",
+          "tool_result": {
+            "current_date": "2026-05-17",
+            "weekday": "Sunday",
+            "weekday_zh": "星期日",
+            "current_time": "20:24:51",
+            "ranges": {
+              "today": {
+                "start_date": "2026-05-17",
+                "end_date": "2026-05-17"
+              },
+              "yesterday": {
+                "start_date": "2026-05-16",
+                "end_date": "2026-05-16"
+              },
+              "tomorrow": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "day_after_tomorrow": {
+                "start_date": "2026-05-19",
+                "end_date": "2026-05-19"
+              },
+              "this_week": {
+                "start_date": "2026-05-11",
+                "end_date": "2026-05-17"
+              },
+              "last_week": {
+                "start_date": "2026-05-04",
+                "end_date": "2026-05-10"
+              },
+              "next_week": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-24"
+              },
+              "week_after_next": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "next_next_week": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "this_month": {
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-31"
+              },
+              "last_month": {
+                "start_date": "2026-04-01",
+                "end_date": "2026-04-30"
+              },
+              "next_month": {
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30"
+              },
+              "month_after_next": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              },
+              "next_next_month": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              }
+            },
+            "timezone": "Asia/Shanghai"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "查询明天的会议和公司日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "type_filtered",
+            "event_type": "meeting",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-18 的公司日程：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B，event_id：EVT-20260518-0001）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C，event_id：EVT-20260518-0002）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260518-0001",
+                "date": "2026-05-18",
+                "title": "产品部 OKR 同步会",
+                "type": "meeting",
+                "department": "产品部",
+                "time": "10:00-11:00",
+                "location": "会议室 B",
+                "description": "产品部 OKR 对齐",
+                "weekday_zh": "星期一"
+              },
+              {
+                "event_id": "EVT-20260518-0002",
+                "date": "2026-05-18",
+                "title": "研发部周会",
+                "type": "meeting",
+                "department": "研发部",
+                "time": "14:00-15:00",
+                "location": "会议室 C",
+                "description": "研发进度同步",
+                "weekday_zh": "星期一"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t3",
+          "kind": "tool",
+          "objective": "查询后天的培训   包含当前日期查询（需 get_current_datetime）及后续相对时间日程查询（需 manage_company_calendar）公司日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-19",
+            "end_date": "2026-05-19",
+            "query_scope": "type_filtered",
+            "event_type": "training",
+            "department": "all"
+          },
+          "result_summary": "2026-05-19 至 2026-05-19 暂无公司日程。",
+          "tool_result": {
+            "events": [],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "先告诉我今天日期，再查明天的会议和后天的培训",
+            "tool": "get_current_datetime",
+            "action": "*",
+            "tool_input": {
+              "timezone": "Asia/Shanghai"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "today",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "查询明天的会议和公司日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "meeting",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "tomorrow",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            },
+            "depends_on": [
+              "t1"
+            ]
+          },
+          {
+            "task_id": "t3",
+            "kind": "tool",
+            "objective": "查询后天的培训   包含当前日期查询（需 get_current_datetime）及后续相对时间日程查询（需 manage_company_calendar）公司日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "training",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "day_after_tomorrow",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            },
+            "depends_on": [
+              "t1"
+            ]
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "先告诉我今天日期，再查明天的会议和后天的培训",
+        "risk_level": "low",
+        "selected_tool": "get_current_datetime",
+        "selected_action": "*",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "today",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "包含当前日期查询（需 get_current_datetime）及后续相对时间日程查询（需 manage_company_calendar）"
+      },
+      "build_plan": {},
+      "answer_preview": "根据工具查询结果，按您的要求分项回答如下：\n\n### 1. 今天日期  \n今天是 **2026年5月17日（星期日）**。\n\n### 2. 明天的会议  \n明天（2026年5月18日，星期一）安排了以下会议：  \n- **10:00-11:00**：产品部 OKR 同步会（地点：会议室 B）  \n- **14:00-15:00**：研发部周会（地点：会议室 C）\n\n### 3. 后天的培训  \n后天（2026年5月19日，星期二）**暂无公司日程安排**，包括培训在内均无记录。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    }
+  ]
+}

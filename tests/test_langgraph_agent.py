@@ -38,7 +38,6 @@ def make_settings(tmp_path):
         DASHSCOPE_API_KEY="test-key",
         CONTEXT_DB_PATH=tmp_path / "context.sqlite3",
         LANGGRAPH_CHECKPOINT_DB_PATH=tmp_path / "checkpoints.sqlite3",
-        AGENT_RUNTIME="langgraph",
         RERANK_ENABLED=False,
         AGENT_MAX_STEPS=10,
     )
@@ -61,9 +60,9 @@ def test_langgraph_agent_reject_path_does_not_persist_without_session(tmp_path):
 def test_langgraph_agent_rag_path_persists_context(tmp_path):
     llm = QueueLLM([
         '{"intent":"rag_fact","route":"rag","standalone_query":"智能客服平台有哪些模块？",'
-        '"topic":"智能客服平台","entities":[],"risk_level":"low","required_tools":[],"reason":"需要查知识库"}',
-        '{"search_tasks":[{"query":"智能客服平台有哪些模块？","purpose":"单问题检索","target_entity":null}],"reason":"单问题检索"}',
-        '{"ready_to_answer":true,"completed_objectives":["知识库检索"],"missing_objectives":[],"unsupported_parts":[],"next_action":"answer","followup_tasks":[],"reason":"已完成"}',
+        '"topic":"智能客服平台","entities":[],"risk_level":"low","knowledge_requirement":{"requires_company_knowledge":true,"should_use_rag":true},"reason":"需要查知识库"}',
+        '{"intent":"rag_fact","route":"rag","standalone_query":"智能客服平台有哪些模块？",'
+        '"execution_plan":{"tasks":[{"task_id":"t1","kind":"rag","objective":"查询智能客服平台核心模块","query":"智能客服平台有哪些模块？"}],"strategy":"short"},"reason":"需要查知识库"}',
         "智能客服平台包含在线会话和知识库。\n\n引用：manual.md / 手册 / c1",
     ])
     settings = make_settings(tmp_path)
@@ -77,3 +76,10 @@ def test_langgraph_agent_rag_path_persists_context(tmp_path):
     assert result["sources"][0]["source"] == "manual.md"
     assert context.summary == ""
     assert context.turns[0].answer.startswith("智能客服平台")
+
+    llm_calls = result["trace"]["llm_calls"]
+    assert llm_calls
+    assert llm_calls[0]["input"]["messages"][0]["role"] == "system"
+    assert "智能客服平台有哪些模块" in llm_calls[0]["input"]["messages"][1]["content"]
+    assert "output" in llm_calls[0]
+    assert "rag_fact" in llm_calls[0]["output"]["content"]

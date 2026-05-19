@@ -46,6 +46,35 @@ def _as_bool(value: Any) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
+def _normalize_status_filters(payload: dict[str, Any]) -> tuple[str | None, list[str]]:
+    raw_filters = payload.get("status_filters")
+    raw_single = payload.get("status_filter")
+    values: list[Any] = []
+    if isinstance(raw_filters, str):
+        values.extend(part for part in raw_filters.replace("|", ",").split(","))
+    elif isinstance(raw_filters, (list, tuple, set)):
+        values.extend(raw_filters)
+    elif raw_filters not in (None, ""):
+        values.append(raw_filters)
+    if raw_single not in (None, ""):
+        if isinstance(raw_single, str):
+            values.extend(part for part in raw_single.replace("|", ",").split(","))
+        elif isinstance(raw_single, (list, tuple, set)):
+            values.extend(raw_single)
+        else:
+            values.append(raw_single)
+
+    normalized: list[str] = []
+    for value in values:
+        status = str(value or "").strip().lower()
+        if status and status not in normalized:
+            normalized.append(status)
+    invalid = [status for status in normalized if status not in STATUSES]
+    if invalid:
+        return invalid[0], []
+    return None, normalized
+
+
 def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     file_path = Path(str(payload.get("file_path") or ATTENDANCE_FILE))
@@ -67,10 +96,10 @@ def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str,
     group_by = str(payload.get("group_by") or "department").strip().lower()
     if group_by not in {"none", "department", "employee"}:
         group_by = "department"
-    status_filter = payload.get("status_filter")
-    status_filter = str(status_filter).strip().lower() if status_filter not in (None, "") else None
-    if status_filter and status_filter not in STATUSES:
-        return {"error": "invalid status_filter", "allowed_statuses": list(STATUSES)}
+    invalid_status, status_filters = _normalize_status_filters(payload)
+    if invalid_status:
+        return {"error": "invalid status_filter", "invalid_status": invalid_status, "allowed_statuses": list(STATUSES)}
+    status_filter = status_filters[0] if len(status_filters) == 1 else None
     include_records = _as_bool(payload.get("include_records", False))
 
     total = _empty_counter()
@@ -97,9 +126,9 @@ def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str,
             _add(by_department[row_department or "-"], status)
             employee_key = (str(row.get("employee_id") or "").strip(), row_name or "-", row_department or "-")
             _add(by_employee[employee_key], status)
-            if status_filter and status != status_filter:
+            if status_filters and status not in status_filters:
                 continue
-            if include_records and (status_filter or employee_name):
+            if include_records and (status_filters or employee_name):
                 filtered_records.append(
                     {
                         "date": str(row.get("date") or ""),
@@ -120,14 +149,18 @@ def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str,
             "employee_name": employee_name,
             "group_by": group_by,
             "status_filter": status_filter,
+            "status_filters": status_filters,
             "include_records": include_records,
         },
         "summary": _format_summary(total),
     }
+    if status_filters:
+        result["status_filters"] = status_filters
+        result["filtered_count_by_status"] = {status: int(total.get(status, 0)) for status in status_filters}
+        result["filtered_count"] = len(filtered_records) if include_records else sum(int(total.get(status, 0)) for status in status_filters)
     if status_filter:
         result["status_filter"] = status_filter
-        result["filtered_count"] = len(filtered_records) if include_records else int(total.get(status_filter, 0))
-    if include_records and (status_filter or employee_name):
+    if include_records and (status_filters or employee_name):
         result["records"] = filtered_records
     if group_by == "department":
         result["by_department"] = [

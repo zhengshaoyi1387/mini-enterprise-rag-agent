@@ -5,7 +5,6 @@ from rich import print
 
 from mini_rag.agent.agent import EnterpriseKnowledgeAgent
 from mini_rag.config import get_settings
-from mini_rag.eval import run_eval
 from mini_rag.ingestion.build_index import build_index
 from mini_rag.observability.trace import save_trace
 from mini_rag.rag.chain import RAGQuestionAnswerer
@@ -65,19 +64,9 @@ def ask_command(
 
 @app.command("eval")
 def eval_command():
-    """运行 RAG 评测集。"""
-    settings = get_settings()
-    report = run_eval(settings)
-    print("[green]评测完成：[/green]")
-    print(
-        {
-            "question_count": report["question_count"],
-            "recall_at_k": report["recall_at_k"],
-            "citation_hit_rate": report["citation_hit_rate"],
-            "avg_latency_ms": report["avg_latency_ms"],
-            "output_path": report["output_path"],
-        }
-    )
+    """提示使用当前统一评测脚本。"""
+    print("[yellow]旧 mini-rag eval 命令已归档。当前主线请使用：[/yellow]")
+    print("python scripts/agent_eval_suite.py --suite all --judge rule --output outputs/eval/full_eval_report")
 
 
 @app.command("serve")

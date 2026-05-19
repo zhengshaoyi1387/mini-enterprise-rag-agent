@@ -47,6 +47,7 @@ storage/
 
 # Generated intermediate files
 data/chunks.json
+outputs/
 *.sqlite3
 *.db
 

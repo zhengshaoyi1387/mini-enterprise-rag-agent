@@ -72,36 +72,33 @@ def build_readable_trace(trace: dict[str, Any], raw_trace_path: str | None = Non
             "input": {},
             "output": {},
         }
-        if node in {"load_context", "understand_query"}:
+        if node == "build_runtime_context":
             step["input"] = {"session_id": trace.get("session_id")}
             step["output"] = {
                 "standalone_query": trace.get("standalone_query"),
                 "intent": trace.get("intent"),
                 "entities": trace.get("entities", []),
             }
-        elif node == "check_permission":
+        elif node == "plan_with_llm":
+            step["input"] = {"question": trace.get("question"), "role": trace.get("role")}
+            step["output"] = {"execution_plan": trace.get("execution_plan", {})}
+        elif node == "validate_plan":
             step["input"] = {"requested_kbs": trace.get("requested_kbs", []), "role": trace.get("role")}
-            step["output"] = {"allowed_kbs": trace.get("allowed_kbs", []), "used_kbs": trace.get("used_kbs", [])}
-        elif node == "route":
-            step["input"] = {"query": trace.get("question"), "standalone_query": trace.get("standalone_query")}
-            step["output"] = {
-                "route": trace.get("route"),
-                "risk_level": trace.get("risk_level"),
-                "reason": trace.get("router_reason"),
-            }
-        elif node in {"plan_retrieval", "retrieve"}:
+            step["output"] = {"plan_validation": trace.get("plan_validation", {})}
+        elif node == "react_execute":
+            step["input"] = {"tasks": (trace.get("execution_plan") or {}).get("tasks", [])}
+            step["output"] = {"react_status": trace.get("react_status"), "react_steps": trace.get("react_steps", [])}
+        elif node == "retrieve":
             step["input"] = {"search_tasks": trace.get("search_tasks", [])}
             step["output"] = {
                 "retrieval_engine": retrieval_trace.get("retrieval_engine"),
                 "result_count": retrieval_trace.get("result_count"),
                 "executed_queries": trace.get("executed_queries", []),
             }
-        elif node == "reflect_evidence":
-            step["output"] = trace.get("evidence_assessment", {})
         elif node == "call_tool":
             step["input"] = {"selected_tool": trace.get("selected_tool")}
             step["output"] = {"tool_calls": trace.get("tool_calls", [])}
-        elif node == "generate_answer":
+        elif node in {"answer_with_llm", "generate_answer"}:
             step["input"] = {"source_count": len(trace.get("sources") or [])}
             step["output"] = {"answer_preview": str(trace.get("answer") or "")[:300]}
         else:

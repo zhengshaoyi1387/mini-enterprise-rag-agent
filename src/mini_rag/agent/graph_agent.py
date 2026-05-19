@@ -27,6 +27,7 @@ class EnterpriseKnowledgeGraphAgent:
         role: str | None = None,
         trace_id: str | None = None,
         kb_ids: list[str] | None = None,
+        override_now: str | None = None,
     ) -> dict:
         state = self.workflow.run(
             question=question,
@@ -37,6 +38,7 @@ class EnterpriseKnowledgeGraphAgent:
             role=role,
             trace_id=trace_id,
             kb_ids=kb_ids,
+            override_now=override_now,
         )
         trace = self.workflow.nodes.build_trace(state)
         return {
@@ -56,6 +58,7 @@ class EnterpriseKnowledgeGraphAgent:
         role: str | None = None,
         trace_id: str | None = None,
         kb_ids: list[str] | None = None,
+        override_now: str | None = None,
     ):
         yield from self.workflow.stream(
             question=question,
@@ -66,6 +69,7 @@ class EnterpriseKnowledgeGraphAgent:
             role=role,
             trace_id=trace_id,
             kb_ids=kb_ids,
+            override_now=override_now,
         )
 
 

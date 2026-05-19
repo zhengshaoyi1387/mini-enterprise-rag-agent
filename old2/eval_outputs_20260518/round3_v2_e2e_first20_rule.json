@@ -1,0 +1,4225 @@
+{
+  "suite": "e2e",
+  "judge": "rule",
+  "mode": "hybrid",
+  "generated_at": "2026-05-17T15:08:03.021983+00:00",
+  "summary": {
+    "overall": {
+      "total_cases": 20,
+      "executed_cases": 20,
+      "infra_error_cases": 0,
+      "agent_passed_cases": 19,
+      "agent_failed_cases": 1,
+      "agent_pass_rate": 0.95,
+      "case_count": 20,
+      "passed": 19,
+      "failed": 1,
+      "pass_rate": 0.95,
+      "avg_latency_ms": 7213.62,
+      "p95_latency_ms": 11442.79,
+      "actual_success_no_blocked_tasks": 1.0,
+      "answer_must_contain_hit": 0.65,
+      "answer_must_not_contain_pass": 1.0,
+      "expected_source_citation": 1.0,
+      "expected_source_recall": 1.0,
+      "expected_status_pass": 1.0,
+      "expected_tool_coverage": 0.95,
+      "forbidden_actions_pass": 1.0,
+      "grounded_answer_rate": 1.0,
+      "multi_task_completion_rate": 1.0,
+      "no_unwanted_write": 1.0,
+      "refusal_accuracy": 0.95,
+      "task_success": 0.95,
+      "write_result_success": 1.0
+    },
+    "by_suite": {
+      "e2e": {
+        "total_cases": 20,
+        "executed_cases": 20,
+        "infra_error_cases": 0,
+        "agent_passed_cases": 19,
+        "agent_failed_cases": 1,
+        "agent_pass_rate": 0.95,
+        "case_count": 20,
+        "passed": 19,
+        "failed": 1,
+        "pass_rate": 0.95,
+        "avg_latency_ms": 7213.62,
+        "p95_latency_ms": 11442.79,
+        "actual_success_no_blocked_tasks": 1.0,
+        "answer_must_contain_hit": 0.65,
+        "answer_must_not_contain_pass": 1.0,
+        "expected_source_citation": 1.0,
+        "expected_source_recall": 1.0,
+        "expected_status_pass": 1.0,
+        "expected_tool_coverage": 0.95,
+        "forbidden_actions_pass": 1.0,
+        "grounded_answer_rate": 1.0,
+        "multi_task_completion_rate": 1.0,
+        "no_unwanted_write": 1.0,
+        "refusal_accuracy": 0.95,
+        "task_success": 0.95,
+        "write_result_success": 1.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_time_001",
+      "question": "现在上海时间是多少？顺便告诉我今天星期几。",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 6421.17,
+      "route": "tool",
+      "trace_id": "eval_trace_50944e8c06e54595a9d159d0d6284246",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 6421.17
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai",
+            "query": "现在上海时间是多少？顺便告诉我今天星期几。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "现在上海时间是多少？顺便告诉我今天星期几。",
+          "status": "ok",
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "tool_input": {
+            "timezone": "Asia/Shanghai"
+          },
+          "result_summary": "当前日期：2026-05-17，时间：23:05:44，星期：星期日，时区：Asia/Shanghai。",
+          "tool_result": {
+            "weekday": "Sunday",
+            "timezone": "Asia/Shanghai",
+            "weekday_zh": "星期日",
+            "current_date": "2026-05-17",
+            "ranges": {
+              "today": {
+                "start_date": "2026-05-17",
+                "end_date": "2026-05-17"
+              },
+              "yesterday": {
+                "start_date": "2026-05-16",
+                "end_date": "2026-05-16"
+              },
+              "tomorrow": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "day_after_tomorrow": {
+                "start_date": "2026-05-19",
+                "end_date": "2026-05-19"
+              },
+              "this_week": {
+                "start_date": "2026-05-11",
+                "end_date": "2026-05-17"
+              },
+              "last_week": {
+                "start_date": "2026-05-04",
+                "end_date": "2026-05-10"
+              },
+              "next_week": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-24"
+              },
+              "week_after_next": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "next_next_week": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "this_month": {
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-31"
+              },
+              "last_month": {
+                "start_date": "2026-04-01",
+                "end_date": "2026-04-30"
+              },
+              "next_month": {
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30"
+              },
+              "month_after_next": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              },
+              "next_next_month": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              }
+            },
+            "current_time": "23:05:44"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "现在上海时间是多少？顺便告诉我今天星期几。",
+            "tool": "get_current_datetime",
+            "action": "*",
+            "tool_input": {
+              "timezone": "Asia/Shanghai"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "today",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "现在上海时间是多少？顺便告诉我今天星期几。",
+        "risk_level": "low",
+        "selected_tool": "get_current_datetime",
+        "selected_action": "*",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "today",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "查询当前日期和时间"
+      },
+      "build_plan": {},
+      "answer_preview": "当前日期：2026-05-17，时间：23:05:44，星期：星期日，时区：Asia/Shanghai。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_time_002",
+      "question": "明天是几月几号、星期几？",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 3003.26,
+      "route": "tool",
+      "trace_id": "eval_trace_ccfed70afd8b4b529a5257cd014344c2",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 3003.26
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai",
+            "query": "明天是几月几号、星期几？",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "明天是几月几号、星期几？",
+          "status": "ok",
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "tool_input": {
+            "timezone": "Asia/Shanghai"
+          },
+          "result_summary": "当前日期：2026-05-17，时间：23:05:47，星期：星期日，时区：Asia/Shanghai。",
+          "tool_result": {
+            "weekday": "Sunday",
+            "timezone": "Asia/Shanghai",
+            "weekday_zh": "星期日",
+            "current_date": "2026-05-17",
+            "ranges": {
+              "today": {
+                "start_date": "2026-05-17",
+                "end_date": "2026-05-17"
+              },
+              "yesterday": {
+                "start_date": "2026-05-16",
+                "end_date": "2026-05-16"
+              },
+              "tomorrow": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "day_after_tomorrow": {
+                "start_date": "2026-05-19",
+                "end_date": "2026-05-19"
+              },
+              "this_week": {
+                "start_date": "2026-05-11",
+                "end_date": "2026-05-17"
+              },
+              "last_week": {
+                "start_date": "2026-05-04",
+                "end_date": "2026-05-10"
+              },
+              "next_week": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-24"
+              },
+              "week_after_next": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "next_next_week": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "this_month": {
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-31"
+              },
+              "last_month": {
+                "start_date": "2026-04-01",
+                "end_date": "2026-04-30"
+              },
+              "next_month": {
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30"
+              },
+              "month_after_next": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              },
+              "next_next_month": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              }
+            },
+            "current_time": "23:05:47"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "明天是几月几号、星期几？",
+            "tool": "get_current_datetime",
+            "action": "*",
+            "tool_input": {
+              "timezone": "Asia/Shanghai"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "tomorrow",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "明天是几月几号、星期几？",
+        "risk_level": "low",
+        "selected_tool": "get_current_datetime",
+        "selected_action": "*",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "tomorrow",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "查询明天的日期和星期"
+      },
+      "build_plan": {},
+      "answer_preview": "当前日期：2026-05-17，时间：23:05:47，星期：星期日，时区：Asia/Shanghai。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_time_003",
+      "question": "下周的日期范围是什么？",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 2542.56,
+      "route": "tool",
+      "trace_id": "eval_trace_c7a888a95ec045b186901221fc4bf9d4",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 2542.56
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai",
+            "query": "下周的日期范围是什么？",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "下周的日期范围是什么？",
+          "status": "ok",
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "tool_input": {
+            "timezone": "Asia/Shanghai"
+          },
+          "result_summary": "当前日期：2026-05-17，时间：23:05:50，星期：星期日，时区：Asia/Shanghai。",
+          "tool_result": {
+            "weekday": "Sunday",
+            "timezone": "Asia/Shanghai",
+            "weekday_zh": "星期日",
+            "current_date": "2026-05-17",
+            "ranges": {
+              "today": {
+                "start_date": "2026-05-17",
+                "end_date": "2026-05-17"
+              },
+              "yesterday": {
+                "start_date": "2026-05-16",
+                "end_date": "2026-05-16"
+              },
+              "tomorrow": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "day_after_tomorrow": {
+                "start_date": "2026-05-19",
+                "end_date": "2026-05-19"
+              },
+              "this_week": {
+                "start_date": "2026-05-11",
+                "end_date": "2026-05-17"
+              },
+              "last_week": {
+                "start_date": "2026-05-04",
+                "end_date": "2026-05-10"
+              },
+              "next_week": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-24"
+              },
+              "week_after_next": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "next_next_week": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "this_month": {
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-31"
+              },
+              "last_month": {
+                "start_date": "2026-04-01",
+                "end_date": "2026-04-30"
+              },
+              "next_month": {
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30"
+              },
+              "month_after_next": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              },
+              "next_next_month": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              }
+            },
+            "current_time": "23:05:50"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "下周的日期范围是什么？",
+            "tool": "get_current_datetime",
+            "action": "*",
+            "tool_input": {
+              "timezone": "Asia/Shanghai"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "next_week",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "下周的日期范围是什么？",
+        "risk_level": "low",
+        "selected_tool": "get_current_datetime",
+        "selected_action": "*",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "查询下周的日期范围需依赖当前时间，使用 get_current_datetime 工具"
+      },
+      "build_plan": {},
+      "answer_preview": "当前日期：2026-05-17，时间：23:05:50，星期：星期日，时区：Asia/Shanghai。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_time_004",
+      "question": "上周一到上周日分别是哪几天？",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 2492.91,
+      "route": "tool",
+      "trace_id": "eval_trace_44b82d843c9c40499bb61eecc315977c",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 2492.91
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai",
+            "query": "上周一到上周日分别是哪几天？",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "上周一到上周日分别是哪几天？",
+          "status": "ok",
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "tool_input": {
+            "timezone": "Asia/Shanghai"
+          },
+          "result_summary": "当前日期：2026-05-17，时间：23:05:53，星期：星期日，时区：Asia/Shanghai。",
+          "tool_result": {
+            "weekday": "Sunday",
+            "timezone": "Asia/Shanghai",
+            "weekday_zh": "星期日",
+            "current_date": "2026-05-17",
+            "ranges": {
+              "today": {
+                "start_date": "2026-05-17",
+                "end_date": "2026-05-17"
+              },
+              "yesterday": {
+                "start_date": "2026-05-16",
+                "end_date": "2026-05-16"
+              },
+              "tomorrow": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "day_after_tomorrow": {
+                "start_date": "2026-05-19",
+                "end_date": "2026-05-19"
+              },
+              "this_week": {
+                "start_date": "2026-05-11",
+                "end_date": "2026-05-17"
+              },
+              "last_week": {
+                "start_date": "2026-05-04",
+                "end_date": "2026-05-10"
+              },
+              "next_week": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-24"
+              },
+              "week_after_next": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "next_next_week": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "this_month": {
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-31"
+              },
+              "last_month": {
+                "start_date": "2026-04-01",
+                "end_date": "2026-04-30"
+              },
+              "next_month": {
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30"
+              },
+              "month_after_next": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              },
+              "next_next_month": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              }
+            },
+            "current_time": "23:05:53"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "上周一到上周日分别是哪几天？",
+            "tool": "get_current_datetime",
+            "action": "*",
+            "tool_input": {
+              "timezone": "Asia/Shanghai"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "last_week",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "上周一到上周日分别是哪几天？",
+        "risk_level": "low",
+        "selected_tool": "get_current_datetime",
+        "selected_action": "*",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "last_week",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "查询上周日期范围"
+      },
+      "build_plan": {},
+      "answer_preview": "当前日期：2026-05-17，时间：23:05:53，星期：星期日，时区：Asia/Shanghai。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_time_005",
+      "question": "今天、明天、下周一分别是哪一天？",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 2981.61,
+      "route": "tool",
+      "trace_id": "eval_trace_e66ff5e14de447858cf0a9d5454a79da",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 2981.61
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai",
+            "query": "今天、明天、下周一分别是哪一天？",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "今天、明天、下周一分别是哪一天？",
+          "status": "ok",
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "tool_input": {
+            "timezone": "Asia/Shanghai"
+          },
+          "result_summary": "当前日期：2026-05-17，时间：23:05:55，星期：星期日，时区：Asia/Shanghai。",
+          "tool_result": {
+            "weekday": "Sunday",
+            "timezone": "Asia/Shanghai",
+            "weekday_zh": "星期日",
+            "current_date": "2026-05-17",
+            "ranges": {
+              "today": {
+                "start_date": "2026-05-17",
+                "end_date": "2026-05-17"
+              },
+              "yesterday": {
+                "start_date": "2026-05-16",
+                "end_date": "2026-05-16"
+              },
+              "tomorrow": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "day_after_tomorrow": {
+                "start_date": "2026-05-19",
+                "end_date": "2026-05-19"
+              },
+              "this_week": {
+                "start_date": "2026-05-11",
+                "end_date": "2026-05-17"
+              },
+              "last_week": {
+                "start_date": "2026-05-04",
+                "end_date": "2026-05-10"
+              },
+              "next_week": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-24"
+              },
+              "week_after_next": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "next_next_week": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "this_month": {
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-31"
+              },
+              "last_month": {
+                "start_date": "2026-04-01",
+                "end_date": "2026-04-30"
+              },
+              "next_month": {
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30"
+              },
+              "month_after_next": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              },
+              "next_next_month": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              }
+            },
+            "current_time": "23:05:55"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "今天、明天、下周一分别是哪一天？",
+            "tool": "get_current_datetime",
+            "action": "*",
+            "tool_input": {
+              "timezone": "Asia/Shanghai"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "today",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "今天、明天、下周一分别是哪一天？",
+        "risk_level": "low",
+        "selected_tool": "get_current_datetime",
+        "selected_action": "*",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "today",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "查询今天、明天、下周一的日期，需依赖当前时间作为基准"
+      },
+      "build_plan": {},
+      "answer_preview": "当前日期：2026-05-17，时间：23:05:55，星期：星期日，时区：Asia/Shanghai。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_time_006",
+      "question": "不要查知识库，直接告诉我后天是星期几。",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 2673.23,
+      "route": "tool",
+      "trace_id": "eval_trace_2a98cc7051904c59993a422216f585f6",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 2673.23
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai",
+            "query": "不要查知识库，直接告诉我后天是星期几。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "后天是星期几",
+          "status": "ok",
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "tool_input": {
+            "timezone": "Asia/Shanghai"
+          },
+          "result_summary": "当前日期：2026-05-17，时间：23:05:58，星期：星期日，时区：Asia/Shanghai。",
+          "tool_result": {
+            "weekday": "Sunday",
+            "timezone": "Asia/Shanghai",
+            "weekday_zh": "星期日",
+            "current_date": "2026-05-17",
+            "ranges": {
+              "today": {
+                "start_date": "2026-05-17",
+                "end_date": "2026-05-17"
+              },
+              "yesterday": {
+                "start_date": "2026-05-16",
+                "end_date": "2026-05-16"
+              },
+              "tomorrow": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "day_after_tomorrow": {
+                "start_date": "2026-05-19",
+                "end_date": "2026-05-19"
+              },
+              "this_week": {
+                "start_date": "2026-05-11",
+                "end_date": "2026-05-17"
+              },
+              "last_week": {
+                "start_date": "2026-05-04",
+                "end_date": "2026-05-10"
+              },
+              "next_week": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-24"
+              },
+              "week_after_next": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "next_next_week": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "this_month": {
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-31"
+              },
+              "last_month": {
+                "start_date": "2026-04-01",
+                "end_date": "2026-04-30"
+              },
+              "next_month": {
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30"
+              },
+              "month_after_next": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              },
+              "next_next_month": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              }
+            },
+            "current_time": "23:05:58"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "后天是星期几",
+            "tool": "get_current_datetime",
+            "action": "*",
+            "tool_input": {
+              "timezone": "Asia/Shanghai"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "tomorrow",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "后天是星期几",
+        "risk_level": "low",
+        "selected_tool": "get_current_datetime",
+        "selected_action": "*",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "tomorrow",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "查询后天是星期几，需依赖当前时间推算，使用get_current_datetime工具"
+      },
+      "build_plan": {},
+      "answer_preview": "当前日期：2026-05-17，时间：23:05:58，星期：星期日，时区：Asia/Shanghai。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_query_001",
+      "question": "查询 2026-05-18 这一天有哪些公司日程。",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 9757.56,
+      "route": "tool",
+      "trace_id": "eval_trace_4dba0c6b5cc5481fb7e5ef7b19a5895b",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 9757.56
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "all_events",
+            "event_type": "all",
+            "department": "all",
+            "query": "查询 2026-05-18 这一天有哪些公司日程。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询 2026-05-18 这一天的公司日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "all_events",
+            "event_type": "all",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-18 的公司会议安排：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C）",
+          "tool_result": {
+            "action": "query",
+            "events": [
+              {
+                "event_id": "EVT-20260518-0001",
+                "date": "2026-05-18",
+                "title": "产品部 OKR 同步会",
+                "type": "meeting",
+                "department": "产品部",
+                "time": "10:00-11:00",
+                "location": "会议室 B",
+                "description": "产品部 OKR 对齐",
+                "weekday_zh": "星期一"
+              },
+              {
+                "event_id": "EVT-20260518-0002",
+                "date": "2026-05-18",
+                "title": "研发部周会",
+                "type": "meeting",
+                "department": "研发部",
+                "time": "14:00-15:00",
+                "location": "会议室 C",
+                "description": "研发进度同步",
+                "weekday_zh": "星期一"
+              }
+            ]
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询 2026-05-18 这一天的公司日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "start_date": "2026-05-18",
+              "end_date": "2026-05-18",
+              "event_type": "all",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查询 2026-05-18 这一天有哪些公司日程",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "查询指定绝对日期的公司日程"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查询 2026-05-18 这一天有哪些公司日程",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-18",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询 2026-05-18 这一天的公司日程",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18",
+                "event_type": "all",
+                "department": "all"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "查询指定绝对日期（2026-05-18）的公司日程，使用 manage_company_calendar 的 query action，设置 start_date 和 end_date 为该日期，event_type=all 以覆盖所有类型日程"
+      },
+      "answer_preview": "2026-05-18 至 2026-05-18 的公司会议安排：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C）",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_query_002",
+      "question": "查一下明天的公司会议安排。",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 9070.59,
+      "route": "tool",
+      "trace_id": "eval_trace_298efc6d6e974bfb9e34d75e321a74c8",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 9070.59
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "type_filtered",
+            "event_type": "meeting",
+            "department": "all",
+            "query": "查一下明天的公司会议安排。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询明天的公司会议安排",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "type_filtered",
+            "event_type": "meeting",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-18 的公司会议安排：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C）",
+          "tool_result": {
+            "action": "query",
+            "events": [
+              {
+                "event_id": "EVT-20260518-0001",
+                "date": "2026-05-18",
+                "title": "产品部 OKR 同步会",
+                "type": "meeting",
+                "department": "产品部",
+                "time": "10:00-11:00",
+                "location": "会议室 B",
+                "description": "产品部 OKR 对齐",
+                "weekday_zh": "星期一"
+              },
+              {
+                "event_id": "EVT-20260518-0002",
+                "date": "2026-05-18",
+                "title": "研发部周会",
+                "type": "meeting",
+                "department": "研发部",
+                "time": "14:00-15:00",
+                "location": "会议室 C",
+                "description": "研发进度同步",
+                "weekday_zh": "星期一"
+              }
+            ]
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询明天的公司会议安排",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "meeting",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "tomorrow",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查一下明天的公司会议安排",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "tomorrow",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "查询明天公司会议日程"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查一下明天的公司会议安排",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "relative",
+          "canonical_relative": "tomorrow",
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": true,
+          "needs_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询明天的公司会议安排",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "start_date": "2025-04-09",
+                "end_date": "2025-04-09",
+                "event_type": "meeting",
+                "department": "all"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "查询明天公司会议日程，需使用 manage_company_calendar/query 工具并指定 event_type=meeting 和 date 范围为 tomorrow"
+      },
+      "answer_preview": "2026-05-18 至 2026-05-18 的公司会议安排：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C）",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_query_003",
+      "question": "查下周所有公司团建日程。",
+      "role": "employee",
+      "passed": false,
+      "latency_ms": 8375.49,
+      "route": "direct",
+      "trace_id": "eval_trace_9074474e93f2424e81307590f0e9d4d5",
+      "rule_scores": {
+        "task_success": false,
+        "expected_tool_coverage": false,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": false,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 8375.49
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [],
+      "task_results": [],
+      "execution_plan": {
+        "tasks": [],
+        "strategy": "查询下周公司团建日程，需使用 manage_company_calendar 工具的 query action，event_type 设为 activity 以匹配团建；相对时间 next_week 由执行层结合当前时间解析，故 tool_input 中不填具体日期。"
+      },
+      "actual_success": false,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查下周所有公司团建日程",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "查询下周公司团建日程，需使用日历工具"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查下周所有公司团建日程",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": true,
+          "needs_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询下周所有公司团建日程",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "start_date": "",
+                "end_date": "",
+                "query_scope": "all_events",
+                "event_type": "activity",
+                "department": "all"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "查询下周公司团建日程，需使用 manage_company_calendar 工具的 query action，event_type 设为 activity 以匹配团建；相对时间 next_week 由执行层结合当前时间解析，故 tool_input 中不填具体日期。"
+      },
+      "answer_preview": "你没有权限修改公司日程，也无权执行该操作；当前角色权限不足。只有 admin 可以新增、更新或删除日程。",
+      "failure_reasons": [
+        "task_success",
+        "expected_tool_coverage",
+        "refusal_accuracy",
+        "actual_success=false"
+      ],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_query_004",
+      "question": "2026-05-24 有哪些培训？",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 7878.28,
+      "route": "tool",
+      "trace_id": "eval_trace_fb605a98cc8a45388ca945611c76c158",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 7878.28
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-24",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "all",
+            "query": "2026-05-24 有哪些培训？",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询2026-05-24的培训日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-24",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "all"
+          },
+          "result_summary": "2026-05-24 至 2026-05-24 的公司日程：\n- 2026-05-24 星期日 10:00-12:00 新员工产品培训（培训室 2）",
+          "tool_result": {
+            "action": "query",
+            "events": [
+              {
+                "event_id": "EVT-20260524-0001",
+                "date": "2026-05-24",
+                "title": "新员工产品培训",
+                "type": "training",
+                "department": "产品部",
+                "time": "10:00-12:00",
+                "location": "培训室 2",
+                "description": "用于 query-first update 评测",
+                "weekday_zh": "星期日"
+              }
+            ]
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询2026-05-24的培训日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "start_date": "2026-05-24",
+              "end_date": "2026-05-24",
+              "event_type": "training",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-24",
+                "end_date": "2026-05-24"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "2026-05-24 有哪些培训？",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "查询指定日期的公司日程安排"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "2026-05-24 有哪些培训？",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-24",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询2026-05-24的培训日程",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "start_date": "2026-05-24",
+                "end_date": "2026-05-24",
+                "event_type": "training",
+                "department": "all"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "查询指定日期（2026-05-24）的培训事件，使用manage_company_calendar.query工具，限定event_type为training，日期范围为单日"
+      },
+      "answer_preview": "2026-05-24 至 2026-05-24 的公司日程：\n- 2026-05-24 星期日 10:00-12:00 新员工产品培训（培训室 2）",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_query_005",
+      "question": "查 2026-05-22 研发部的培训。",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 7153.94,
+      "route": "tool",
+      "trace_id": "eval_trace_df32dff23a7e4943835f0cbda2433f6c",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 7153.94
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-22",
+            "end_date": "2026-05-22",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "研发部",
+            "query": "查 2026-05-22 研发部的培训。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询 2026-05-22 研发部的培训日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-22",
+            "end_date": "2026-05-22",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "研发部"
+          },
+          "result_summary": "2026-05-22 至 2026-05-22 的公司日程：\n- 2026-05-22 星期五 10:00-11:00 研发安全培训（线上会议室）",
+          "tool_result": {
+            "action": "query",
+            "events": [
+              {
+                "event_id": "EVT-20260522-0001",
+                "date": "2026-05-22",
+                "title": "研发安全培训",
+                "type": "training",
+                "department": "研发部",
+                "time": "10:00-11:00",
+                "location": "线上会议室",
+                "description": "研发安全培训",
+                "weekday_zh": "星期五"
+              }
+            ]
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询 2026-05-22 研发部的培训日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "start_date": "2026-05-22",
+              "end_date": "2026-05-22",
+              "event_type": "training",
+              "department": "研发部"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-22",
+                "end_date": "2026-05-22"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查 2026-05-22 研发部的培训",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "查询指定日期研发部的培训日程"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查 2026-05-22 研发部的培训",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-22",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询 2026-05-22 研发部的培训日程",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "start_date": "2026-05-22",
+                "end_date": "2026-05-22",
+                "event_type": "training",
+                "department": "研发部"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "查询指定日期研发部的培训日程，使用 manage_company_calendar/query 工具，明确指定 date 和 department，event_type 限定为 training"
+      },
+      "answer_preview": "2026-05-22 至 2026-05-22 的公司日程：\n- 2026-05-22 星期五 10:00-11:00 研发安全培训（线上会议室）",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_query_006",
+      "question": "查 2099-01-01 有没有公司会议。",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 7861.96,
+      "route": "tool",
+      "trace_id": "eval_trace_dcf71017349743fc954610004b8e1df5",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 7861.96
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2099-01-01",
+            "end_date": "2099-01-01",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all",
+            "query": "查 2099-01-01 有没有公司会议。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询 2099-01-01 是否有公司会议",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2099-01-01",
+            "end_date": "2099-01-01",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all"
+          },
+          "result_summary": "2099-01-01 至 2099-01-01 没有匹配的公司日程。",
+          "tool_result": {
+            "action": "query",
+            "events": []
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询 2099-01-01 是否有公司会议",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "start_date": "2099-01-01",
+              "end_date": "2099-01-01",
+              "event_type": "meeting",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2099-01-01",
+                "end_date": "2099-01-01"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查 2099-01-01 有没有公司会议",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "查询指定绝对日期的公司日程"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查 2099-01-01 有没有公司会议",
+        "risk_level": "low",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2099-01-01",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询 2099-01-01 是否有公司会议",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "start_date": "2099-01-01",
+                "end_date": "2099-01-01",
+                "event_type": "meeting",
+                "department": "all"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "reason": "查询指定绝对日期的公司会议，使用 manage_company_calendar 的 query action，限定 event_type=meeting 以精准匹配会议类型"
+      },
+      "answer_preview": "2099-01-01 至 2099-01-01 没有匹配的公司日程。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_query_007",
+      "question": "查下周会议、培训、团建分别有多少场。",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 15004.52,
+      "route": "tool",
+      "trace_id": "eval_trace_b29ca0e470204ca4a83d45ad6d953523",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 15004.52
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all",
+            "query": "查下周会议、培训、团建分别有多少场。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "all",
+            "query": "查下周会议、培训、团建分别有多少场。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "activity",
+            "department": "all",
+            "query": "查下周会议、培训、团建分别有多少场。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询下周会议场次",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-24 的公司会议安排：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C）\n- 2026-05-21 星期四 14:00-15:00 季度经营复盘（会议室 A）\n- 2026-05-22 星期五 15:00-16:00 客户项目同步（会议室 B）\n- 2026-05-23 星期六 09:00-10:00 招聘面试安排同步（会议室 D）",
+          "tool_result": {
+            "action": "query",
+            "events": [
+              {
+                "event_id": "EVT-20260518-0001",
+                "date": "2026-05-18",
+                "title": "产品部 OKR 同步会",
+                "type": "meeting",
+                "department": "产品部",
+                "time": "10:00-11:00",
+                "location": "会议室 B",
+                "description": "产品部 OKR 对齐",
+                "weekday_zh": "星期一"
+              },
+              {
+                "event_id": "EVT-20260518-0002",
+                "date": "2026-05-18",
+                "title": "研发部周会",
+                "type": "meeting",
+                "department": "研发部",
+                "time": "14:00-15:00",
+                "location": "会议室 C",
+                "description": "研发进度同步",
+                "weekday_zh": "星期一"
+              },
+              {
+                "event_id": "EVT-20260521-0001",
+                "date": "2026-05-21",
+                "title": "季度经营复盘",
+                "type": "meeting",
+                "department": "all",
+                "time": "14:00-15:00",
+                "location": "会议室 A",
+                "description": "固定 ID，用于 update/delete 评测",
+                "weekday_zh": "星期四"
+              },
+              {
+                "event_id": "EVT-20260522-0002",
+                "date": "2026-05-22",
+                "title": "客户项目同步",
+                "type": "meeting",
+                "department": "销售部",
+                "time": "15:00-16:00",
+                "location": "会议室 B",
+                "description": "固定 ID，用于更新为客户复盘会",
+                "weekday_zh": "星期五"
+              },
+              {
+                "event_id": "EVT-20260523-0001",
+                "date": "2026-05-23",
+                "title": "招聘面试安排同步",
+                "type": "meeting",
+                "department": "HR",
+                "time": "09:00-10:00",
+                "location": "会议室 D",
+                "description": "HR 面试流程同步",
+                "weekday_zh": "星期六"
+              }
+            ]
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "查询下周培训场次",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-24 的公司日程：\n- 2026-05-20 星期三 09:00-11:00 产品培训（培训室 1）\n- 2026-05-22 星期五 10:00-11:00 研发安全培训（线上会议室）\n- 2026-05-24 星期日 10:00-12:00 新员工产品培训（培训室 2）",
+          "tool_result": {
+            "action": "query",
+            "events": [
+              {
+                "event_id": "EVT-20260520-0001",
+                "date": "2026-05-20",
+                "title": "产品培训",
+                "type": "training",
+                "department": "产品部",
+                "time": "09:00-11:00",
+                "location": "培训室 1",
+                "description": "产品部培训安排",
+                "weekday_zh": "星期三"
+              },
+              {
+                "event_id": "EVT-20260522-0001",
+                "date": "2026-05-22",
+                "title": "研发安全培训",
+                "type": "training",
+                "department": "研发部",
+                "time": "10:00-11:00",
+                "location": "线上会议室",
+                "description": "研发安全培训",
+                "weekday_zh": "星期五"
+              },
+              {
+                "event_id": "EVT-20260524-0001",
+                "date": "2026-05-24",
+                "title": "新员工产品培训",
+                "type": "training",
+                "department": "产品部",
+                "time": "10:00-12:00",
+                "location": "培训室 2",
+                "description": "用于 query-first update 评测",
+                "weekday_zh": "星期日"
+              }
+            ]
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t3",
+          "kind": "tool",
+          "objective": "查询下周团建场次",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "activity",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-24 的公司日程：\n- 2026-05-19 星期二 16:00-18:00 公司团建（城市公园）\n- 2026-05-21 星期四 18:00-20:00 公司团建（团建餐厅）",
+          "tool_result": {
+            "action": "query",
+            "events": [
+              {
+                "event_id": "EVT-20260519-0001",
+                "date": "2026-05-19",
+                "title": "公司团建",
+                "type": "activity",
+                "department": "all",
+                "time": "16:00-18:00",
+                "location": "城市公园",
+                "description": "下周第一个团建活动，用于 update/delete 评测",
+                "weekday_zh": "星期二"
+              },
+              {
+                "event_id": "EVT-20260521-0002",
+                "date": "2026-05-21",
+                "title": "公司团建",
+                "type": "activity",
+                "department": "all",
+                "time": "18:00-20:00",
+                "location": "团建餐厅",
+                "description": "第二个团建活动",
+                "weekday_zh": "星期四"
+              }
+            ]
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询下周会议场次",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "query_scope": "all_events",
+              "event_type": "meeting",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "next_week",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "查询下周培训场次",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "query_scope": "all_events",
+              "event_type": "training",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "next_week",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          },
+          {
+            "task_id": "t3",
+            "kind": "tool",
+            "objective": "查询下周团建场次",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "query_scope": "all_events",
+              "event_type": "activity",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "next_week",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查下周会议、培训、团建分别有多少场",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "查询下周公司日程中会议、培训、团建的场次"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查下周会议、培训、团建分别有多少场",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": true,
+          "needs_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询下周会议场次",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "start_date": "",
+                "end_date": "",
+                "query_scope": "all_events",
+                "event_type": "meeting",
+                "department": "all"
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "查询下周培训场次",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "start_date": "",
+                "end_date": "",
+                "query_scope": "all_events",
+                "event_type": "training",
+                "department": "all"
+              }
+            },
+            {
+              "task_id": "t3",
+              "kind": "tool",
+              "objective": "查询下周团建场次",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "start_date": "",
+                "end_date": "",
+                "query_scope": "all_events",
+                "event_type": "activity",
+                "department": "all"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户明确要求分别统计下周会议、培训、团建的场次，需拆分为三个独立 query 任务；时间范围使用 next_week，具体日期由执行层基于 get_current_datetime 解析，因此 tool_input 中不填 start_date/end_date。"
+      },
+      "answer_preview": "2026-05-18 至 2026-05-24 的公司会议安排：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C）\n- 2026-05-21 星期四 14:00-15:00 季度经营复盘（会议室 A）\n- 2026-05-22 星期五 15:00-16:00 客户项目同步（会议室 B）\n- 2026-05-23 星期六 09:00-10:00 招聘面试安排同步（会议室 D）\n2026-05-18 至 2026-05-24 的公司日程：\n- 2026-05-20 星期三 09:00-11:00 产品培训（培训室 1）\n- 2026-05-22 星期五 10:00-11:00 研发安全培训（线上会议室）\n- 2026-05-24 星期日 10:00-12:00 新员工产品培训（培训室 2）\n2026-05-18 至 2026-05-24 的公司日程：\n- 2026-05-19 星期二 16:00-18:00 公司团建（城市公园）\n- 2026-05-21 星期四 18:00-20:00 公司团建（团建餐厅）",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_query_008",
+      "question": "先告诉我今天日期，再查明天的会议和后天的培训。",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 3266.31,
+      "route": "tool",
+      "trace_id": "eval_trace_7a16605717644074bc3f26c4693cf0e3",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 3266.31
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai",
+            "query": "先告诉我今天日期，再查明天的会议和后天的培训。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "type_filtered",
+            "event_type": "meeting",
+            "department": "all",
+            "query": "先告诉我今天日期，再查明天的会议和后天的培训。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-19",
+            "end_date": "2026-05-19",
+            "query_scope": "type_filtered",
+            "event_type": "training",
+            "department": "all",
+            "query": "先告诉我今天日期，再查明天的会议和后天的培训。",
+            "user_id": "eval_user",
+            "role": "employee"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "先告诉我今天日期，再查明天的会议和后天的培训",
+          "status": "ok",
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "tool_input": {
+            "timezone": "Asia/Shanghai"
+          },
+          "result_summary": "当前日期：2026-05-17，时间：23:07:07，星期：星期日，时区：Asia/Shanghai。",
+          "tool_result": {
+            "weekday": "Sunday",
+            "timezone": "Asia/Shanghai",
+            "weekday_zh": "星期日",
+            "current_date": "2026-05-17",
+            "ranges": {
+              "today": {
+                "start_date": "2026-05-17",
+                "end_date": "2026-05-17"
+              },
+              "yesterday": {
+                "start_date": "2026-05-16",
+                "end_date": "2026-05-16"
+              },
+              "tomorrow": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "day_after_tomorrow": {
+                "start_date": "2026-05-19",
+                "end_date": "2026-05-19"
+              },
+              "this_week": {
+                "start_date": "2026-05-11",
+                "end_date": "2026-05-17"
+              },
+              "last_week": {
+                "start_date": "2026-05-04",
+                "end_date": "2026-05-10"
+              },
+              "next_week": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-24"
+              },
+              "week_after_next": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "next_next_week": {
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31"
+              },
+              "this_month": {
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-31"
+              },
+              "last_month": {
+                "start_date": "2026-04-01",
+                "end_date": "2026-04-30"
+              },
+              "next_month": {
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30"
+              },
+              "month_after_next": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              },
+              "next_next_month": {
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-31"
+              }
+            },
+            "current_time": "23:07:07"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "查询明天的会议和公司日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "type_filtered",
+            "event_type": "meeting",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-18 的公司会议安排：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C）",
+          "tool_result": {
+            "action": "query",
+            "events": [
+              {
+                "event_id": "EVT-20260518-0001",
+                "date": "2026-05-18",
+                "title": "产品部 OKR 同步会",
+                "type": "meeting",
+                "department": "产品部",
+                "time": "10:00-11:00",
+                "location": "会议室 B",
+                "description": "产品部 OKR 对齐",
+                "weekday_zh": "星期一"
+              },
+              {
+                "event_id": "EVT-20260518-0002",
+                "date": "2026-05-18",
+                "title": "研发部周会",
+                "type": "meeting",
+                "department": "研发部",
+                "time": "14:00-15:00",
+                "location": "会议室 C",
+                "description": "研发进度同步",
+                "weekday_zh": "星期一"
+              }
+            ]
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t3",
+          "kind": "tool",
+          "objective": "查询后天的培训   包含当前日期查询及未来两天日程查询，需分步执行；当前日期必须用 get_current_datetime 工具公司日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-19",
+            "end_date": "2026-05-19",
+            "query_scope": "type_filtered",
+            "event_type": "training",
+            "department": "all"
+          },
+          "result_summary": "2026-05-19 至 2026-05-19 没有匹配的公司日程。",
+          "tool_result": {
+            "action": "query",
+            "events": []
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "先告诉我今天日期，再查明天的会议和后天的培训",
+            "tool": "get_current_datetime",
+            "action": "*",
+            "tool_input": {
+              "timezone": "Asia/Shanghai"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "today",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "查询明天的会议和公司日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "meeting",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "tomorrow",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            },
+            "depends_on": [
+              "t1"
+            ]
+          },
+          {
+            "task_id": "t3",
+            "kind": "tool",
+            "objective": "查询后天的培训   包含当前日期查询及未来两天日程查询，需分步执行；当前日期必须用 get_current_datetime 工具公司日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "training",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "day_after_tomorrow",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            },
+            "depends_on": [
+              "t1"
+            ]
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "先告诉我今天日期，再查明天的会议和后天的培训",
+        "risk_level": "low",
+        "selected_tool": "get_current_datetime",
+        "selected_action": "*",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "today",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "包含当前日期查询及未来两天日程查询，需分步执行；当前日期必须用 get_current_datetime 工具"
+      },
+      "build_plan": {},
+      "answer_preview": "当前日期：2026-05-17，时间：23:07:07，星期：星期日，时区：Asia/Shanghai。\n2026-05-18 至 2026-05-18 的公司会议安排：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C）\n2026-05-19 至 2026-05-19 没有匹配的公司日程。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_create_001",
+      "question": "创建 2026-05-26 09:00-10:00 的产品评审会，地点会议室 B，然后查询当天确认。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 11442.79,
+      "route": "tool",
+      "trace_id": "eval_trace_b782f619154342b39cb1beb05c78a6fc",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 11442.79
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "create",
+          "args": {
+            "action": "create",
+            "title": "产品评审会",
+            "type": "meeting",
+            "date": "2026-05-26",
+            "time": "09:00-10:00",
+            "department": "all",
+            "location": "会议室 B",
+            "description": "",
+            "query": "创建 2026-05-26 09:00-10:00 的产品评审会，地点会议室 B，然后查询当天确认。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-26",
+            "end_date": "2026-05-26",
+            "query_scope": "all_events",
+            "event_type": "all",
+            "department": "all",
+            "query": "创建 2026-05-26 09:00-10:00 的产品评审会，地点会议室 B，然后查询当天确认。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "创建 2026-05-26 09:00-10:00 的产品评审会，地点会议室 B",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "create",
+          "tool_input": {
+            "action": "create",
+            "title": "产品评审会",
+            "type": "meeting",
+            "date": "2026-05-26",
+            "time": "09:00-10:00",
+            "department": "all",
+            "location": "会议室 B",
+            "description": ""
+          },
+          "result_summary": "公司日程已创建：2026-05-26 星期二 09:00-10:00 产品评审会（会议室 B）。",
+          "tool_result": {
+            "event": {
+              "event_id": "EVT-20260526-0001",
+              "date": "2026-05-26",
+              "title": "产品评审会",
+              "type": "meeting",
+              "department": "all",
+              "time": "09:00-10:00",
+              "location": "会议室 B",
+              "description": "",
+              "weekday_zh": "星期二"
+            },
+            "message": "公司日程已创建",
+            "action": "create",
+            "status": "created",
+            "event_id": "EVT-20260526-0001"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "查询 2026-05-26 当天确认的事件",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-26",
+            "end_date": "2026-05-26",
+            "query_scope": "all_events",
+            "event_type": "all",
+            "department": "all"
+          },
+          "result_summary": "2026-05-26 至 2026-05-26 的公司会议安排：\n- 2026-05-26 星期二 09:00-10:00 产品评审会（会议室 B）",
+          "tool_result": {
+            "action": "query",
+            "events": [
+              {
+                "event_id": "EVT-20260526-0001",
+                "date": "2026-05-26",
+                "title": "产品评审会",
+                "type": "meeting",
+                "department": "all",
+                "time": "09:00-10:00",
+                "location": "会议室 B",
+                "description": "",
+                "weekday_zh": "星期二"
+              }
+            ]
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "创建 2026-05-26 09:00-10:00 的产品评审会，地点会议室 B",
+            "tool": "manage_company_calendar",
+            "action": "create",
+            "tool_input": {
+              "action": "create",
+              "title": "产品评审会",
+              "type": "meeting",
+              "date": "2026-05-26",
+              "time": "09:00-10:00",
+              "department": "all",
+              "location": "会议室 B",
+              "description": ""
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-26",
+                "end_date": "2026-05-26"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "查询 2026-05-26 当天确认的事件",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "query_scope": "all_events",
+              "event_type": "all",
+              "department": "all",
+              "start_date": "2026-05-26",
+              "end_date": "2026-05-26"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-26",
+                "end_date": "2026-05-26"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "创建 2026-05-26 09:00-10:00 的产品评审会，地点会议室 B，然后查询当天确认。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "canonical_relative": "null"
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "包含具体日期时间的事件创建与后续查询，需使用日历工具；绝对日期明确，无需推算。"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "创建 2026-05-26 09:00-10:00 的产品评审会，地点会议室 B，然后查询当天确认。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-26",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "创建 2026-05-26 09:00-10:00 的产品评审会，地点会议室 B",
+              "tool": "manage_company_calendar",
+              "action": "create",
+              "tool_input": {
+                "action": "create",
+                "title": "产品评审会",
+                "type": "meeting",
+                "date": "2026-05-26",
+                "time": "09:00-10:00",
+                "department": "all",
+                "location": "会议室 B",
+                "description": ""
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "查询 2026-05-26 当天确认的事件",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "query_scope": "all_events",
+                "event_type": "all",
+                "department": "all",
+                "date": "2026-05-26"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户要求先创建指定时间地点的会议，再查询当天确认情况；两个子目标需拆分为独立 task，均使用 manage_company_calendar 工具；绝对日期已明确，无需推算当前时间。"
+      },
+      "answer_preview": "公司日程已创建：2026-05-26 星期二 09:00-10:00 产品评审会（会议室 B）。\n2026-05-26 至 2026-05-26 的公司会议安排：\n- 2026-05-26 星期二 09:00-10:00 产品评审会（会议室 B）",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_create_002",
+      "question": "帮我新建 2026-05-27 15:30-16:30 的研发复盘，部门研发部，地点线上会议室。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 9518.88,
+      "route": "tool",
+      "trace_id": "eval_trace_35da180119ab45e08d94a1d4e5417dbc",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 9518.88
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "create",
+          "args": {
+            "action": "create",
+            "title": "研发复盘",
+            "type": "meeting",
+            "date": "2026-05-27",
+            "time": "15:30-16:30",
+            "department": "研发部",
+            "location": "线上会议室",
+            "description": "",
+            "query": "帮我新建 2026-05-27 15:30-16:30 的研发复盘，部门研发部，地点线上会议室。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "新建 2026-05-27 15:30-16:30 的研发复盘日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "create",
+          "tool_input": {
+            "action": "create",
+            "title": "研发复盘",
+            "type": "meeting",
+            "date": "2026-05-27",
+            "time": "15:30-16:30",
+            "department": "研发部",
+            "location": "线上会议室",
+            "description": ""
+          },
+          "result_summary": "公司日程已创建：2026-05-27 星期三 15:30-16:30 研发复盘（线上会议室）。",
+          "tool_result": {
+            "event": {
+              "event_id": "EVT-20260527-0001",
+              "date": "2026-05-27",
+              "title": "研发复盘",
+              "type": "meeting",
+              "department": "研发部",
+              "time": "15:30-16:30",
+              "location": "线上会议室",
+              "description": "",
+              "weekday_zh": "星期三"
+            },
+            "message": "公司日程已创建",
+            "action": "create",
+            "status": "created",
+            "event_id": "EVT-20260527-0001"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "新建 2026-05-27 15:30-16:30 的研发复盘日程",
+            "tool": "manage_company_calendar",
+            "action": "create",
+            "tool_input": {
+              "action": "create",
+              "title": "研发复盘",
+              "type": "meeting",
+              "date": "2026-05-27",
+              "time": "15:30-16:30",
+              "department": "研发部",
+              "location": "线上会议室",
+              "description": ""
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-27",
+                "end_date": "2026-05-27"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "帮我新建 2026-05-27 15:30-16:30 的研发复盘，部门研发部，地点线上会议室",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "创建指定时间、部门、地点的公司日程事件"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "帮我新建 2026-05-27 15:30-16:30 的研发复盘，部门研发部，地点线上会议室",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-27",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "新建 2026-05-27 15:30-16:30 的研发复盘日程",
+              "tool": "manage_company_calendar",
+              "action": "create",
+              "tool_input": {
+                "action": "create",
+                "title": "研发复盘",
+                "type": "meeting",
+                "date": "2026-05-27",
+                "time": "15:30-16:30",
+                "department": "研发部",
+                "location": "线上会议室",
+                "description": ""
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "创建指定时间、部门、地点的公司日程事件"
+      },
+      "answer_preview": "公司日程已创建：2026-05-27 星期三 15:30-16:30 研发复盘（线上会议室）。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_create_005",
+      "question": "创建明天 18:30-19:30 的临时复盘会，地点会议室 D。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 7824.51,
+      "route": "tool",
+      "trace_id": "eval_trace_30ec908a5e2140f19f550f4f85f4f988",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 7824.51
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "create",
+          "args": {
+            "action": "create",
+            "title": "临时复盘会",
+            "type": "meeting",
+            "date": "2026-05-18",
+            "time": "18:30-19:30",
+            "department": "all",
+            "location": "会议室 D",
+            "description": "",
+            "query": "创建明天 18:30-19:30 的临时复盘会，地点会议室 D。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "创建明天 18:30-19:30 的临时复盘会，地点会议室 D",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "create",
+          "tool_input": {
+            "action": "create",
+            "title": "临时复盘会",
+            "type": "meeting",
+            "date": "2026-05-18",
+            "time": "18:30-19:30",
+            "department": "all",
+            "location": "会议室 D",
+            "description": ""
+          },
+          "result_summary": "公司日程已创建：2026-05-18 星期一 18:30-19:30 临时复盘会（会议室 D）。",
+          "tool_result": {
+            "event": {
+              "event_id": "EVT-20260518-0003",
+              "date": "2026-05-18",
+              "title": "临时复盘会",
+              "type": "meeting",
+              "department": "all",
+              "time": "18:30-19:30",
+              "location": "会议室 D",
+              "description": "",
+              "weekday_zh": "星期一"
+            },
+            "message": "公司日程已创建",
+            "action": "create",
+            "status": "created",
+            "event_id": "EVT-20260518-0003"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "创建明天 18:30-19:30 的临时复盘会，地点会议室 D",
+            "tool": "manage_company_calendar",
+            "action": "create",
+            "tool_input": {
+              "action": "create",
+              "title": "临时复盘会",
+              "type": "meeting",
+              "time": "18:30-19:30",
+              "department": "all",
+              "location": "会议室 D",
+              "description": ""
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "tomorrow",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "创建明天 18:30-19:30 的临时复盘会，地点会议室 D",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "tomorrow",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "创建指定时间与地点的公司日程事件"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "创建明天 18:30-19:30 的临时复盘会，地点会议室 D",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "relative",
+          "canonical_relative": "tomorrow",
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": true,
+          "needs_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "创建明天 18:30-19:30 的临时复盘会，地点会议室 D",
+              "tool": "manage_company_calendar",
+              "action": "create",
+              "tool_input": {
+                "action": "create",
+                "title": "临时复盘会",
+                "type": "meeting",
+                "date": "tomorrow",
+                "time": "18:30-19:30",
+                "department": "all",
+                "location": "会议室 D",
+                "description": ""
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "根据用户指令创建指定时间与地点的会议事件，使用 manage_company_calendar.create 工具并填充必要字段"
+      },
+      "answer_preview": "公司日程已创建：2026-05-18 星期一 18:30-19:30 临时复盘会（会议室 D）。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_create_006",
+      "question": "新建 2026-05-28 14:00-15:00 的客户回访会，地点会议室 C，创建完再查这一天确认。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 11175.26,
+      "route": "tool",
+      "trace_id": "eval_trace_2da9b35aba014bf0a6c650f675560ad1",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 11175.26
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "create",
+          "args": {
+            "action": "create",
+            "title": "客户回访会",
+            "type": "meeting",
+            "date": "2026-05-28",
+            "time": "14:00-15:00",
+            "department": "all",
+            "location": "会议室 C",
+            "description": "",
+            "query": "新建 2026-05-28 14:00-15:00 的客户回访会，地点会议室 C，创建完再查这一天确认。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-28",
+            "end_date": "2026-05-28",
+            "query_scope": "all_events",
+            "event_type": "all",
+            "department": "all",
+            "query": "新建 2026-05-28 14:00-15:00 的客户回访会，地点会议室 C，创建完再查这一天确认。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "新建 2026-05-28 14:00-15:00 的客户回访会，地点会议室 C",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "create",
+          "tool_input": {
+            "action": "create",
+            "title": "客户回访会",
+            "type": "meeting",
+            "date": "2026-05-28",
+            "time": "14:00-15:00",
+            "department": "all",
+            "location": "会议室 C",
+            "description": ""
+          },
+          "result_summary": "公司日程已创建：2026-05-28 星期四 14:00-15:00 客户回访会（会议室 C）。",
+          "tool_result": {
+            "event": {
+              "event_id": "EVT-20260528-0001",
+              "date": "2026-05-28",
+              "title": "客户回访会",
+              "type": "meeting",
+              "department": "all",
+              "time": "14:00-15:00",
+              "location": "会议室 C",
+              "description": "",
+              "weekday_zh": "星期四"
+            },
+            "message": "公司日程已创建",
+            "action": "create",
+            "status": "created",
+            "event_id": "EVT-20260528-0001"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "查询 2026-05-28 日所有日程以确认会议已创建",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-28",
+            "end_date": "2026-05-28",
+            "query_scope": "all_events",
+            "event_type": "all",
+            "department": "all"
+          },
+          "result_summary": "2026-05-28 至 2026-05-28 的公司会议安排：\n- 2026-05-28 星期四 14:00-15:00 客户回访会（会议室 C）",
+          "tool_result": {
+            "action": "query",
+            "events": [
+              {
+                "event_id": "EVT-20260528-0001",
+                "date": "2026-05-28",
+                "title": "客户回访会",
+                "type": "meeting",
+                "department": "all",
+                "time": "14:00-15:00",
+                "location": "会议室 C",
+                "description": "",
+                "weekday_zh": "星期四"
+              }
+            ]
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "新建 2026-05-28 14:00-15:00 的客户回访会，地点会议室 C",
+            "tool": "manage_company_calendar",
+            "action": "create",
+            "tool_input": {
+              "action": "create",
+              "title": "客户回访会",
+              "type": "meeting",
+              "date": "2026-05-28",
+              "time": "14:00-15:00",
+              "department": "all",
+              "location": "会议室 C",
+              "description": ""
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-28",
+                "end_date": "2026-05-28"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "查询 2026-05-28 日所有日程以确认会议已创建",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "query_scope": "all_events",
+              "event_type": "all",
+              "department": "all",
+              "start_date": "2026-05-28",
+              "end_date": "2026-05-28"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-28",
+                "end_date": "2026-05-28"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "新建 2026-05-28 14:00-15:00 的客户回访会，地点会议室 C，创建完再查这一天确认。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "canonical_relative": "null"
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "创建指定时间的会议并要求后续查询，属于日程管理操作，需使用 manage_company_calendar 工具"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "新建 2026-05-28 14:00-15:00 的客户回访会，地点会议室 C，创建完再查这一天确认。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-28",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "新建 2026-05-28 14:00-15:00 的客户回访会，地点会议室 C",
+              "tool": "manage_company_calendar",
+              "action": "create",
+              "tool_input": {
+                "action": "create",
+                "title": "客户回访会",
+                "type": "meeting",
+                "date": "2026-05-28",
+                "time": "14:00-15:00",
+                "department": "all",
+                "location": "会议室 C",
+                "description": ""
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "查询 2026-05-28 日所有日程以确认会议已创建",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "query_scope": "all_events",
+                "event_type": "all",
+                "department": "all",
+                "date": "2026-05-28"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户要求创建指定时间会议并后续核查，需分两步：先执行 create 创建事件，再执行 query 查询当日日程确认。工具参数严格按 available_tool_contracts 定义，未填写 description 和 department 等非必需字段。"
+      },
+      "answer_preview": "公司日程已创建：2026-05-28 星期四 14:00-15:00 客户回访会（会议室 C）。\n2026-05-28 至 2026-05-28 的公司会议安排：\n- 2026-05-28 星期四 14:00-15:00 客户回访会（会议室 C）",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_create_003",
+      "question": "创建一个公司会议。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 6983.01,
+      "route": "direct",
+      "trace_id": "eval_trace_353c5be296534233a495f1e6646443cd",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 6983.01
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [],
+      "task_results": [],
+      "execution_plan": {
+        "tasks": [],
+        "strategy": "用户仅要求创建一个公司会议，未指定具体时间、地点等细节，因此使用默认值填充必要字段（如 title 和 type），并保留 department 为 all 以覆盖全公司。"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "创建一个公司会议",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "time_reference_type": "none",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "创建公司会议属于日程管理，需使用 manage_company_calendar 工具的 create 动作"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "创建一个公司会议",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "time_requirement": {
+          "has_time_requirement": false,
+          "time_reference_type": "none",
+          "canonical_relative": null,
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "创建一个公司会议",
+              "tool": "manage_company_calendar",
+              "action": "create",
+              "tool_input": {
+                "action": "create",
+                "title": "公司会议",
+                "type": "meeting",
+                "department": "all"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户仅要求创建一个公司会议，未指定具体时间、地点等细节，因此使用默认值填充必要字段（如 title 和 type），并保留 department 为 all 以覆盖全公司。"
+      },
+      "answer_preview": "我还缺少必要信息：日期、时间。请补充后我再继续处理。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_create_004",
+      "question": "创建 2026-05-26 11:00-12:00 的全员会议。",
+      "role": "employee",
+      "passed": true,
+      "latency_ms": 8844.51,
+      "route": "direct",
+      "trace_id": "eval_trace_cb3947f89dbf4404885e9cd173ff9e7c",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 8844.51
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [],
+      "task_results": [],
+      "execution_plan": {
+        "tasks": [],
+        "strategy": "创建指定时间的全员会议，使用 manage_company_calendar.create 工具，事件类型为 meeting，部门为 all，标题为‘全员会议’"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "创建 2026-05-26 11:00-12:00 的全员会议",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "创建指定时间的公司日程事件"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "创建 2026-05-26 11:00-12:00 的全员会议",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "create",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-26",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "创建 2026-05-26 11:00-12:00 的全员会议",
+              "tool": "manage_company_calendar",
+              "action": "create",
+              "tool_input": {
+                "action": "create",
+                "event_type": "meeting",
+                "department": "all",
+                "date": "2026-05-26",
+                "start_time": "11:00",
+                "end_time": "12:00",
+                "title": "全员会议"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "创建指定时间的全员会议，使用 manage_company_calendar.create 工具，事件类型为 meeting，部门为 all，标题为‘全员会议’"
+      },
+      "answer_preview": "你没有权限修改公司日程，也无权执行该操作；当前角色权限不足。只有 admin 可以新增、更新或删除日程。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    }
+  ]
+}

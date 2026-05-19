@@ -25,7 +25,11 @@ from mini_rag.api.schemas import (
     ChatResponse,
     EvalRunRequest,
     EvalRunResponse,
+    KnowledgeBaseDocumentImportRequest,
+    KnowledgeBaseDocumentResponse,
     KnowledgeBaseListResponse,
+    KnowledgeBaseReindexRequest,
+    KnowledgeBaseReindexResponse,
     LoginRequest,
     LoginResponse,
     MeResponse,
@@ -38,6 +42,7 @@ from mini_rag.api.schemas import (
     UserUpdateRequest,
 )
 from mini_rag.config import Settings, get_settings
+from mini_rag.ingestion.kb_admin import delete_kb_document, import_kb_document, list_kbs_with_documents
 from mini_rag.observability.trace import save_trace
 from mini_rag.observability.audit_logger import read_recent_audit_events, write_audit_event
 from mini_rag.observability.request_logger import RequestLoggerMiddleware
@@ -115,6 +120,14 @@ def get_rag_chain() -> object:
 
 def get_auth_store() -> SQLiteAuthStore:
     return SQLiteAuthStore(settings.auth_db_path)
+
+
+def build_index(settings: Settings, reset: bool = False) -> dict[str, Any]:
+    """Lazy wrapper so importing the API does not initialize vector dependencies."""
+
+    from mini_rag.ingestion.build_index import build_index as _build_index
+
+    return _build_index(settings, reset=reset)
 
 
 def bearer_token(authorization: str | None = Header(default=None)) -> str:
@@ -249,6 +262,7 @@ def chat(req: ChatRequest, user: AuthUser = Depends(require_current_user)) -> Ch
             role=role,
             trace_id=trace_id,
             kb_ids=req.kb_ids,
+            override_now=req.override_now,
         )
         trace: dict[str, Any] = result["trace"]
         trace.setdefault("trace_id", trace_id)
@@ -376,6 +390,7 @@ def chat_stream(req: ChatRequest, user: AuthUser = Depends(require_current_user)
                 role=role,
                 trace_id=trace_id,
                 kb_ids=req.kb_ids,
+                override_now=req.override_now,
             ):
                 event_name = event.get("event")
                 if event_name == "token":
@@ -491,8 +506,91 @@ def query(req: QueryRequest) -> QueryResponse:
 
 @app.get("/admin/kbs", response_model=KnowledgeBaseListResponse)
 def list_kbs(user: AuthUser = Depends(require_admin_user)) -> KnowledgeBaseListResponse:
-    summary = knowledge_base_permission_summary(user.role, role_policies=get_auth_store().list_role_policies())
-    return KnowledgeBaseListResponse(kbs=summary["knowledge_bases"])
+    policies = get_auth_store().list_role_policies()
+    summary = knowledge_base_permission_summary(user.role, role_policies=policies)
+    by_id = {item["kb_id"]: item for item in list_kbs_with_documents(settings)}
+    kbs = []
+    for kb in summary["knowledge_bases"]:
+        item = dict(kb)
+        item.update({key: value for key, value in by_id.get(kb["kb_id"], {}).items() if key not in {"kb_id", "name", "description"}})
+        kbs.append(item)
+    return KnowledgeBaseListResponse(kbs=kbs)
+
+
+@app.post("/admin/kbs/{kb_id}/documents", response_model=KnowledgeBaseDocumentResponse)
+def import_kb_source_document(
+    kb_id: str,
+    req: KnowledgeBaseDocumentImportRequest,
+    user: AuthUser = Depends(require_admin_user),
+) -> KnowledgeBaseDocumentResponse:
+    try:
+        document = import_kb_document(settings, kb_id, req.filename, req.content, overwrite=req.overwrite)
+    except FileExistsError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    write_audit_event(
+        settings,
+        {
+            "user_id": user.username,
+            "role": user.role,
+            "event": "admin_kb_document_import",
+            "kb_id": kb_id,
+            "document_path": document.get("path"),
+            "overwrite": req.overwrite,
+            "decision": "allowed",
+        },
+    )
+    return KnowledgeBaseDocumentResponse(document=document)
+
+
+@app.delete("/admin/kbs/{kb_id}/documents/{document_path:path}", response_model=KnowledgeBaseDocumentResponse)
+def delete_kb_source_document(
+    kb_id: str,
+    document_path: str,
+    user: AuthUser = Depends(require_admin_user),
+) -> KnowledgeBaseDocumentResponse:
+    try:
+        document = delete_kb_document(settings, kb_id, document_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    write_audit_event(
+        settings,
+        {
+            "user_id": user.username,
+            "role": user.role,
+            "event": "admin_kb_document_delete",
+            "kb_id": kb_id,
+            "document_path": document.get("path"),
+            "decision": "allowed",
+        },
+    )
+    return KnowledgeBaseDocumentResponse(document=document)
+
+
+@app.post("/admin/kbs/reindex", response_model=KnowledgeBaseReindexResponse)
+def rebuild_kb_index(req: KnowledgeBaseReindexRequest, user: AuthUser = Depends(require_admin_user)) -> KnowledgeBaseReindexResponse:
+    try:
+        result = build_index(settings, reset=req.reset)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    global _AGENT_INSTANCE, _RAG_INSTANCE
+    _AGENT_INSTANCE = None
+    _RAG_INSTANCE = None
+    write_audit_event(
+        settings,
+        {
+            "user_id": user.username,
+            "role": user.role,
+            "event": "admin_kb_reindex",
+            "reset": req.reset,
+            "result": result,
+            "decision": "allowed",
+        },
+    )
+    return KnowledgeBaseReindexResponse(result=result)
 
 
 @app.get("/admin/tools", response_model=ToolListResponse)
@@ -565,48 +663,20 @@ def run_eval_endpoint(
     req: EvalRunRequest,
     user: AuthUser = Depends(require_current_user),
 ) -> EvalRunResponse:
-    """Run a secured local evaluation job.
+    """Deprecated API eval endpoint.
 
-    This is deliberately admin-only because eval may be expensive and can read
-    internal knowledge-base snippets through normal RAG execution. The endpoint
-    is useful in interviews: it proves the project has a quality feedback loop,
-    not only a happy-path demo question.
+    The current evaluation mainline is the unified CLI script
+    ``scripts/agent_eval_suite.py``. The endpoint is kept only for auth/backward
+    compatibility and no longer imports the archived old eval modules.
     """
 
     endpoint_decision = check_endpoint_permission(user.role, "eval")
     if not endpoint_decision.allowed:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=endpoint_decision.reason)
 
-    try:
-        if req.mode == "retrieval_ablation":
-            from mini_rag.evaluation.retrieval_ablation import run_retrieval_ablation
-
-            report = run_retrieval_ablation(settings, questions_path=req.questions_path)
-            # Return mode-level metrics in a compact shape; detailed rows live in the saved report.
-            metrics = {item["mode"]: item["metrics"] for item in report.get("modes", [])}
-            return EvalRunResponse(
-                mode=req.mode,
-                question_count=int(report.get("question_count") or 0),
-                metrics=metrics,
-                output_path=report.get("output_json_path"),
-                output_md_path=report.get("output_md_path"),
-            )
-
-        from mini_rag.eval import run_eval
-
-        report = run_eval(settings, questions_path=req.questions_path)
-        return EvalRunResponse(
-            mode=req.mode,
-            question_count=int(report.get("question_count") or 0),
-            metrics={
-                "recall_at_k": report.get("recall_at_k"),
-                "citation_hit_rate": report.get("citation_hit_rate"),
-                "refusal_hit_rate": report.get("refusal_hit_rate"),
-                "avg_latency_ms": report.get("avg_latency_ms"),
-                "p95_latency_ms": report.get("p95_latency_ms"),
-            },
-            output_path=report.get("output_path"),
-            output_md_path=report.get("output_md_path"),
-        )
-    except Exception as exc:
-        return EvalRunResponse(mode=req.mode, question_count=0, metrics={}, error=str(exc))
+    return EvalRunResponse(
+        mode=req.mode,
+        question_count=0,
+        metrics={},
+        error="Deprecated endpoint. Please run scripts/agent_eval_suite.py for rag/tool/e2e/all evaluation.",
+    )

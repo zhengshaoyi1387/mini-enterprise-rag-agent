@@ -1,0 +1,189 @@
+[
+  {
+    "event_id": "EVT-20260508-0001",
+    "date": "2026-05-08",
+    "title": "全员周会",
+    "type": "meeting",
+    "department": "all",
+    "time": "10:00-11:00",
+    "location": "线上会议",
+    "description": "每周全员同步",
+    "weekday_zh": "星期五"
+  },
+  {
+    "event_id": "EVT-20260513-0001",
+    "date": "2026-05-13",
+    "title": "新员工培训",
+    "type": "training",
+    "department": "all",
+    "time": "14:00-16:00",
+    "location": "会议室 A",
+    "description": "面向本月入职员工",
+    "weekday_zh": "星期三"
+  },
+  {
+    "event_id": "EVT-20260515-0002",
+    "date": "2026-05-15",
+    "title": "公司团建",
+    "type": "activity",
+    "department": "all",
+    "time": "16:00-18:00",
+    "location": "城市公园",
+    "description": "五月团队建设活动",
+    "weekday_zh": "星期五"
+  },
+  {
+    "event_id": "EVT-20260515-0001",
+    "date": "2026-05-15",
+    "title": "工资发放日",
+    "type": "payday",
+    "department": "all",
+    "time": "全天",
+    "location": "",
+    "description": "本月工资发放",
+    "weekday_zh": "星期五"
+  },
+  {
+    "event_id": "EVT-20260516-0001",
+    "date": "2026-05-16",
+    "title": "公司团建",
+    "type": "activity",
+    "department": "all",
+    "time": "21:00-22:00",
+    "location": "会议室A",
+    "description": "临时团建复盘",
+    "weekday_zh": "星期六"
+  },
+  {
+    "event_id": "EVT-20260517-0001",
+    "date": "2026-05-17",
+    "title": "公司会议",
+    "type": "meeting",
+    "department": "all",
+    "time": "08:00-10:00",
+    "location": "会议室",
+    "description": "公司会议",
+    "weekday_zh": "星期日"
+  },
+  {
+    "event_id": "EVT-20260518-0001",
+    "date": "2026-05-18",
+    "title": "产品部 OKR 同步会",
+    "type": "meeting",
+    "department": "产品部",
+    "time": "10:00-11:00",
+    "location": "会议室 B",
+    "description": "产品部 OKR 对齐",
+    "weekday_zh": "星期一"
+  },
+  {
+    "event_id": "EVT-20260518-0002",
+    "date": "2026-05-18",
+    "title": "研发部周会",
+    "type": "meeting",
+    "department": "研发部",
+    "time": "14:00-15:00",
+    "location": "会议室 C",
+    "description": "研发进度同步",
+    "weekday_zh": "星期一"
+  },
+  {
+    "event_id": "EVT-20260519-0001",
+    "date": "2026-05-19",
+    "title": "公司团建",
+    "type": "activity",
+    "department": "all",
+    "time": "16:00-18:00",
+    "location": "城市公园",
+    "description": "下周第一个团建活动，用于 update/delete 评测",
+    "weekday_zh": "星期二"
+  },
+  {
+    "event_id": "EVT-20260520-0001",
+    "date": "2026-05-20",
+    "title": "产品培训",
+    "type": "training",
+    "department": "产品部",
+    "time": "09:00-11:00",
+    "location": "培训室 1",
+    "description": "产品部培训安排",
+    "weekday_zh": "星期三"
+  },
+  {
+    "event_id": "EVT-20260521-0001",
+    "date": "2026-05-21",
+    "title": "季度经营复盘",
+    "type": "meeting",
+    "department": "all",
+    "time": "14:00-15:00",
+    "location": "会议室 A",
+    "description": "固定 ID，用于 update/delete 评测",
+    "weekday_zh": "星期四"
+  },
+  {
+    "event_id": "EVT-20260521-0002",
+    "date": "2026-05-21",
+    "title": "公司团建",
+    "type": "activity",
+    "department": "all",
+    "time": "18:00-20:00",
+    "location": "团建餐厅",
+    "description": "第二个团建活动",
+    "weekday_zh": "星期四"
+  },
+  {
+    "event_id": "EVT-20260522-0001",
+    "date": "2026-05-22",
+    "title": "研发安全培训",
+    "type": "training",
+    "department": "研发部",
+    "time": "10:00-11:00",
+    "location": "线上会议室",
+    "description": "研发安全培训",
+    "weekday_zh": "星期五"
+  },
+  {
+    "event_id": "EVT-20260522-0002",
+    "date": "2026-05-22",
+    "title": "客户项目同步",
+    "type": "meeting",
+    "department": "销售部",
+    "time": "15:00-16:00",
+    "location": "会议室 B",
+    "description": "固定 ID，用于更新为客户复盘会",
+    "weekday_zh": "星期五"
+  },
+  {
+    "event_id": "EVT-20260523-0001",
+    "date": "2026-05-23",
+    "title": "招聘面试安排同步",
+    "type": "meeting",
+    "department": "HR",
+    "time": "09:00-10:00",
+    "location": "会议室 D",
+    "description": "HR 面试流程同步",
+    "weekday_zh": "星期六"
+  },
+  {
+    "event_id": "EVT-20260524-0001",
+    "date": "2026-05-24",
+    "title": "新员工产品培训",
+    "type": "training",
+    "department": "产品部",
+    "time": "10:00-12:00",
+    "location": "培训室 2",
+    "description": "用于 query-first update 评测",
+    "weekday_zh": "星期日"
+  },
+  {
+    "event_id": "EVT-20260531-0001",
+    "date": "2026-05-31",
+    "title": "OKR 季度复盘",
+    "type": "meeting",
+    "department": "all",
+    "time": "16:00-17:00",
+    "location": "线上会议",
+    "description": "标题包含 OKR，用于关键词查询评测",
+    "weekday_zh": "星期日"
+  }
+]

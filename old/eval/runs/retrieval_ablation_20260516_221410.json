@@ -1,0 +1,58 @@
+{
+  "question_file": "eval/rag_clean_eval_set/rag_long_kb_questions.jsonl",
+  "question_count": 0,
+  "modes": [
+    {
+      "mode": "vector_only",
+      "settings": {
+        "name": "vector_only",
+        "retrieval_mode": "vector",
+        "enable_rerank": false
+      },
+      "metrics": {
+        "question_count": 0,
+        "recall_at_k": 0.0,
+        "citation_hit_rate": 0.0,
+        "refusal_hit_rate": 0.0,
+        "avg_latency_ms": 0.0,
+        "p95_latency_ms": 0.0
+      },
+      "rows": []
+    },
+    {
+      "mode": "hybrid_no_rerank",
+      "settings": {
+        "name": "hybrid_no_rerank",
+        "retrieval_mode": "hybrid",
+        "enable_rerank": false
+      },
+      "metrics": {
+        "question_count": 0,
+        "recall_at_k": 0.0,
+        "citation_hit_rate": 0.0,
+        "refusal_hit_rate": 0.0,
+        "avg_latency_ms": 0.0,
+        "p95_latency_ms": 0.0
+      },
+      "rows": []
+    },
+    {
+      "mode": "hybrid_rerank",
+      "settings": {
+        "name": "hybrid_rerank",
+        "retrieval_mode": "hybrid",
+        "enable_rerank": true
+      },
+      "metrics": {
+        "question_count": 0,
+        "recall_at_k": 0.0,
+        "citation_hit_rate": 0.0,
+        "refusal_hit_rate": 0.0,
+        "avg_latency_ms": 0.0,
+        "p95_latency_ms": 0.0
+      },
+      "rows": []
+    }
+  ],
+  "generated_at": "2026-05-16 22:14:10"
+}

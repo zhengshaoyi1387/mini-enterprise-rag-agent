@@ -1,27 +1,19 @@
 from __future__ import annotations
 
 from mini_rag.agent.graph_agent import EnterpriseKnowledgeGraphAgent
-from mini_rag.agent.legacy_agent import LegacyEnterpriseKnowledgeAgent
 from mini_rag.config import Settings
 
 
 class EnterpriseKnowledgeAgent:
     """统一 Agent 入口。
 
-    默认 `AGENT_RUNTIME=langgraph`，使用 LangGraph 状态机 Agent。
-    如果需要对比旧版脚本式 Agent，可在 `.env` 中设置 `AGENT_RUNTIME=legacy`。
+    当前主线固定使用 LangGraph 状态机 Agent。旧版脚本式 Agent 已归档到
+    ``old/``，不再作为运行时分支暴露，避免面试展示时出现两套心智模型。
     """
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        # 这个 wrapper 的作用是保持 API/CLI 不变：
-        # 外部仍然 import EnterpriseKnowledgeAgent，但内部可以根据配置切换实现。
-        # - langgraph：新的状态机工作流。
-        # - legacy：旧的 create_agent 脚本式 Agent，用于学习对比或回退。
-        if settings.agent_runtime == "legacy":
-            self._impl = LegacyEnterpriseKnowledgeAgent(settings)
-        else:
-            self._impl = EnterpriseKnowledgeGraphAgent(settings)
+        self._impl = EnterpriseKnowledgeGraphAgent(settings)
 
     def ask(
         self,
@@ -33,6 +25,7 @@ class EnterpriseKnowledgeAgent:
         role: str | None = None,
         trace_id: str | None = None,
         kb_ids: list[str] | None = None,
+        override_now: str | None = None,
     ) -> dict:
         """把 ask 调用转发给当前 runtime 的具体实现。
 
@@ -48,6 +41,7 @@ class EnterpriseKnowledgeAgent:
             role=role,
             trace_id=trace_id,
             kb_ids=kb_ids,
+            override_now=override_now,
         )
 
     def stream(
@@ -60,6 +54,7 @@ class EnterpriseKnowledgeAgent:
         role: str | None = None,
         trace_id: str | None = None,
         kb_ids: list[str] | None = None,
+        override_now: str | None = None,
     ):
         if hasattr(self._impl, "stream"):
             yield from self._impl.stream(
@@ -71,6 +66,7 @@ class EnterpriseKnowledgeAgent:
                 role=role,
                 trace_id=trace_id,
                 kb_ids=kb_ids,
+                override_now=override_now,
             )
             return
         result = self.ask(
@@ -82,6 +78,7 @@ class EnterpriseKnowledgeAgent:
             role=role,
             trace_id=trace_id,
             kb_ids=kb_ids,
+            override_now=override_now,
         )
         answer = result.get("answer", "")
         if answer:

@@ -1,0 +1,78 @@
+{
+  "suite": "rag",
+  "judge": "rule",
+  "mode": "hybrid",
+  "generated_at": "2026-05-17T12:34:22.332540+00:00",
+  "summary": {
+    "overall": {
+      "total_cases": 1,
+      "executed_cases": 1,
+      "infra_error_cases": 0,
+      "agent_passed_cases": 1,
+      "agent_failed_cases": 0,
+      "agent_pass_rate": 1.0,
+      "case_count": 1,
+      "passed": 1,
+      "failed": 0,
+      "pass_rate": 1.0,
+      "avg_latency_ms": 19373.44,
+      "p95_latency_ms": 19373.44,
+      "citation_hit": 1.0,
+      "recall_at_k_hit": 1.0,
+      "refusal_hit": 1.0
+    },
+    "by_suite": {
+      "rag": {
+        "total_cases": 1,
+        "executed_cases": 1,
+        "infra_error_cases": 0,
+        "agent_passed_cases": 1,
+        "agent_failed_cases": 0,
+        "agent_pass_rate": 1.0,
+        "case_count": 1,
+        "passed": 1,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "avg_latency_ms": 19373.44,
+        "p95_latency_ms": 19373.44,
+        "citation_hit": 1.0,
+        "recall_at_k_hit": 1.0,
+        "refusal_hit": 1.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "suite": "rag",
+      "id": "rag_clean_007",
+      "question": "根据《考勤与休假管理制度 2026》，连续病假超过 3 个工作日需要上传什么材料？事假超过 2 天需要哪些审批？",
+      "role": "hr",
+      "passed": true,
+      "latency_ms": 19373.44,
+      "route": null,
+      "trace_id": null,
+      "rule_scores": {
+        "recall_at_k_hit": true,
+        "citation_hit": true,
+        "refusal_hit": true,
+        "latency_ms": 19373.44
+      },
+      "llm_scores": {},
+      "retrieved_sources": [
+        "hr/hr_01_attendance_leave_policy_2026.md"
+      ],
+      "tool_calls": [],
+      "task_results": [],
+      "execution_plan": {},
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {},
+      "build_plan": {},
+      "answer_preview": "根据《考勤与休假管理制度 2026》：\n\n- **连续病假超过 3 个工作日**：需上传**医疗证明**。  \n- **事假超过 2 天**：需**直属负责人和 HRBP 双审批**。\n\n引用来源：  \n- source: hr/hr_01_attendance_leave_policy_2026.md, title_path: 考勤与休假管理制度 2026 > 4. 关键规则与阈值, chunk_id: ec54b0e8c9bd:chunk:0054:4479578b  \n- source: hr/hr_01_attendance_leave_policy_2026.md, title_path: 考勤与休假管理制度 2026 > 4. 关键规则与阈值, chunk_id: ec54b0e8c9bd:chunk:0056:1f68feab  \n- source: hr/hr_01_attendance_leave_policy_2026.md, title_path: 考勤与休假管理制度 2026 > 7. FAQ, chunk_id: ec54b0e8c9bd:chunk:0070:90c5252d",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    }
+  ]
+}

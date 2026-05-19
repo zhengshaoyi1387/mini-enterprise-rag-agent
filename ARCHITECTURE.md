@@ -13,7 +13,7 @@ Client / curl / Postman
 FastAPI Gateway
   - GET  /health
   - POST /chat
-  - POST /query   legacy compatibility
+  - POST /query   compatibility endpoint
   - GET  /traces/{trace_id}
         |
         v
@@ -65,7 +65,7 @@ Retrieval System        Observability
 
 ## 4. 为什么保留 `/query`
 
-`/query` 是旧版教学接口，保留它可以兼容已有脚本和 README 示例。新的面试展示建议统一使用 `/chat`，因为它包含 `user_id`、`role`、`trace_id`、权限控制和更适合工程系统的响应结构。
+`/query` 是轻量兼容接口，保留它可以兼容已有 curl/Postman 示例。新的面试展示建议统一使用 `/chat`，因为它包含 `user_id`、`role`、`trace_id`、权限控制和更适合工程系统的响应结构。
 
 ## 5. 为什么 Agent 要权限层
 

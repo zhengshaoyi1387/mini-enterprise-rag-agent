@@ -1,41 +1,196 @@
-# Progress
+# Progress Log
 
-## 2026-05-08
+## 2026-05-17
+- Started systematic refactor pass for LangGraph Agentic RAG.
+- Loaded process skills: `using-superpowers`, `planning-with-files`, `systematic-debugging`, `test-driven-development`.
+- Ran planning session catchup and checked git status/file inventory.
+- Created persistent planning files in project root.
+- Inspected requested core files at function/section level and recorded first architectural findings.
+- User clarified verification policy: always use the Ubuntu `ollama` environment; during iterations run selected focused tests/evals instead of all cases every time, and reserve full regression for the end.
+- Baseline unit tests completed with 145 passed and 3 failures in `tests/test_planning_latency_contract.py`.
+- Baseline evals completed: aligned 12 = 9/12, V2 E2E first20 = 18/20, RAG clean sample8 = 0/8 due import infra error.
+- Wrote `outputs/baseline_report_20260517.md`.
+- First optimization round implemented:
+  - added `src/mini_rag/core/contracts.py` and capability contract skeletons,
+  - moved calendar executable-plan checks into `src/mini_rag/capabilities/calendar/validator.py`,
+  - scoped build-plan tool contracts and skipped build-plan LLM for pure datetime plans,
+  - fixed time-contract handling for `${tomorrow}` and task-local absolute date ranges,
+  - added evaluator infra-error fields and summary counts,
+  - restored standalone RAG prompt exports for RAG eval runner compatibility.
+- Focused tests passed: `tests/test_daily_tools.py tests/test_permission_aware_capabilities.py tests/test_execution_plan_completion.py tests/test_prompt_input_structure.py tests/test_planner_contract_validation.py tests/test_agent_eval_suite_relaxed.py tests/test_planning_latency_contract.py -q` -> 73 passed.
+- Continued safety/evaluator hardening:
+  - added regression coverage for `event not found` terminal write failures, delete selector `所有/全部` expansion, and E2E `tool_sequence` precedence over top-level write action,
+  - preserved terminal tool-error template answers instead of letting `generate_answer` overwrite them with an LLM response,
+  - mirrored relaxed evaluator hard metrics into `scripts/agent_eval_suite.py`.
+- Focused regression passed: `tests/test_planner_contract_validation.py tests/test_execution_plan_completion.py tests/test_agent_eval_suite_relaxed.py tests/test_rag_retriever_source_boost.py tests/test_planning_latency_contract.py -q` -> 53 passed.
+- Eval iteration results:
+  - repaired previous high-risk V2 failures: `e2e_v2_cal_update_008`, `e2e_v2_cal_delete_001`, `e2e_v2_cal_delete_006` all passed individually.
+  - V2 first 20 E2E rule: 20/20 passed, 0 infra errors.
+  - aligned 12 E2E rule: 12/12 passed, 0 infra errors.
+  - RAG clean sample8 rule: 8/8 passed, 0 infra errors.
+  - V2 calendar update/delete safety subset: 14/14 passed, 0 infra errors.
+  - V2 attendance subset initially had 1 failure (`e2e_v2_att_005` employee department detail query executed); added attendance scope validator and reran subset: 10/10 passed.
+- Full unit test suite passed: `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest tests -q` -> 168 passed.
 
-- Started LLM tool planning upgrade.
-- Read relevant process skills and confirmed current architecture issue.
-- Created planning files for this multi-step refactor.
-- Added failing tests in `tests/test_llm_tool_planning.py`.
-- Red run: `8 failed, 1 passed`; failures match expected architecture gaps.
-- Implemented candidate-only daily rule hints, LLM tool_plan parsing, validated tool payload execution, relative-time resolution, and current/previous tool context plumbing.
-- Extended attendance tool with `status_filter` and `include_records`.
-- Target run: `tests/test_llm_tool_planning.py` passed with `9 passed`.
-- Full run after code changes: `85 passed`.
-- Updated README, ARCHITECTURE, and INTERVIEW_GUIDE with LLM tool planning and previous_tool_context flow.
-- Removed unused hard-coded calendar/date inference helpers from `nodes.py`.
-- Final verification after robustness guard: full `pytest` passed with `85 passed in 18.11s`; `compileall -q src tests` passed.
+## 2026-05-18
+- User redirected the goal away from chasing eval 100% and toward completing the architecture described in `CODEX_AGENT_UPGRADE_PLAN.md`.
+- Re-read `CODEX_AGENT_UPGRADE_PLAN.md` before the optimization batch, especially CalendarDomain, Answer Composer, Planner downgrade, and nodes.py slimming sections.
+- Refactored calendar compiler risk:
+  - added `src/mini_rag/capabilities/calendar/lexicon.py` for vocabulary,
+  - added `src/mini_rag/capabilities/calendar/slots.py` for text slot extraction,
+  - slimmed `src/mini_rag/capabilities/calendar/compiler.py` so it only compiles tasks.
+- Moved Calendar write resolution ownership into `src/mini_rag/capabilities/calendar/resolver.py`; `src/mini_rag/tools/calendar_resolution.py` is now only a compatibility shim.
+- Extracted planning responsibilities:
+  - added `src/mini_rag/planning/compiler.py` for plan/classification/task compilation,
+  - added `src/mini_rag/planning/gates.py` for capability gate decisions,
+  - reduced `src/mini_rag/graph/planning_contract.py` to 284 lines.
+- Moved datetime/time-contract logic into `src/mini_rag/capabilities/datetime/resolver.py`; `src/mini_rag/graph/time_contract.py` is now a 5-line compatibility shim.
+- Extracted generic tool execution to `src/mini_rag/execution/tool_executor.py`; `nodes.py` now delegates `call_tool`.
+- Added AnswerPacket flow through `src/mini_rag/answer/packet.py` and `generate_answer`, so LLM answer prompt receives compact task results rather than raw state.
+- Added/updated architecture tests:
+  - `tests/test_calendar_domain_ownership.py`
+  - `tests/test_datetime_domain_ownership.py`
+  - `tests/test_planning_compiler.py`
+  - `tests/test_planning_capability_gates.py`
+  - `tests/test_tool_executor.py`
+  - `tests/test_answer_packet.py`
+- Verification:
+  - Full unit suite: `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest tests -q` -> 202 passed.
+  - Aligned 12: 9/12 passed, 0 infra errors.
+  - V2 first20: 20/20 passed, 0 infra errors.
+  - RAG clean sample8: 8/8 passed, 0 infra errors.
+- Round10 aligned failures were recorded instead of patched case-by-case:
+  - `e2e_tool_001`: query returned no matching next-week activity, update safely skipped; likely fixture/evaluator expectation drift.
+  - `e2e_tool_006`: empty tomorrow meeting result plus correct employee no-write notice; likely answer must-contain/evaluator wording strictness.
+  - `e2e_tool_008`: two tools executed and empty tomorrow meeting result; expected concrete meeting time appears fixture/date-assumption dependent.
+- Cleanup:
+  - moved `__pycache__`, pytest cache, and stale eval outputs into `old2/`.
+  - kept current `outputs/eval/round10_*` reports in place.
+- Started `CODEX_ONE_SHOT_OPTIMIZATION_PLAN.md` batch and re-read `CODEX_AGENT_UPGRADE_PLAN.md`, round10 report, tests/eval structure, and current source layout before changing code.
+- Added fixed-now TimeContext tests and implementation:
+  - `build_time_context()`, `datetime_payload_from_time_context()`, `AGENT_EVAL_FIXED_NOW`,
+  - datetime tool fixed-now support,
+  - request-level `time_context_result` cache,
+  - eval default fixed now `2026-05-17 01:00:00 Asia/Shanghai`.
+- Upgraded `CapabilityRegistry` from metadata-only to contract + handler registry with role-filtered visibility and unified `compile/validate/resolve/format_answer` entrypoints; graph capability catalog now records visible capability names.
+- Moved `graph/planning_contract.py` implementation to `planning/contract_normalizer.py`; old graph file is now a thin compatibility facade under 120 lines.
+- Moved the large graph node runtime to `orchestration/agentic_nodes.py`; `graph/nodes.py` is now a compatibility boundary under 800 lines and preserves test monkeypatching of `get_current_datetime`.
+- Moved tool input gates from `tools/input_contract.py` to `execution/tool_input.py`; old tools path is now a compatibility shim.
+- Added evaluator failure category attribution and summary counts to both eval scripts.
+- Focused one-shot architecture suite passed:
+  - `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest tests/test_time_context_fixed_now.py tests/test_time_context_cache.py tests/test_capability_registry.py tests/test_capability_registry_integration.py tests/test_planning_contract_facade.py tests/test_planning_compiler.py tests/test_planning_capability_gates.py tests/test_nodes_orchestration_boundary.py tests/test_tool_input_ownership.py tests/test_tool_executor.py tests/test_answer_packet.py tests/test_agent_eval_suite_relaxed.py -q`
+  - Result: `34 passed`.
+- Final verification after request-level `override_now` passthrough:
+  - Full unit suite: `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest tests -q` -> `214 passed`.
+  - Compile: `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m compileall -q src` -> passed.
+- Final evals:
+  - `final_aligned12_rule`: 12/12 executed Agent cases passed, infra=0.
+  - `final_v2_first20_rule`: 20/20 executed Agent cases passed, infra=0.
+  - `final_rag_clean_full32_rule`: 32/32 executed RAG clean cases passed, infra=0.
+  - `final_v2_full64_rule`: final retry was blocked at case 1 by DashScope `AllocationQuota.FreeTierOnly`, infra=1, executed=0. Earlier same-turn full64 attempt reached case 49: one attendance refusal evaluator false negative was found and fixed, then quota stopped at RAG case 003.
+- Cleanup after final verification:
+  - moved pycache/pytest cache to `old2/pycache_20260518_final_after_verify/`,
+  - moved `round10_*` eval outputs to `old2/eval_outputs_round10_20260518/`,
+  - moved pre-final reports to `old2/reports_pre_final_20260518/`.
+## 2026-05-18 Unified Mainline Closure
 
-## 2026-05-09
+- 收口到单一主线：`build_runtime_context -> plan_with_llm -> resolve_plan_time -> validate_plan -> react_execute -> answer_with_llm -> update_memory`。
+- 删除/迁移旧 LocalReAct、旧 planner facade、旧 canonical 时间修复逻辑；`graph/nodes.py` 保持 facade only。
+- `agentic_nodes.py` 瘦身到 791 行；`datetime/resolver.py` 收敛到 318 行。
+- 完成统一 TimeResolver、ReActExecutor、Answer LLM locked facts、RAG answerability gate、rerank fallback/eval infra 分类。
+- 清理缓存并将旧阶段文件移动到 `old2/unified_mainline_legacy_20260518/`。
+- 验证：`compileall` 通过；`pytest tests -q` 为 `138 passed`。
+- Eval：aligned12 `12/12`；mixed smoke `6/6`；RAG clean sample8 `8/8`；V2 first20 因 403 quota 计为 infra。
 
-- Started final architecture refactor for permission-aware capability catalog and action-level tool planning.
-- Session catchup showed previous LLM tool planning work already landed locally.
-- Read current permissions, registry, daily tools, prompts, nodes, contracts, and existing tests.
-- Added red tests in `tests/test_permission_aware_capabilities.py`.
-- Red run: `7 failed, 1 passed`; failures confirm missing role-filtered contracts, missing message_type/context_usage/selected_action state, and public prompt leaking calendar tool contracts.
-- Implemented action-level permissions, role-filtered ToolRegistry contracts, planner state fields, selected_action execution checks, smalltalk/permission direct answers, and admin tools action metadata.
-- Updated legacy tests to the final no-keyword-routing semantics.
-- Full test run after implementation: `93 passed in 18.88s`.
-- Updated README, ARCHITECTURE, SECURITY, and INTERVIEW_GUIDE for permission-aware catalog, action-level permissions, Planner schema, smalltalk handling, and event_type semantics.
-- Final verification after removing test-generated calendar data: full `pytest` passed with `93 passed in 16.62s`; `compileall -q src tests` passed.
-- Investigated trace `trace_d6182b1471c04bdc88cae367d53ff41c`: Planner selected `manage_company_calendar.query` with dates, but conflicting `route=direct` caused the graph to skip `call_tool`.
-- Added red tests for this schema-contract conflict and smalltalk accidental tool leakage; red run failed as expected with 2 failures.
-- Implemented Planner contract normalization in `understand_query`: allowed selected tools normalize to `route=tool`, while `smalltalk`/`permission_required`/`reject` clear tool fields.
-- Target run after fix: `tests/test_permission_aware_capabilities.py` selected tests passed with `2 passed`; broader Planner/permission run passed with `19 passed`.
-- Full verification: `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest -q` passed with `95 passed in 17.04s`; `compileall -q src tests` passed.
-- Investigated trace `trace_e0a5dd807a7f40ce9a46ed1e3fca9773`: Planner derived next-week dates from `previous_tool_context` and skipped `get_current_datetime`.
-- Added red tests proving current relative-time questions must call datetime first and pure datetime direct plans normalize to `get_current_datetime`.
-- Implemented current datetime middleware in `understand_query`: current-message relative time overrides planner/context dates and forces tool-side date resolution.
-- Cleaned unused LLM route prompt/imports after route became a deterministic state-machine separator.
-- Fixed role-policy consistency: API schema now accepts `public`; auth store preserves valid `tool.action` specs; frontend role editor can save action-level tool policies.
-- Target verification: Planner/tool tests passed with `21 passed`; auth/permission/tool critical tests passed with `45 passed`.
-- Full verification after all changes: `pytest -q` passed with `99 passed in 19.14s`; `compileall -q src tests` passed; `git diff --check` passed.
+## 2026-05-19 Unified Mainline Closure Fixes
+
+- Added regression coverage for the TimeResolver -> Validator -> ReActExecutor -> Calendar selector -> AnswerPacket loop:
+  - bare weekday aliases `星期一/周一/礼拜一/星期天`,
+  - `前天`, `大后天`, `下下周`, `下下月`,
+  - create context `2026-05-18 23:47 星期一` with `星期一晚上九点到十点` resolving to `2026-05-25`,
+  - task-level validation preserving executable tasks when a later create task needs clarification,
+  - previous-tool-context calendar selector resolution before real update/delete calls,
+  - ReAct finish/depends_on/max-step guards and completion-assessment consistency.
+- Fixed `src/mini_rag/capabilities/datetime/resolver.py` with long-span matching, bare weekday handling, `前天/大后天`, and create-time rollover.
+- Fixed `src/mini_rag/orchestration/agentic_nodes.py` so `validate_plan` records `executable_tasks`, `blocked_tasks`, and `clarification_tasks` instead of clearing the whole plan for one bad task.
+- Fixed `src/mini_rag/orchestration/react_executor.py` so finish is blocked while tool/RAG tasks remain, `depends_on` is enforced, and exactly-5-step completion returns success.
+- Fixed `src/mini_rag/capabilities/calendar/resolver.py` and ReAct tool callback so ordinal selectors are resolved from previous context or latest query observations before real calendar writes.
+- Verification:
+  - `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m compileall -q src scripts` -> passed.
+  - `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest tests/test_unified_time_resolver.py tests/test_unified_react_mainline.py tests/test_unified_mainline_safety.py tests/test_react_executor_architecture.py -q` -> `23 passed`.
+  - `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest tests -q` -> `148 passed`.
+
+## 2026-05-19 RAG Regression Fixes
+
+- Kept the architecture unchanged and only touched RAG fallback, evidence verification, AnswerPacket/evidence prompt construction, and execution-status aggregation.
+- Added regression coverage for:
+  - smalltalk planner output with `tasks=[]` not falling back to RAG,
+  - short Chinese finance policy query `公司报销制度` accepting `finance/finance_01_reimbursement_travel_procurement_2026.md`,
+  - mixed calendar + RAG + attendance execution with finance supporting source,
+  - candidate evidence staying out of AnswerPacket and final answer prompt when `supporting_sources` is empty,
+  - mixed tool success + RAG empty becoming `partial`.
+- Fixed `_normalize_runtime_plan` so empty-task fallback to RAG only happens for explicit RAG intent/requirement, while preserving legacy `route=rag` compatibility.
+- Fixed `capabilities/rag/verifier.py` with synonym/business-policy support for short Chinese制度类 queries and removed candidate-source promotion inside answerability gate.
+- Fixed `answer/service.py` so Answer LLM evidence text is built from supporting sources only; candidate sources remain trace/debug-only.
+- Fixed `answer/packet.py` so RAG `empty/no_evidence` drives `partial` for mixed tasks and `insufficient_evidence` for pure empty RAG.
+- Verification:
+  - `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m compileall -q src scripts` -> passed.
+  - `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest tests/test_rag_answerability_gate.py tests/test_answer_packet.py tests/test_answer_composer.py tests/test_unified_react_mainline.py tests/test_langgraph_agent.py::test_langgraph_agent_rag_path_persists_context -q` -> `22 passed`.
+  - `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest tests -q` -> `153 passed`.
+
+## 2026-05-19 Smalltalk Trace Fix
+
+- Analyzed `logs/traces/agent_trace_20260519_010808_trace_d75650cd80ab405388cdf7ba5132833d.json`.
+- Trace root cause:
+  - `plan_with_llm` correctly returned `overall_intent=smalltalk`, `requires_tools=false`, `requires_rag=false`, `tasks=[]`.
+  - `_normalize_runtime_plan` kept route direct and did not create RAG tasks.
+  - `validate_plan` incorrectly treated an empty direct/no-op plan as `needs_clarification`, changing `intent` from `smalltalk` to `need_clarification`.
+  - `answer_with_llm` then locked the clarification template, overriding the LLM greeting.
+- Added regression assertion to `tests/test_unified_react_mainline.py::test_smalltalk_empty_plan_does_not_fallback_to_rag`:
+  - validate keeps `intent=smalltalk`,
+  - `plan_validation.validation_status=valid`,
+  - no RAG retrieval/tool call,
+  - final answer remains the Answer LLM greeting.
+- Fixed `validate_plan` so empty direct/no-op plans are valid and leave route/intent intact.
+- Verification:
+  - `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m compileall -q src scripts` -> passed.
+  - `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest tests/test_unified_react_mainline.py tests/test_rag_answerability_gate.py tests/test_answer_packet.py tests/test_answer_composer.py tests/test_unified_mainline_safety.py tests/test_react_executor_architecture.py -q` -> `32 passed`.
+  - `TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m pytest tests -q` -> `153 passed`.
+
+## 2026-05-19 State/RAG/Eval Enhancement
+
+- Added tests:
+  - `tests/test_state_management.py`
+  - `tests/test_rag_self_correction.py`
+  - `tests/test_eval_failure_classifier.py`
+  - `tests/test_eval_run_report.py`
+  - additional regressions in `tests/test_answer_composer.py` and `tests/test_unified_react_mainline.py`
+- Implemented:
+  - `src/mini_rag/orchestration/state_views.py`
+  - `src/mini_rag/capabilities/rag/self_correct.py`
+  - `src/mini_rag/eval/failure_classifier.py`
+  - `src/mini_rag/eval/run_report.py`
+- Updated:
+  - `src/mini_rag/orchestration/agentic_nodes.py`
+  - `src/mini_rag/orchestration/state_factory.py`
+  - `src/mini_rag/capabilities/rag/service.py`
+  - `src/mini_rag/capabilities/rag/verifier.py`
+  - `src/mini_rag/answer/service.py`
+  - `src/mini_rag/observability/trace_builder.py`
+  - `scripts/agent_eval_suite.py`
+  - `scripts/agent_eval_suite_relaxed.py`
+  - `tests/test_agent_eval_suite_relaxed.py`
+- Verification:
+  - Initial red tests showed missing `state_views`, `rag.self_correct`, and `mini_rag.eval` modules.
+  - New enhancement tests: `17 passed`.
+  - Focused mainline/RAG/eval tests: `75 passed`.
+  - `compileall -q src scripts` -> passed.
+  - Full test suite after final fixes: `172 passed`.
+- Eval:
+  - `state_rag_eval_aligned12_rule`: 12/12 pass.
+  - `state_rag_eval_mixed_smoke_rule_final`: 6/6 pass.
+  - `state_rag_eval_rag_clean_sample8_rule`: 8/8 pass.
+- Eval reports generated under `outputs/eval_reports/`, including:
+  - `eval_report_20260519_015048.md`
+  - `eval_report_20260519_015931.md`
+  - `eval_report_20260519_020111.md`

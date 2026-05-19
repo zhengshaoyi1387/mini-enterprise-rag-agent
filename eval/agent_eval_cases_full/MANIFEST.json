@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-05-16T15:00:16",
+  "counts": {
+    "rag": 32,
+    "tool": 40,
+    "e2e": 20,
+    "total": 92
+  },
+  "files": [
+    "EVAL_CASES_README.md",
+    "README_USE.md",
+    "agent_e2e_eval_cases.jsonl",
+    "all_eval_cases.jsonl",
+    "rag_eval_questions.jsonl",
+    "tool_eval_cases.jsonl"
+  ]
+}

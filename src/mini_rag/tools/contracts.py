@@ -8,6 +8,9 @@ from pydantic import BaseModel, ConfigDict, model_validator
 class DateTimeInput(BaseModel):
     model_config = ConfigDict(extra="ignore")
     timezone: str = "Asia/Shanghai"
+    override_now: str | None = None
+    eval_fixed_now: str | None = None
+    fixed_now: str | None = None
 
 
 class AttendanceInput(BaseModel):
@@ -18,6 +21,7 @@ class AttendanceInput(BaseModel):
     employee_name: str | None = None
     group_by: Literal["none", "department", "employee"] = "department"
     status_filter: Literal["present", "late", "leave", "absent"] | None = None
+    status_filters: list[Literal["present", "late", "leave", "absent"]] | None = None
     include_records: bool = False
 
 
@@ -47,8 +51,6 @@ class CalendarInput(BaseModel):
         if self.action == "query":
             if not self.start_date or not self.end_date:
                 raise ValueError("query requires start_date and end_date")
-            if self.query_scope == "all_events":
-                self.event_type = "all"
         elif self.action == "create":
             if not self.title:
                 raise ValueError("create requires title")
@@ -75,4 +77,14 @@ def get_tool_input_schema(tool_name: str) -> dict[str, Any]:
 
 def validate_tool_input(tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
     model = TOOL_INPUT_MODELS[tool_name]
-    return model(**payload).model_dump(exclude_none=True)
+    value = model(**payload)
+    data = value.model_dump(exclude_none=True)
+    if tool_name == "manage_company_calendar" and isinstance(value, CalendarInput):
+        provided = set(value.model_fields_set)
+        if value.action == "update":
+            allowed_update_fields = {"title", "type", "date", "time", "department", "location", "description"}
+            keep = {"action", "event_id"} | (provided & allowed_update_fields)
+            data = {key: field_value for key, field_value in data.items() if key in keep}
+        elif value.action == "delete":
+            data = {key: field_value for key, field_value in data.items() if key in {"action", "event_id"}}
+    return data

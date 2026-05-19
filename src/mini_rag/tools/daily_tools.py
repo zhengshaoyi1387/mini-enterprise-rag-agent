@@ -53,8 +53,10 @@ def build_default_tool_registry() -> ToolRegistry:
                     "employee_name": "optional",
                     "group_by": "none|department|employee",
                     "status_filter": "present|late|leave|absent|null",
+                    "status_filters": "optional list[present|late|leave|absent] for multi-status anomalies",
                     "include_records": "bool",
-                }
+                },
+                "semantics": "Use status_filters=[late,leave,absent] for attendance anomalies; do not encode multiple statuses as a pipe string.",
             }
         },
     )
@@ -71,11 +73,11 @@ def build_default_tool_registry() -> ToolRegistry:
                     "action": "query",
                     "start_date": "YYYY-MM-DD",
                     "end_date": "YYYY-MM-DD",
-                    "query_scope": "all_events|type_filtered",
+                    "query_scope": "legacy optional; ignored for filtering",
                     "event_type": "all|meeting|training|payday|holiday|activity|maintenance|other",
                     "department": "all|name",
                 },
-                "semantics": "event_type is only a filter. For broad calendar/schedule/event queries use query_scope=all_events and event_type=all.",
+                "semantics": "event_type is the only type filter. event_type=all means all calendar types. Broad queries like company schedule/events/arrangements use all; explicit training/meeting/payday/holiday/activity/maintenance questions use the matching type. query_scope is legacy metadata and must not override event_type.",
             },
             "create": {
                 "in": {
@@ -89,8 +91,29 @@ def build_default_tool_registry() -> ToolRegistry:
                     "description": "string",
                 }
             },
-            "update": {"in": {"action": "update", "event_id": "id", "fields": "title/type/date/time/department/location/description"}},
-            "delete": {"in": {"action": "delete", "event_id": "id"}},
+            "update": {
+                "in": {
+                    "action": "update",
+                    "event_id": "id when known",
+                    "title": "optional string; 日程内容/标题",
+                    "type": "optional meeting|training|payday|holiday|activity|maintenance|other",
+                    "date": "optional YYYY-MM-DD",
+                    "time": "optional HH:MM-HH:MM|全天",
+                    "department": "optional all|name",
+                    "location": "optional string",
+                    "description": "optional string",
+                    "selector": "optional object when event_id is unknown: event_type/date/date_range/title/weekday_zh/ordinal/all",
+                },
+                "semantics": "Use flat fields for updates. Do not nest changed fields under fields. If event_id is unknown, plan query first or provide selector over previous calendar events; ambiguous matches require clarification.",
+            },
+            "delete": {
+                "in": {
+                    "action": "delete",
+                    "event_id": "EVT-YYYYMMDD-XXXX when known",
+                    "selector": "optional object only after query/context: event_type/date/date_range/title/weekday_zh/ordinal/all",
+                },
+                "semantics": "delete executes one concrete event_id at a time. For conditional/bulk deletes, query first and let executor expand real event_ids; never use all/*/multiple as event_id.",
+            },
         },
     )
 

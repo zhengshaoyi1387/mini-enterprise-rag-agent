@@ -63,7 +63,10 @@ def test_get_current_datetime_returns_ranges() -> None:
     assert result["current_date"]
     assert result["current_time"]
     assert result["weekday"]
+    assert result["weekday_zh"]
     assert {"today", "last_week", "next_week", "this_month"} <= set(result["ranges"])
+    assert all("days" not in value for value in result["ranges"].values())
+    assert set(result["ranges"]["today"]) == {"start_date", "end_date"}
 
 
 def test_query_attendance_summary_basic(tmp_path: Path) -> None:
@@ -111,6 +114,27 @@ def test_query_attendance_summary_group_by_department(tmp_path: Path) -> None:
     assert by_department["HR"]["absent"] == 1
 
 
+def test_query_attendance_summary_multi_status_filters_include_records(tmp_path: Path) -> None:
+    file_path = tmp_path / "attendance.csv"
+    write_attendance(file_path)
+
+    result = query_attendance_summary(
+        {
+            "start_date": "2026-05-01",
+            "end_date": "2026-05-02",
+            "department": "all",
+            "group_by": "department",
+            "status_filters": ["late", "leave", "absent"],
+            "include_records": True,
+            "file_path": str(file_path),
+        }
+    )
+
+    assert result["filtered_count"] == 3
+    assert result["filtered_count_by_status"] == {"late": 1, "leave": 1, "absent": 1}
+    assert {record["status"] for record in result["records"]} == {"late", "leave", "absent"}
+
+
 def test_manage_company_calendar_query(tmp_path: Path) -> None:
     file_path = tmp_path / "company_calendar.json"
     write_calendar(file_path)
@@ -128,6 +152,87 @@ def test_manage_company_calendar_query(tmp_path: Path) -> None:
 
     assert result["action"] == "query"
     assert [event["title"] for event in result["events"]] == ["新员工培训"]
+
+
+def test_manage_company_calendar_query_scope_does_not_override_event_type(tmp_path: Path) -> None:
+    file_path = tmp_path / "company_calendar.json"
+    write_calendar(file_path)
+
+    result = manage_company_calendar(
+        {
+            "action": "query",
+            "role": "employee",
+            "start_date": "2026-05-01",
+            "end_date": "2026-05-31",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "all",
+            "file_path": str(file_path),
+        }
+    )
+
+    assert result["event_type"] == "training"
+    assert [event["type"] for event in result["events"]] == ["training"]
+
+
+def test_manage_company_calendar_events_include_weekday_without_persisting(tmp_path: Path) -> None:
+    file_path = tmp_path / "company_calendar.json"
+    file_path.write_text(
+        json.dumps(
+            [
+                {
+                    "event_id": "EVT-20260518-0001",
+                    "date": "2026-05-18",
+                    "title": "周例会",
+                    "type": "meeting",
+                    "department": "all",
+                    "time": "10:00-11:00",
+                    "location": "线上",
+                    "description": "",
+                }
+            ],
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    queried = manage_company_calendar(
+        {
+            "action": "query",
+            "role": "employee",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "file_path": str(file_path),
+        }
+    )
+    assert queried["events"][0]["weekday_zh"] == "星期一"
+
+    created = manage_company_calendar(
+        {
+            "action": "create",
+            "role": "admin",
+            "date": "2026-05-19",
+            "title": "培训",
+            "type": "training",
+            "time": "14:00-16:00",
+            "department": "all",
+            "file_path": str(file_path),
+        }
+    )
+    assert created["event"]["weekday_zh"] == "星期二"
+
+    updated = manage_company_calendar(
+        {
+            "action": "update",
+            "role": "admin",
+            "event_id": created["event_id"],
+            "date": "2026-05-20",
+            "file_path": str(file_path),
+        }
+    )
+    assert updated["event"]["weekday_zh"] == "星期三"
+    assert all("weekday_zh" not in item for item in json.loads(file_path.read_text(encoding="utf-8")))
 
 
 def test_manage_company_calendar_admin_create_update_delete(tmp_path: Path) -> None:

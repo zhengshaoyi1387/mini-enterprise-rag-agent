@@ -1,0 +1,100 @@
+# Agent Evaluation Suite Report
+
+- Generated at: `2026-05-17T11:17:40.160432+00:00`
+- Suite: `rag`
+- Judge: `rule`
+- Mode: `hybrid`
+
+## Summary
+
+| Scope | Cases | Passed | Failed | Pass Rate | Avg Latency(ms) | P95 Latency(ms) |
+|---|---:|---:|---:|---:|---:|---:|
+| overall | 8 | 0 | 8 | 0.0000 | 0.00 | 0.00 |
+| rag | 8 | 0 | 8 | 0.0000 | 0.00 | 0.00 |
+
+## Metrics By Suite
+
+### rag
+
+| Metric | Value |
+|---|---:|
+| case_count | 8 |
+| passed | 0 |
+| failed | 8 |
+| pass_rate | 0.0 |
+| avg_latency_ms | 0.0 |
+| p95_latency_ms | 0.0 |
+
+## Failed Cases
+
+### rag / rag_clean_001
+
+- Question: 根据《公司运营与协作手册 2026》，2026 年所有跨部门项目在项目主页必须登记哪些信息？
+- Failure reasons: case execution error: cannot import name 'AGENT_SYSTEM_PROMPT' from 'mini_rag.prompts' (/mnt/c/Users/25075/Desktop/RAG与AGENT开发/Langchain/mini-enterprise-rag-agent-enterprise-langgraph-expanded-kb/src/mini_rag/prompts/__init__.py)
+- Retrieved sources: (none)
+- Tool calls: `[]`
+- Task results: `[]`
+- Answer preview: 
+
+### rag / rag_clean_002
+
+- Question: 根据《公司运营与协作手册 2026》，公司内部统一使用哪个入口作为正式制度入口？飞书或邮件截图能否替代正式制度链接？
+- Failure reasons: case execution error: cannot import name 'AGENT_SYSTEM_PROMPT' from 'mini_rag.prompts' (/mnt/c/Users/25075/Desktop/RAG与AGENT开发/Langchain/mini-enterprise-rag-agent-enterprise-langgraph-expanded-kb/src/mini_rag/prompts/__init__.py)
+- Retrieved sources: (none)
+- Tool calls: `[]`
+- Task results: `[]`
+- Answer preview: 
+
+### rag / rag_clean_003
+
+- Question: 根据《新员工入职与协作指南 2026》，如果一个申请同时涉及账号、预算和外部供应商支持，应该如何处理？为什么不能放在一个审批结论里？
+- Failure reasons: case execution error: cannot import name 'AGENT_SYSTEM_PROMPT' from 'mini_rag.prompts' (/mnt/c/Users/25075/Desktop/RAG与AGENT开发/Langchain/mini-enterprise-rag-agent-enterprise-langgraph-expanded-kb/src/mini_rag/prompts/__init__.py)
+- Retrieved sources: (none)
+- Tool calls: `[]`
+- Task results: `[]`
+- Answer preview: 
+
+### rag / rag_clean_004
+
+- Question: 根据《新员工入职与协作指南 2026》，申请人为什么不能只给出口头结论？涉及例外时还要说明哪些内容？
+- Failure reasons: case execution error: cannot import name 'AGENT_SYSTEM_PROMPT' from 'mini_rag.prompts' (/mnt/c/Users/25075/Desktop/RAG与AGENT开发/Langchain/mini-enterprise-rag-agent-enterprise-langgraph-expanded-kb/src/mini_rag/prompts/__init__.py)
+- Retrieved sources: (none)
+- Tool calls: `[]`
+- Task results: `[]`
+- Answer preview: 
+
+### rag / rag_clean_005
+
+- Question: 根据《数据分级、AI 助手使用和引用边界》，涉及 AI 助手的回答为什么必须标注来源？能不能把模型生成内容当作制度原文？
+- Failure reasons: case execution error: cannot import name 'AGENT_SYSTEM_PROMPT' from 'mini_rag.prompts' (/mnt/c/Users/25075/Desktop/RAG与AGENT开发/Langchain/mini-enterprise-rag-agent-enterprise-langgraph-expanded-kb/src/mini_rag/prompts/__init__.py)
+- Retrieved sources: (none)
+- Tool calls: `[]`
+- Task results: `[]`
+- Answer preview: 
+
+### rag / rag_clean_006
+
+- Question: 根据《数据分级、AI 助手使用和引用边界》，公开材料对外分享时有哪些限制？客户名称、报价、源代码和员工个人信息能否放入内部公开材料？
+- Failure reasons: case execution error: cannot import name 'AGENT_SYSTEM_PROMPT' from 'mini_rag.prompts' (/mnt/c/Users/25075/Desktop/RAG与AGENT开发/Langchain/mini-enterprise-rag-agent-enterprise-langgraph-expanded-kb/src/mini_rag/prompts/__init__.py)
+- Retrieved sources: (none)
+- Tool calls: `[]`
+- Task results: `[]`
+- Answer preview: 
+
+### rag / rag_clean_007
+
+- Question: 根据《考勤与休假管理制度 2026》，连续病假超过 3 个工作日需要上传什么材料？事假超过 2 天需要哪些审批？
+- Failure reasons: case execution error: cannot import name 'AGENT_SYSTEM_PROMPT' from 'mini_rag.prompts' (/mnt/c/Users/25075/Desktop/RAG与AGENT开发/Langchain/mini-enterprise-rag-agent-enterprise-langgraph-expanded-kb/src/mini_rag/prompts/__init__.py)
+- Retrieved sources: (none)
+- Tool calls: `[]`
+- Task results: `[]`
+- Answer preview: 
+
+### rag / rag_clean_008
+
+- Question: 根据《考勤与休假管理制度 2026》，标准工时员工每日有效工时按多少小时计算？弹性打卡是否等于免考勤？
+- Failure reasons: case execution error: cannot import name 'AGENT_SYSTEM_PROMPT' from 'mini_rag.prompts' (/mnt/c/Users/25075/Desktop/RAG与AGENT开发/Langchain/mini-enterprise-rag-agent-enterprise-langgraph-expanded-kb/src/mini_rag/prompts/__init__.py)
+- Retrieved sources: (none)
+- Tool calls: `[]`
+- Task results: `[]`
+- Answer preview: 

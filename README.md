@@ -1,8 +1,8 @@
 # Mini Enterprise RAG Agent
 
-> P0 面试工程化版本：新增 FastAPI Gateway `/chat`、API Key 鉴权、user_id/role、endpoint/tool 权限、trace_id 与 `/traces/{trace_id}`。详见 `ARCHITECTURE.md`、`SECURITY.md`、`INTERVIEW_GUIDE.md`、`API_TESTING.md`。
+> 当前主线：LangGraph 企业 Agent + 统一评测脚本。核心文档见 `ARCHITECTURE.md`、`SECURITY.md`、`INTERVIEW_GUIDE.md`、`EVALUATION_SUITE_GUIDE.md`。旧版脚本、旧报告和过渡期说明已归档到 `old/`。
 
-## P0 快速启动与接口测试
+## 快速启动
 
 ```bash
 cp .env.example .env
@@ -17,68 +17,46 @@ python scripts/serve.py
 curl http://127.0.0.1:8000/health
 ```
 
-新的工程化 `/chat` 接口：
+登录后调用 `/chat` 接口：
 
 ```bash
+TOKEN=$(curl -s -X POST http://127.0.0.1:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
 curl -X POST http://127.0.0.1:8000/chat \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: dev-api-key" \
-  -d '{
-    "user_id": "u001",
-    "role": "user",
-    "query": "智能客服平台有哪些核心模块？",
-    "session_id": "demo-session",
-    "retrieval_mode": "hybrid",
-    "enable_rerank": true
-  }'
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"query":"智能客服平台有哪些核心模块？","session_id":"demo-session","retrieval_mode":"hybrid","enable_rerank":true}'
 ```
 
 返回中的 `trace_id` 可由 admin 查询：
 
 ```bash
 curl http://127.0.0.1:8000/traces/<trace_id> \
-  -H "X-API-Key: dev-api-key" \
-  -H "X-User-Role: admin"
+  -H "Authorization: Bearer $TOKEN"
 ```
 
----
+## 统一评测
 
-## P1：90 分项目增强能力
-
-本版本在 P0 的 `/chat`、鉴权、权限和 trace 基础上，继续补齐面试高价值能力：
-
-- `POST /eval/run`：admin 受保护评测接口。
-- `scripts/retrieval_ablation.py`：对比 `vector_only`、`hybrid_no_rerank`、`hybrid_rerank`。
-- `eval/p1_quality_questions.jsonl`：覆盖制度、产品、多文档、多轮、拒答、安全和面试口述题。
-- `logs/requests.jsonl`：网关级请求日志，不记录 body，避免泄漏敏感内容。
-- `EVAL_REPORT.md`、`RETRIEVAL_ABLATION.md`、`FAILURE_CASES.md`：用于面试展示的评测、检索取舍和失败案例材料。
-
-运行 RAG 评测：
+当前只推荐使用 `scripts/agent_eval_suite.py`。它统一支持 RAG、工具调用和端到端 Agent 评测：
 
 ```bash
-EVAL_QUESTIONS_PATH=eval/p1_quality_questions.jsonl python scripts/eval.py
+python scripts/agent_eval_suite.py \
+  --suite all \
+  --rag-questions eval/rag_clean_eval_set/rag_clean_questions.jsonl \
+  --tool-questions eval/agent_eval_cases_full/tool_eval_cases.jsonl \
+  --e2e-questions eval/agent_eval_cases_full/agent_e2e_eval_cases.jsonl \
+  --judge rule \
+  --output outputs/eval/full_eval_report
 ```
 
-运行检索 ablation：
-
-```bash
-python scripts/retrieval_ablation.py --questions eval/p1_quality_questions.jsonl
-```
-
-通过 API 触发评测：
-
-```bash
-curl -X POST http://127.0.0.1:8000/eval/run \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: dev-api-key" \
-  -H "X-User-Role: admin" \
-  -d '{"mode":"retrieval_ablation","questions_path":"eval/p1_quality_questions.jsonl"}'
-```
+详细说明见 `EVALUATION_SUITE_GUIDE.md`。
 
 ---
 
 
-> 已重构为 Agentic RAG + LangGraph 编排版本。详见 `AGENTIC_RAG_REFACTOR.md`。
+> 已重构为 Agentic RAG + LangGraph 编排版本。旧重构过程说明已归档到 `old/docs/`。
 
 核心特点：LLM 负责理解/规划/反思/生成，LangGraph 负责状态流转和循环控制，SQLite 只保存干净业务记忆，trace 只用于排查。
 
@@ -120,7 +98,7 @@ Trace 记录检索、工具、LLM、总耗时
 
 ## 1. 项目特性
 
-- **LangGraph 状态机 Agent**：默认使用显式节点编排，保留 legacy `create_agent` 对比路径。
+- **LangGraph 状态机 Agent**：主线固定使用显式节点编排，旧脚本式 Agent 已归档到 `old/`。
 - **文档加载采用常用官方组合**：使用 `DirectoryLoader` 加载 Markdown、TXT、PDF、Word。
 - **增量索引**：通过 `storage/index_manifest.json` 记录文件 hash 和 chunk ids，只更新变更文件。
 - **Markdown 结构化切分**：使用 `MarkdownHeaderTextSplitter` 保留标题层级，生成 `title_path`。
@@ -299,11 +277,7 @@ mini-rag ask "它有哪些模块？" --session-id demo-session
 mini-rag ask "智能客服平台包含哪些核心模块" --no-rerank
 ```
 
-默认 Agent runtime 是 LangGraph：
-
-```bash
-AGENT_RUNTIME=langgraph
-```
+当前 Agent runtime 固定为 LangGraph，不再暴露旧脚本式 Agent 分支。
 
 质量优先的性能参数：
 
@@ -320,13 +294,7 @@ AGENT_EVIDENCE_CHAR_LIMIT=2200
 
 这组参数保留 hybrid 检索、Qwen rerank 和最终回答质量，同时让 LLM 自己决定整体检索、细分检索或混合检索；代码只限制浪费，默认初始检索最多 3 个 query、每轮补检索最多 2 个 query，并压缩进入 LLM 的证据上下文。Trace 中会额外记录 `total_latency_ms`、`llm_calls`、`retrieval_cache_hit`、`rerank_cache_hit`、`skipped_reflection_reason`。
 
-如果想和旧版脚本式 Agent 对比，可以在 `.env` 中设置：
-
-```bash
-AGENT_RUNTIME=legacy
-```
-
-默认使用 Agent 版本。Agent 的提示词集中在 `src/mini_rag/prompts/`。核心要求：
+默认使用 Agent 版本。Agent 的核心 Planner / Reflect / Answer 提示词集中在 `src/mini_rag/graph/prompts.py`。核心要求：
 
 - Router 自己判断是否需要检索，不机械调用知识库。
 - 多模块、多对象问题进入检索规划阶段拆成多个子查询。
@@ -357,20 +325,18 @@ curl -X POST http://127.0.0.1:8000/query \
 
 ## 7. 评测闭环
 
-项目内置一个轻量评测入口，读取 `eval/questions.jsonl`，输出到 `eval/runs/`：
+当前评测闭环统一由 `scripts/agent_eval_suite.py` 承担，输出到 `outputs/eval/`：
 
 ```bash
-mini-rag eval
-# 或
-python scripts/eval.py
+python scripts/agent_eval_suite.py \
+  --suite rag \
+  --questions eval/rag_clean_eval_set/rag_clean_questions.jsonl \
+  --judge rule \
+  --limit 3 \
+  --output outputs/eval/smoke_rag
 ```
 
-报告包含：
-
-- `recall_at_k`：期望来源是否被检索到。
-- `citation_hit_rate`：答案是否包含期望引用来源。
-- `refusal_hit_rate`：应拒答问题是否明确说证据不足。
-- `avg_latency_ms`：平均问答延迟。
+报告包含 RAG source recall、工具调用准确率、端到端任务完成率、LLM-as-judge 结果、平均延迟和 P95 延迟等。完整用法见 `EVALUATION_SUITE_GUIDE.md`。
 
 ## 8. 企业级增强点
 

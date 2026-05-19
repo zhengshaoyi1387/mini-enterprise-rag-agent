@@ -22,6 +22,7 @@ class ChatRequest(BaseModel):
     stream: bool = Field(default=False, description="是否请求流式输出；当前版本返回非流式响应")
     retrieval_mode: Literal["hybrid", "vector"] | None = Field(default=None, description="检索模式")
     enable_rerank: bool | None = Field(default=None, description="是否启用 rerank；为空时使用配置默认值")
+    override_now: str | None = Field(default=None, description="可选请求级固定时间，仅用于评测或可复现调试")
 
 
 class ChatResponse(BaseModel):
@@ -64,7 +65,10 @@ class TraceResponse(BaseModel):
 
 class EvalRunRequest(BaseModel):
     questions_path: str | None = Field(default=None, description="Optional JSONL question file path")
-    mode: Literal["rag_eval", "retrieval_ablation"] = Field(default="rag_eval", description="Which eval runner to execute")
+    mode: Literal["rag_eval", "retrieval_ablation"] = Field(
+        default="rag_eval",
+        description="Deprecated API modes. Use scripts/agent_eval_suite.py for the current evaluation mainline.",
+    )
 
 
 class EvalRunResponse(BaseModel):
@@ -78,6 +82,24 @@ class EvalRunResponse(BaseModel):
 
 class KnowledgeBaseListResponse(BaseModel):
     kbs: list[dict[str, Any]]
+
+
+class KnowledgeBaseDocumentImportRequest(BaseModel):
+    filename: str = Field(..., min_length=1, description="写入 data/kbs/<kb_id>/ 下的文件名，支持 .md/.markdown/.txt")
+    content: str = Field(..., min_length=1, description="Markdown/text 文档内容")
+    overwrite: bool = Field(default=False, description="同名文件存在时是否覆盖")
+
+
+class KnowledgeBaseDocumentResponse(BaseModel):
+    document: dict[str, Any]
+
+
+class KnowledgeBaseReindexRequest(BaseModel):
+    reset: bool = Field(default=False, description="是否清空 Chroma 和 manifest 后重建")
+
+
+class KnowledgeBaseReindexResponse(BaseModel):
+    result: dict[str, Any]
 
 
 class ToolListResponse(BaseModel):

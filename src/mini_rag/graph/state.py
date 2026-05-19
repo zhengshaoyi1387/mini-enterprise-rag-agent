@@ -21,6 +21,7 @@ class AgentState(TypedDict, total=False):
     requested_kbs: list[str]
     allowed_kbs: list[str]
     used_kbs: list[str]
+    override_now: str | None
 
     # memory
     conversation_summary: str
@@ -30,8 +31,21 @@ class AgentState(TypedDict, total=False):
     intent: str
     message_type: str
     context_usage: str
+    available_capabilities: list[str]
+    goals: list[dict[str, Any]]
+    goal_coverage: dict[str, Any]
+    runtime_context: dict[str, Any]
+    capability_catalog: dict[str, Any]
+    permissions: dict[str, Any]
+    planner_schema_version: str
+    resolved_time_facts: list[dict[str, Any]]
+    react_steps: list[dict[str, Any]]
+    react_status: str
     available_tool_contracts: str
+    available_tool_summary: str
     planning_context: dict[str, Any]
+    raw_intent: dict[str, Any]
+    legacy_full_plan: dict[str, Any]
     raw_plan: dict[str, Any]
     plan_validation: dict[str, Any]
     execution_plan: dict[str, Any]
@@ -58,6 +72,8 @@ class AgentState(TypedDict, total=False):
     previous_tool_context: dict[str, Any]
     current_tool_context: dict[str, Any]
     time_reference: dict[str, Any]
+    time_context_result: dict[str, Any]
+    time_context_payload: dict[str, Any]
     needs_time_resolution: bool
     relative_time: str | None
     missing_required_slots: list[str]
@@ -77,7 +93,7 @@ class AgentState(TypedDict, total=False):
     # reflection / generation
     evidence_assessment: dict[str, Any]
     completion_assessment: dict[str, Any]
-    completion_reflect_round: int
+    answer_policy: dict[str, Any]
     skipped_reflection_reason: str | None
     reflect_round: int
     final_answer: str

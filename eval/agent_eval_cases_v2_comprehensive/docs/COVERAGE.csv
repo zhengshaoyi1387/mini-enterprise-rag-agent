@@ -1,0 +1,15 @@
+category,e2e_case_count
+attendance,10
+calendar_create,5
+calendar_create_permission,1
+calendar_delete,7
+calendar_delete_permission,1
+calendar_query,8
+calendar_update,7
+calendar_update_permission,1
+datetime,6
+multi_task,6
+rag,5
+rag_refusal,1
+rag_tool_mixed,2
+safety,4

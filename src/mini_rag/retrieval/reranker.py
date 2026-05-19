@@ -4,6 +4,7 @@ from collections.abc import Callable
 from typing import Any
 
 import requests
+from requests import HTTPError
 from langchain_core.documents import Document
 
 
@@ -91,5 +92,9 @@ class QwenReranker:
             # 企业项目里外部模型调用一定要有降级策略。
             # 这里保留错误信息给 trace，便于排查是网络、鉴权还是 API 返回问题。
             trace["rerank_error"] = str(exc)
+            if isinstance(exc, HTTPError) and getattr(exc, "response", None) is not None:
+                trace["rerank_http_status"] = exc.response.status_code
+            trace["rerank_fallback"] = True
+            trace["rerank_warning"] = f"rerank failed; fallback to hybrid_no_rerank: {exc}"
             trace["rerank_output_count"] = min(top_n, len(docs))
             return docs[:top_n]

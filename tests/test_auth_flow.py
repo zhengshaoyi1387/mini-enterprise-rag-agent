@@ -64,7 +64,6 @@ def configure_app(tmp_path, monkeypatch, agent: RecordingAgent | None = None) ->
         LANGGRAPH_CHECKPOINT_DB_PATH=tmp_path / "checkpoints.sqlite3",
         TRACE_DIR=tmp_path / "traces",
         AUDIT_LOG_PATH=tmp_path / "audit.jsonl",
-        AGENT_RUNTIME="langgraph",
         _env_file=None,
     )
     agent = agent or RecordingAgent()
@@ -186,6 +185,84 @@ def test_regular_user_cannot_access_admin_or_trace_endpoints(tmp_path, monkeypat
     assert users_response.status_code == 403
     assert roles_response.status_code == 403
     assert trace_response.status_code == 403
+
+
+def test_admin_can_import_list_and_delete_kb_document(tmp_path, monkeypatch) -> None:
+    configure_app(tmp_path, monkeypatch)
+    app_module.settings.data_dir = tmp_path / "kbs"
+    with TestClient(app_module.app) as client:
+        admin_token = login(client, "admin", "admin123")
+
+        created = client.post(
+            "/admin/kbs/finance/documents",
+            headers=auth_header(admin_token),
+            json={
+                "filename": "finance_admin_test.md",
+                "content": "# 管理员导入测试\n\n这是一份财务知识库测试文档。",
+            },
+        )
+        listed = client.get("/admin/kbs", headers=auth_header(admin_token))
+
+        assert created.status_code == 200, created.text
+        created_doc = created.json()["document"]
+        assert created_doc["kb_id"] == "finance"
+        assert created_doc["path"] == "finance/finance_admin_test.md"
+        assert created_doc["size_bytes"] > 0
+        assert created_doc["requires_reindex"] is True
+        assert (app_module.settings.data_dir / "finance" / "finance_admin_test.md").exists()
+
+        deleted = client.delete(
+            "/admin/kbs/finance/documents/finance_admin_test.md",
+            headers=auth_header(admin_token),
+        )
+
+    assert listed.status_code == 200, listed.text
+    finance = next(kb for kb in listed.json()["kbs"] if kb["kb_id"] == "finance")
+    assert any(doc["path"] == "finance/finance_admin_test.md" for doc in finance["documents"])
+
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["document"]["path"] == "finance/finance_admin_test.md"
+    assert not (app_module.settings.data_dir / "finance" / "finance_admin_test.md").exists()
+
+
+def test_non_admin_cannot_manage_kb_documents(tmp_path, monkeypatch) -> None:
+    configure_app(tmp_path, monkeypatch)
+    app_module.settings.data_dir = tmp_path / "kbs"
+    with TestClient(app_module.app) as client:
+        employee_token = login(client, "employee", "employee123")
+        upload = client.post(
+            "/admin/kbs/public/documents",
+            headers=auth_header(employee_token),
+            json={"filename": "blocked.md", "content": "# blocked"},
+        )
+        delete = client.delete(
+            "/admin/kbs/public/documents/blocked.md",
+            headers=auth_header(employee_token),
+        )
+        reindex = client.post("/admin/kbs/reindex", headers=auth_header(employee_token), json={"reset": False})
+
+    assert upload.status_code == 403
+    assert delete.status_code == 403
+    assert reindex.status_code == 403
+
+
+def test_admin_can_trigger_kb_reindex(tmp_path, monkeypatch) -> None:
+    configure_app(tmp_path, monkeypatch)
+    app_module.settings.data_dir = tmp_path / "kbs"
+    calls: list[dict] = []
+
+    def fake_build_index(settings: Settings, reset: bool = False) -> dict:
+        calls.append({"settings": settings, "reset": reset})
+        return {"chunk_count": 3, "changed_source_count": 1, "reset": reset}
+
+    monkeypatch.setattr(app_module, "build_index", fake_build_index, raising=False)
+    with TestClient(app_module.app) as client:
+        admin_token = login(client, "admin", "admin123")
+        response = client.post("/admin/kbs/reindex", headers=auth_header(admin_token), json={"reset": True})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["result"]["chunk_count"] == 3
+    assert calls == [{"settings": app_module.settings, "reset": True}]
 
 
 def test_disabling_user_invalidates_existing_token(tmp_path, monkeypatch) -> None:

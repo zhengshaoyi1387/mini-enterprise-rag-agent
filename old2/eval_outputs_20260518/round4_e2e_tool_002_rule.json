@@ -1,0 +1,334 @@
+{
+  "suite": "e2e",
+  "judge": "rule",
+  "mode": "hybrid",
+  "generated_at": "2026-05-17T12:07:33.945572+00:00",
+  "summary": {
+    "overall": {
+      "total_cases": 1,
+      "executed_cases": 1,
+      "infra_error_cases": 0,
+      "agent_passed_cases": 1,
+      "agent_failed_cases": 0,
+      "agent_pass_rate": 1.0,
+      "case_count": 1,
+      "passed": 1,
+      "failed": 0,
+      "pass_rate": 1.0,
+      "avg_latency_ms": 22310.99,
+      "p95_latency_ms": 22310.99,
+      "actual_success_no_blocked_tasks": 1.0,
+      "answer_must_contain_hit": 1.0,
+      "answer_must_not_contain_pass": 1.0,
+      "expected_source_citation": 1.0,
+      "expected_source_recall": 1.0,
+      "expected_status_pass": 1.0,
+      "expected_tool_coverage": 1.0,
+      "forbidden_actions_pass": 1.0,
+      "grounded_answer_rate": 1.0,
+      "multi_task_completion_rate": 1.0,
+      "no_unwanted_write": 1.0,
+      "refusal_accuracy": 1.0,
+      "task_success": 1.0,
+      "write_result_success": 1.0
+    },
+    "by_suite": {
+      "e2e": {
+        "total_cases": 1,
+        "executed_cases": 1,
+        "infra_error_cases": 0,
+        "agent_passed_cases": 1,
+        "agent_failed_cases": 0,
+        "agent_pass_rate": 1.0,
+        "case_count": 1,
+        "passed": 1,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "avg_latency_ms": 22310.99,
+        "p95_latency_ms": 22310.99,
+        "actual_success_no_blocked_tasks": 1.0,
+        "answer_must_contain_hit": 1.0,
+        "answer_must_not_contain_pass": 1.0,
+        "expected_source_citation": 1.0,
+        "expected_source_recall": 1.0,
+        "expected_status_pass": 1.0,
+        "expected_tool_coverage": 1.0,
+        "forbidden_actions_pass": 1.0,
+        "grounded_answer_rate": 1.0,
+        "multi_task_completion_rate": 1.0,
+        "no_unwanted_write": 1.0,
+        "refusal_accuracy": 1.0,
+        "task_success": 1.0,
+        "write_result_success": 1.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "suite": "e2e",
+      "id": "e2e_tool_002",
+      "question": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 22310.99,
+      "route": "tool",
+      "trace_id": "eval_trace_1aaff39775a94d81a6d114dedf6dc8f5",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 22310.99
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-24",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "all",
+            "query": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "args": {
+            "action": "update",
+            "event_id": "EVT-20260524-0001",
+            "location": "线上会议室",
+            "query": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询 2026-05-24 的培训日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-24",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "all"
+          },
+          "result_summary": "2026-05-24 至 2026-05-24 的公司日程：\n- 2026-05-24 星期日 10:00-12:00 新员工产品培训（培训室 2，event_id：EVT-20260524-0001）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260524-0001",
+                "date": "2026-05-24",
+                "title": "新员工产品培训",
+                "type": "training",
+                "department": "产品部",
+                "time": "10:00-12:00",
+                "location": "培训室 2",
+                "description": "用于 query-first update 评测",
+                "weekday_zh": "星期日"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。   用户要求分两步：先查指定日期培训日程，再修改第一个事件地点；当前仅能确定 query 动作，update 需待查询结果返回后构造 selector 或 event_id，故暂只规划查询任务；后续更新任务需在执行层根据 t1 结果动态生成。",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "tool_input": {
+            "action": "update",
+            "event_id": "EVT-20260524-0001",
+            "location": "线上会议室"
+          },
+          "result_summary": "公司日程已更新：2026-05-24 星期日 10:00-12:00 新员工产品培训。",
+          "tool_result": {
+            "status": "updated",
+            "message": "公司日程已更新",
+            "event": {
+              "event_id": "EVT-20260524-0001",
+              "date": "2026-05-24",
+              "title": "新员工产品培训",
+              "type": "training",
+              "department": "产品部",
+              "time": "10:00-12:00",
+              "location": "线上会议室",
+              "description": "用于 query-first update 评测",
+              "weekday_zh": "星期日"
+            },
+            "action": "update",
+            "event_id": "EVT-20260524-0001"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询 2026-05-24 的培训日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "training",
+              "department": "all",
+              "start_date": "2026-05-24",
+              "end_date": "2026-05-24"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-24",
+                "end_date": "2026-05-24"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。   用户要求分两步：先查指定日期培训日程，再修改第一个事件地点；当前仅能确定 query 动作，update 需待查询结果返回后构造 selector 或 event_id，故暂只规划查询任务；后续更新任务需在执行层根据 t1 结果动态生成。",
+            "tool": "manage_company_calendar",
+            "action": "update",
+            "tool_input": {
+              "action": "update",
+              "location": "线上会议室",
+              "selector": {
+                "ordinal": "first",
+                "event_type": "training",
+                "date_range": {
+                  "start_date": "2026-05-24",
+                  "end_date": "2026-05-24"
+                }
+              }
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            },
+            "depends_on": [
+              "t1"
+            ]
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "canonical_relative": "null"
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "查询指定绝对日期的培训日程并修改地点，需分步调用查询和更新动作，但当前仅能确定 query 动作；后续修改需基于查询结果，故暂定为 query"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-24",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询 2026-05-24 的培训日程",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "event_type": "training",
+                "date": "2026-05-24",
+                "department": "all"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户要求分两步：先查指定日期培训日程，再修改第一个事件地点；当前仅能确定 query 动作，update 需待查询结果返回后构造 selector 或 event_id，故暂只规划查询任务；后续更新任务需在执行层根据 t1 结果动态生成。"
+      },
+      "answer_preview": "已按您的要求完成两项操作：\n\n1. **查询 2026-05-24 的培训日程**  \n   查询结果为：2026-05-24 星期日 10:00-12:00，产品部举办“新员工产品培训”，原地点为“培训室 2”（event_id：EVT-20260524-0001）。\n\n2. **将第一个培训地点改为线上会议室**  \n   已成功更新该日程，现地点为“线上会议室”。更新后的日程为：2026-05-24 星期日 10:00-12:00 新员工产品培训。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    }
+  ]
+}

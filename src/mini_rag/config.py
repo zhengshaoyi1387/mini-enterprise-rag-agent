@@ -33,10 +33,10 @@ class Settings(BaseSettings):
     )
 
     # 聊天模型，默认使用 qwen-plus。你也可以改成 qwen-turbo / qwen-max。
-    qwen_chat_model: str = Field(default="qwen-plus", alias="QWEN_CHAT_MODEL")
+    qwen_chat_model: str = Field(default="qwen-max", alias="QWEN_CHAT_MODEL")
     # 控制节点模型：用于理解、路由、规划、反思等结构化 JSON 任务。
     # 默认不降级，继续使用 qwen_chat_model，确保质量优先；需要提速时可单独设为 qwen-plus/qwen-turbo。
-    qwen_control_model: str | None = Field(default="qwen-flash", alias="QWEN_CONTROL_MODEL")
+    qwen_control_model: str | None = Field(default="qwen-plus-2025-07-14", alias="QWEN_CONTROL_MODEL")
 
     # 向量模型。text-embedding-v4 属于 Qwen3-Embedding 系列。
     qwen_embedding_model: str = Field(default="text-embedding-v4", alias="QWEN_EMBEDDING_MODEL")
@@ -62,9 +62,10 @@ class Settings(BaseSettings):
     candidate_k: int = Field(default=8, alias="CANDIDATE_K")
     retrieval_mode: str = Field(default="hybrid", alias="RETRIEVAL_MODE")
 
-    # Qwen Rerank 参数。默认打开，失败时会自动降级到融合排序。
-    rerank_enabled: bool = Field(default=True, alias="RERANK_ENABLED")
-    qwen_rerank_model: str = Field(default="qwen3-rerank", alias="QWEN_RERANK_MODEL")
+    # Qwen Rerank 参数。默认关闭，避免错误 endpoint/额度问题拖慢主链路。
+    # 需要评测证明有收益后再显式打开；外部失败时仍会自动降级到融合排序。
+    rerank_enabled: bool = Field(default=False, alias="RERANK_ENABLED")
+    qwen_rerank_model: str = Field(default="gte-rerank-v2", alias="QWEN_RERANK_MODEL")
     qwen_rerank_endpoint: str = Field(
         default="https://dashscope.aliyuncs.com/compatible-api/v1/reranks",
         alias="QWEN_RERANK_ENDPOINT",
@@ -74,7 +75,6 @@ class Settings(BaseSettings):
 
     # 默认是否使用 Agent。设为 false 可以用普通 RAG Chain 调试。
     use_agent: bool = Field(default=True, alias="USE_AGENT")
-    agent_runtime: str = Field(default="langgraph", alias="AGENT_RUNTIME")
     session_max_turns: int = Field(default=6, alias="SESSION_MAX_TURNS")
     context_db_path: Path = Field(default=Path("storage/context.sqlite3"), alias="CONTEXT_DB_PATH")
     auth_db_path: Path = Field(default=Path("storage/auth.sqlite3"), alias="AUTH_DB_PATH")
@@ -102,12 +102,19 @@ class Settings(BaseSettings):
     # 评测配置。
     eval_questions_path: Path = Field(default=Path("eval/questions.jsonl"), alias="EVAL_QUESTIONS_PATH")
     eval_runs_dir: Path = Field(default=Path("eval/runs"), alias="EVAL_RUNS_DIR")
+    fixed_now: str | None = Field(default=None, alias="AGENT_FIXED_NOW")
 
     # trace 日志配置。
     save_trace: bool = Field(default=True, alias="SAVE_TRACE")
     trace_dir: Path = Field(default=Path("logs/traces"), alias="TRACE_DIR")
     request_log_path: Path = Field(default=Path("logs/requests.jsonl"), alias="REQUEST_LOG_PATH")
     audit_log_path: Path = Field(default=Path("logs/audit.jsonl"), alias="AUDIT_LOG_PATH")
+
+    # LLM 调试 trace。默认保存每次模型调用的完整 messages 和 raw output，
+    # 用于定位 prompt 是否喂全、输出是否覆盖任务、哪些上下文没有用。
+    # 生产环境可设 TRACE_LLM_IO=false 关闭；TRACE_LLM_IO_MAX_CHARS>0 时会截断超长字段。
+    trace_llm_io: bool = Field(default=True, alias="TRACE_LLM_IO")
+    trace_llm_io_max_chars: int = Field(default=0, alias="TRACE_LLM_IO_MAX_CHARS")
 
     # LLM 生成参数。temperature=0 更适合知识库问答，减少编造。
     temperature: float = Field(default=0.0, alias="TEMPERATURE")

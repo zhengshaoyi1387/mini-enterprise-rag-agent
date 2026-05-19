@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 from langchain_core.documents import Document
 
 from mini_rag.config import Settings
@@ -26,6 +29,7 @@ class KnowledgeBaseRetriever:
         self.vector_store = create_vector_store(settings, self.embeddings)
         self._corpus_cache: list[Document] | None = None
         self._reranker: QwenReranker | None = None
+        self._rerank_disabled_reason: str = ""
 
     def search(
         self,
@@ -162,6 +166,14 @@ class KnowledgeBaseRetriever:
             metadata.update({"rank": rank, "rrf_score": rrf_score, "retrieval_channel": "hybrid_rrf"})
             fused_docs.append(Document(page_content=doc.page_content, metadata=metadata))
 
+        fused_docs = self._boost_explicit_source_matches(query, fused_docs)
+
+        if enable_rerank and self._rerank_disabled_reason:
+            trace["rerank_enabled"] = False
+            trace["rerank_fallback"] = True
+            trace["rerank_warning"] = self._rerank_disabled_reason
+            return fused_docs[:top_k]
+
         if enable_rerank:
             if self._reranker is None:
                 self._reranker = QwenReranker(
@@ -169,10 +181,79 @@ class KnowledgeBaseRetriever:
                     model=self.settings.qwen_rerank_model,
                     endpoint=self.settings.qwen_rerank_endpoint,
                 )
-            return self._reranker.rerank(query, fused_docs, top_n=min(self.settings.rerank_top_n, top_k), trace=trace)
+            ranked = self._reranker.rerank(query, fused_docs, top_n=min(self.settings.rerank_top_n, top_k), trace=trace)
+            status = trace.get("rerank_http_status")
+            error = str(trace.get("rerank_error") or "")
+            if status in {400, 401, 403, 404, 410} or "404" in error:
+                self._rerank_disabled_reason = str(
+                    trace.get("rerank_warning")
+                    or f"rerank endpoint unavailable; fallback to hybrid_no_rerank: {error or status}"
+                )
+                trace["rerank_fallback"] = True
+                trace["rerank_warning"] = self._rerank_disabled_reason
+            return ranked
 
         trace["rerank_enabled"] = False
         return fused_docs[:top_k]
+
+    @staticmethod
+    def _explicit_titles_from_query(query: str) -> list[str]:
+        titles = [item.strip() for item in re.findall(r"《([^》]+)》", query or "") if item.strip()]
+        return titles
+
+    @staticmethod
+    def _normalize_title(value: str) -> str:
+        text = str(value or "").lower()
+        return "".join(re.findall(r"[\w\u4e00-\u9fff]+", text))
+
+    @staticmethod
+    def _document_title_candidates(doc: Document) -> list[str]:
+        metadata = doc.metadata or {}
+        candidates = [
+            str(metadata.get("title_path") or ""),
+            str(metadata.get("section") or ""),
+            str(metadata.get("h1") or ""),
+            Path(str(metadata.get("source") or "")).stem,
+            Path(str(metadata.get("file_name") or "")).stem,
+        ]
+        first_line = str(doc.page_content or "").splitlines()[0] if doc.page_content else ""
+        if first_line.startswith("#"):
+            candidates.append(first_line.lstrip("#").strip())
+        return [candidate for candidate in candidates if candidate]
+
+    @classmethod
+    def _explicit_source_boost(cls, query: str, doc: Document) -> float:
+        titles = [cls._normalize_title(title) for title in cls._explicit_titles_from_query(query)]
+        if not titles:
+            return 0.0
+        candidates = [cls._normalize_title(title) for title in cls._document_title_candidates(doc)]
+        for title in titles:
+            if any(title and candidate and (title in candidate or candidate in title) for candidate in candidates):
+                return 1.0
+        return 0.0
+
+    @classmethod
+    def _boost_explicit_source_matches(cls, query: str, docs: list[Document]) -> list[Document]:
+        if not cls._explicit_titles_from_query(query):
+            return docs
+        boosted: list[Document] = []
+        for doc in docs:
+            boost = cls._explicit_source_boost(query, doc)
+            metadata = dict(doc.metadata or {})
+            if boost:
+                metadata["explicit_source_boost"] = boost
+            boosted.append(Document(page_content=doc.page_content, metadata=metadata))
+        boosted.sort(
+            key=lambda doc: (
+                -float((doc.metadata or {}).get("explicit_source_boost") or 0.0),
+                int((doc.metadata or {}).get("rank") or 10_000),
+            )
+        )
+        for rank, doc in enumerate(boosted, start=1):
+            metadata = dict(doc.metadata or {})
+            metadata["rank"] = rank
+            boosted[rank - 1] = Document(page_content=doc.page_content, metadata=metadata)
+        return boosted
 
     def _load_all_documents(self, kb_ids: list[str] | None = None) -> list[Document]:
         if self._corpus_cache is None:

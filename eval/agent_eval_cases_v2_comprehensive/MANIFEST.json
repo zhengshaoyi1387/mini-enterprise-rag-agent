@@ -1,0 +1,22 @@
+{
+  "name": "agent_eval_cases_v2_comprehensive",
+  "generated_at": "2026-05-16T18:19:09.868056Z",
+  "reference_time": "2026-05-17T01:00:00+08:00",
+  "counts": {
+    "e2e": 64,
+    "tool": 46,
+    "rag": 16,
+    "all": 126
+  },
+  "files": [
+    "eval/agent_e2e_comprehensive_v2.jsonl",
+    "eval/tool_deep_eval_v2.jsonl",
+    "eval/rag_challenge_eval_v2.jsonl",
+    "eval/all_eval_cases_v2.jsonl",
+    "eval/agent_e2e_comprehensive_v2_legacy.jsonl",
+    "eval/tool_deep_eval_v2_legacy.jsonl",
+    "docs/EVAL_CASES_README.md",
+    "docs/COVERAGE.csv",
+    "MANIFEST.json"
+  ]
+}

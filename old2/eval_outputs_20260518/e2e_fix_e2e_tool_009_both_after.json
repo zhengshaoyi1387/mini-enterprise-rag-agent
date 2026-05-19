@@ -1,0 +1,252 @@
+{
+  "suite": "e2e",
+  "judge": "both",
+  "mode": "hybrid",
+  "generated_at": "2026-05-16T18:27:25.743809+00:00",
+  "summary": {
+    "overall": {
+      "case_count": 1,
+      "passed": 1,
+      "failed": 0,
+      "pass_rate": 1.0,
+      "avg_latency_ms": 13715.06,
+      "p95_latency_ms": 13715.06,
+      "actual_success_no_blocked_tasks": 1.0,
+      "answer_must_contain_hit": 1.0,
+      "answer_must_not_contain_pass": 1.0,
+      "expected_source_citation": 1.0,
+      "expected_source_recall": 1.0,
+      "expected_tool_coverage": 1.0,
+      "grounded_answer_rate": 1.0,
+      "multi_task_completion_rate": 1.0,
+      "no_unwanted_write": 1.0,
+      "refusal_accuracy": 1.0,
+      "task_success": 1.0,
+      "write_result_success": 1.0,
+      "llm_answer_correctness": 1.0,
+      "llm_answer_completeness": 1.0,
+      "llm_groundedness": 1.0,
+      "llm_refusal_correctness": 1.0,
+      "llm_task_success": 1.0,
+      "llm_hallucination_rate": 0.0
+    },
+    "by_suite": {
+      "e2e": {
+        "case_count": 1,
+        "passed": 1,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "avg_latency_ms": 13715.06,
+        "p95_latency_ms": 13715.06,
+        "actual_success_no_blocked_tasks": 1.0,
+        "answer_must_contain_hit": 1.0,
+        "answer_must_not_contain_pass": 1.0,
+        "expected_source_citation": 1.0,
+        "expected_source_recall": 1.0,
+        "expected_tool_coverage": 1.0,
+        "grounded_answer_rate": 1.0,
+        "multi_task_completion_rate": 1.0,
+        "no_unwanted_write": 1.0,
+        "refusal_accuracy": 1.0,
+        "task_success": 1.0,
+        "write_result_success": 1.0,
+        "llm_answer_correctness": 1.0,
+        "llm_answer_completeness": 1.0,
+        "llm_groundedness": 1.0,
+        "llm_refusal_correctness": 1.0,
+        "llm_task_success": 1.0,
+        "llm_hallucination_rate": 0.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "suite": "e2e",
+      "id": "e2e_tool_009",
+      "question": "把 event_id 为 EVT-20260522-0002 的日程改成客户复盘会，时间 16:00-17:00，地点会议室 C。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 13715.06,
+      "route": "tool",
+      "trace_id": "eval_trace_69f39e2e4b114180b6381509728bb318",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "latency_ms": 13715.06
+      },
+      "llm_scores": {
+        "answer_correctness": 1,
+        "answer_completeness": 1,
+        "groundedness": 1,
+        "hallucination": 0,
+        "refusal_correctness": 1,
+        "task_success": 1,
+        "reason": "工具调用成功，日程更新内容与要求完全一致，最终回答包含所有必要信息，无虚构或遗漏，符合预期。"
+      },
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "args": {
+            "action": "update",
+            "event_id": "EVT-20260522-0002",
+            "title": "客户复盘会",
+            "time": "16:00-17:00",
+            "location": "会议室 C",
+            "query": "把 event_id 为 EVT-20260522-0002 的日程改成客户复盘会，时间 16:00-17:00，地点会议室 C。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "更新指定 event_id 的日程信息",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "tool_input": {
+            "action": "update",
+            "event_id": "EVT-20260522-0002",
+            "title": "客户复盘会",
+            "time": "16:00-17:00",
+            "location": "会议室 C"
+          },
+          "result_summary": "公司日程已更新：2026-05-22 星期五 16:00-17:00 客户复盘会。",
+          "tool_result": {
+            "status": "updated",
+            "event_id": "EVT-20260522-0002",
+            "message": "公司日程已更新",
+            "event": {
+              "event_id": "EVT-20260522-0002",
+              "date": "2026-05-22",
+              "title": "客户复盘会",
+              "type": "meeting",
+              "department": "销售部",
+              "time": "16:00-17:00",
+              "location": "会议室 C",
+              "description": "固定 ID，用于更新为客户复盘会",
+              "weekday_zh": "星期五"
+            },
+            "action": "update"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "更新指定 event_id 的日程信息",
+            "tool": "manage_company_calendar",
+            "action": "update",
+            "tool_input": {
+              "action": "update",
+              "event_id": "EVT-20260522-0002",
+              "title": "客户复盘会",
+              "time": "16:00-17:00",
+              "location": "会议室 C"
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把 event_id 为 EVT-20260522-0002 的日程改成客户复盘会，时间 16:00-17:00，地点会议室 C。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "time_reference_type": "none",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "日程修改操作需使用 manage_company_calendar 工具，action 为 update"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把 event_id 为 EVT-20260522-0002 的日程改成客户复盘会，时间 16:00-17:00，地点会议室 C。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "has_time_requirement": false,
+          "time_reference_type": "none",
+          "canonical_relative": null,
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "更新指定 event_id 的日程信息",
+              "tool": "manage_company_calendar",
+              "action": "update",
+              "tool_input": {
+                "action": "update",
+                "event_id": "EVT-20260522-0002",
+                "title": "客户复盘会",
+                "time": "16:00-17:00",
+                "location": "会议室 C"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户明确提供 event_id，可直接执行 update 操作，无需额外查询或推断。"
+      },
+      "answer_preview": "已成功将 event_id 为 EVT-20260522-0002 的日程更新为：  \n**客户复盘会**，时间 **2026-05-22 星期五 16:00-17:00**，地点 **会议室 C**。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    }
+  ]
+}

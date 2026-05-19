@@ -1,0 +1,337 @@
+{
+  "suite": "e2e",
+  "judge": "rule",
+  "mode": "hybrid",
+  "generated_at": "2026-05-16T17:59:32.236271+00:00",
+  "summary": {
+    "overall": {
+      "case_count": 1,
+      "passed": 1,
+      "failed": 0,
+      "pass_rate": 1.0,
+      "avg_latency_ms": 21154.69,
+      "p95_latency_ms": 21154.69,
+      "actual_success_no_blocked_tasks": 1.0,
+      "answer_must_contain_hit": 1.0,
+      "answer_must_not_contain_pass": 1.0,
+      "expected_source_citation": 1.0,
+      "expected_source_recall": 1.0,
+      "expected_tool_coverage": 1.0,
+      "grounded_answer_rate": 1.0,
+      "multi_task_completion_rate": 1.0,
+      "no_unwanted_write": 1.0,
+      "refusal_accuracy": 1.0,
+      "task_success": 1.0,
+      "write_result_success": 1.0
+    },
+    "by_suite": {
+      "e2e": {
+        "case_count": 1,
+        "passed": 1,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "avg_latency_ms": 21154.69,
+        "p95_latency_ms": 21154.69,
+        "actual_success_no_blocked_tasks": 1.0,
+        "answer_must_contain_hit": 1.0,
+        "answer_must_not_contain_pass": 1.0,
+        "expected_source_citation": 1.0,
+        "expected_source_recall": 1.0,
+        "expected_tool_coverage": 1.0,
+        "grounded_answer_rate": 1.0,
+        "multi_task_completion_rate": 1.0,
+        "no_unwanted_write": 1.0,
+        "refusal_accuracy": 1.0,
+        "task_success": 1.0,
+        "write_result_success": 1.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "suite": "e2e",
+      "id": "e2e_tool_010",
+      "question": "查询上周各部门请假人数汇总，再查询 2026-05-12 研发部缺勤记录。",
+      "role": "hr",
+      "passed": true,
+      "latency_ms": 21154.69,
+      "route": "tool",
+      "trace_id": "eval_trace_9840c0cb967b440b896ab3773ce393b9",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "latency_ms": 21154.69
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "query_attendance_summary",
+          "action": "query",
+          "args": {
+            "start_date": "2026-05-04",
+            "end_date": "2026-05-10",
+            "department": "all",
+            "group_by": "department",
+            "status_filter": "leave",
+            "include_records": false,
+            "query": "查询上周各部门请假人数汇总，再查询 2026-05-12 研发部缺勤记录。",
+            "user_id": "eval_user",
+            "role": "hr"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "query_attendance_summary",
+          "action": "query",
+          "args": {
+            "start_date": "2026-05-12",
+            "end_date": "2026-05-12",
+            "department": "研发部",
+            "group_by": "employee",
+            "status_filter": "absent",
+            "include_records": true,
+            "query": "查询上周各部门请假人数汇总，再查询 2026-05-12 研发部缺勤记录。",
+            "user_id": "eval_user",
+            "role": "hr"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询上周各部门请假人数汇总",
+          "status": "ok",
+          "tool_name": "query_attendance_summary",
+          "action": "query",
+          "tool_input": {
+            "start_date": "2026-05-04",
+            "end_date": "2026-05-10",
+            "department": "all",
+            "group_by": "department",
+            "status_filter": "leave",
+            "include_records": false
+          },
+          "result_summary": "2026-05-04 至 2026-05-10 共有 4 条请假记录。",
+          "tool_result": {
+            "summary": {
+              "total_records": 30,
+              "present": 19,
+              "late": 5,
+              "leave": 4,
+              "absent": 2,
+              "attendance_rate": "80.00%",
+              "late_rate": "16.67%"
+            },
+            "filtered_count": 4
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "查询 2026-05-12 研发部缺勤记录",
+          "status": "ok",
+          "tool_name": "query_attendance_summary",
+          "action": "query",
+          "tool_input": {
+            "start_date": "2026-05-12",
+            "end_date": "2026-05-12",
+            "department": "研发部",
+            "group_by": "employee",
+            "status_filter": "absent",
+            "include_records": true
+          },
+          "result_summary": "2026-05-12 至 2026-05-12 共有 1 条缺勤记录：李四（研发部）。",
+          "tool_result": {
+            "records": [
+              {
+                "date": "2026-05-12",
+                "employee_id": "u002",
+                "name": "李四",
+                "department": "研发部",
+                "status": "absent",
+                "check_in": "",
+                "check_out": ""
+              }
+            ],
+            "summary": {
+              "total_records": 2,
+              "present": 1,
+              "late": 0,
+              "leave": 0,
+              "absent": 1,
+              "attendance_rate": "50.00%",
+              "late_rate": "0.00%"
+            },
+            "filtered_count": 1
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询上周各部门请假人数汇总",
+            "tool": "query_attendance_summary",
+            "action": "query",
+            "tool_input": {
+              "start_date": "2026-05-04",
+              "end_date": "2026-05-10",
+              "department": "all",
+              "group_by": "department",
+              "status_filters": [
+                "leave"
+              ]
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "查询 2026-05-12 研发部缺勤记录",
+            "tool": "query_attendance_summary",
+            "action": "query",
+            "tool_input": {
+              "start_date": "2026-05-12",
+              "end_date": "2026-05-12",
+              "department": "研发部",
+              "group_by": "employee",
+              "include_records": true,
+              "status_filters": [
+                "absent"
+              ]
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查询上周各部门请假人数汇总，再查询 2026-05-12 研发部缺勤记录。",
+        "risk_level": "medium",
+        "selected_tool": "query_attendance_summary",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "复合查询涉及具体日期和部门缺勤统计，需用 attendance 工具处理"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "查询上周各部门请假人数汇总，再查询 2026-05-12 研发部缺勤记录。",
+        "risk_level": "medium",
+        "selected_tool": "query_attendance_summary",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-12",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询上周各部门请假人数汇总",
+              "tool": "query_attendance_summary",
+              "action": "query",
+              "tool_input": {
+                "start_date": "2026-05-04",
+                "end_date": "2026-05-10",
+                "department": "all",
+                "group_by": "department",
+                "status_filters": [
+                  "leave"
+                ]
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "查询 2026-05-12 研发部缺勤记录",
+              "tool": "query_attendance_summary",
+              "action": "query",
+              "tool_input": {
+                "start_date": "2026-05-12",
+                "end_date": "2026-05-12",
+                "department": "研发部",
+                "group_by": "employee",
+                "include_records": true,
+                "status_filters": [
+                  "absent"
+                ]
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "复合查询需拆分为两个独立工具任务：上周部门请假汇总与单日研发部缺勤记录，分别设置时间范围和状态过滤。"
+      },
+      "answer_preview": "根据工具查询结果，分别回答如下：\n\n### 1. 上周各部门请假人数汇总  \n查询时间范围：2026-05-04 至 2026-05-10。  \n共记录到 **4 条请假（leave）记录**，按部门分布如下：  \n- **HR**：1 人请假  \n- **产品部**：2 人请假  \n- **研发部**：1 人请假  \n- **销售部**：0 人请假  \n\n### 2. 2026-05-12 研发部缺勤记录  \n查询日期：2026-05-12。  \n共记录到 **1 条缺勤（absent）记录**，具体为：  \n- **李四**（员工 ID：u002，研发部）缺勤，无打卡记录。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    }
+  ]
+}

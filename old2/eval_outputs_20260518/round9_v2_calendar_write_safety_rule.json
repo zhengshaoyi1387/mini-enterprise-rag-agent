@@ -1,0 +1,3186 @@
+{
+  "suite": "e2e",
+  "judge": "rule",
+  "mode": "hybrid",
+  "generated_at": "2026-05-17T13:04:53.312027+00:00",
+  "summary": {
+    "overall": {
+      "total_cases": 14,
+      "executed_cases": 14,
+      "infra_error_cases": 0,
+      "agent_passed_cases": 14,
+      "agent_failed_cases": 0,
+      "agent_pass_rate": 1.0,
+      "case_count": 14,
+      "passed": 14,
+      "failed": 0,
+      "pass_rate": 1.0,
+      "avg_latency_ms": 17226.99,
+      "p95_latency_ms": 22208.55,
+      "actual_success_no_blocked_tasks": 1.0,
+      "answer_must_contain_hit": 0.7143,
+      "answer_must_not_contain_pass": 1.0,
+      "expected_source_citation": 1.0,
+      "expected_source_recall": 1.0,
+      "expected_status_pass": 1.0,
+      "expected_tool_coverage": 1.0,
+      "forbidden_actions_pass": 1.0,
+      "grounded_answer_rate": 1.0,
+      "multi_task_completion_rate": 1.0,
+      "no_unwanted_write": 1.0,
+      "refusal_accuracy": 1.0,
+      "task_success": 1.0,
+      "write_result_success": 1.0
+    },
+    "by_suite": {
+      "e2e": {
+        "total_cases": 14,
+        "executed_cases": 14,
+        "infra_error_cases": 0,
+        "agent_passed_cases": 14,
+        "agent_failed_cases": 0,
+        "agent_pass_rate": 1.0,
+        "case_count": 14,
+        "passed": 14,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "avg_latency_ms": 17226.99,
+        "p95_latency_ms": 22208.55,
+        "actual_success_no_blocked_tasks": 1.0,
+        "answer_must_contain_hit": 0.7143,
+        "answer_must_not_contain_pass": 1.0,
+        "expected_source_citation": 1.0,
+        "expected_source_recall": 1.0,
+        "expected_status_pass": 1.0,
+        "expected_tool_coverage": 1.0,
+        "forbidden_actions_pass": 1.0,
+        "grounded_answer_rate": 1.0,
+        "multi_task_completion_rate": 1.0,
+        "no_unwanted_write": 1.0,
+        "refusal_accuracy": 1.0,
+        "task_success": 1.0,
+        "write_result_success": 1.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_update_001",
+      "question": "把 event_id 为 EVT-20260522-0002 的日程改成客户复盘会，时间 16:00-17:00，地点会议室 C。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 18387.78,
+      "route": "tool",
+      "trace_id": "eval_trace_18dd8b2b9fed4cd39fa31ff2a3c65ec5",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 18387.78
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "args": {
+            "action": "update",
+            "event_id": "EVT-20260522-0002",
+            "title": "客户复盘会",
+            "time": "16:00-17:00",
+            "location": "会议室 C",
+            "query": "把 event_id 为 EVT-20260522-0002 的日程改成客户复盘会，时间 16:00-17:00，地点会议室 C。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "更新 event_id 为 EVT-20260522-0002 的日程：标题改为‘客户复盘会’，时间 16:00-17:00，地点‘会议室 C’",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "tool_input": {
+            "action": "update",
+            "event_id": "EVT-20260522-0002",
+            "title": "客户复盘会",
+            "time": "16:00-17:00",
+            "location": "会议室 C"
+          },
+          "result_summary": "公司日程已更新：2026-05-22 星期五 16:00-17:00 客户复盘会。",
+          "tool_result": {
+            "status": "updated",
+            "event_id": "EVT-20260522-0002",
+            "action": "update",
+            "event": {
+              "event_id": "EVT-20260522-0002",
+              "date": "2026-05-22",
+              "title": "客户复盘会",
+              "type": "meeting",
+              "department": "销售部",
+              "time": "16:00-17:00",
+              "location": "会议室 C",
+              "description": "固定 ID，用于更新为客户复盘会",
+              "weekday_zh": "星期五"
+            },
+            "message": "公司日程已更新"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "更新 event_id 为 EVT-20260522-0002 的日程：标题改为‘客户复盘会’，时间 16:00-17:00，地点‘会议室 C’",
+            "tool": "manage_company_calendar",
+            "action": "update",
+            "tool_input": {
+              "action": "update",
+              "event_id": "EVT-20260522-0002",
+              "title": "客户复盘会",
+              "time": "16:00-17:00",
+              "location": "会议室 C"
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把 event_id 为 EVT-20260522-0002 的日程改成客户复盘会，时间 16:00-17:00，地点会议室 C。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "time_reference_type": "none",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "修改指定 event_id 的日程信息"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把 event_id 为 EVT-20260522-0002 的日程改成客户复盘会，时间 16:00-17:00，地点会议室 C。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "has_time_requirement": false,
+          "time_reference_type": "none",
+          "canonical_relative": null,
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "更新 event_id 为 EVT-20260522-0002 的日程：标题改为‘客户复盘会’，时间 16:00-17:00，地点‘会议室 C’",
+              "tool": "manage_company_calendar",
+              "action": "update",
+              "tool_input": {
+                "action": "update",
+                "event_id": "EVT-20260522-0002",
+                "title": "客户复盘会",
+                "time": "16:00-17:00",
+                "location": "会议室 C"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户已明确提供 event_id，可直接执行 update 操作，无需额外查询"
+      },
+      "answer_preview": "公司日程已更新：2026-05-22 星期五 16:00-17:00 客户复盘会，地点为会议室 C。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_update_002",
+      "question": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 17594.51,
+      "route": "tool",
+      "trace_id": "eval_trace_4253081a0dd142778381ed873bf29c27",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 17594.51
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-24",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "all",
+            "query": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "args": {
+            "action": "update",
+            "event_id": "EVT-20260524-0001",
+            "location": "线上会议室",
+            "query": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询 2026-05-24 的培训日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-24",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "training",
+            "department": "all"
+          },
+          "result_summary": "2026-05-24 至 2026-05-24 的公司日程：\n- 2026-05-24 星期日 10:00-12:00 新员工产品培训（培训室 2，event_id：EVT-20260524-0001）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260524-0001",
+                "date": "2026-05-24",
+                "title": "新员工产品培训",
+                "type": "training",
+                "department": "产品部",
+                "time": "10:00-12:00",
+                "location": "培训室 2",
+                "description": "用于 query-first update 评测",
+                "weekday_zh": "星期日"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。   用户要求分两步：先查 2026-05-24 培训日程（需 query），再更新第一个事件的地点为线上会议室（需后续 update）。当前仅确定首步工具与动作；第二步需依赖 t1 返回结果中的 event_id 才能执行，故暂不放入 plan；按规则只输出可立即执行的第一步任务。",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "tool_input": {
+            "action": "update",
+            "event_id": "EVT-20260524-0001",
+            "location": "线上会议室"
+          },
+          "result_summary": "公司日程已更新：2026-05-24 星期日 10:00-12:00 新员工产品培训。",
+          "tool_result": {
+            "status": "updated",
+            "event_id": "EVT-20260524-0001",
+            "action": "update",
+            "event": {
+              "event_id": "EVT-20260524-0001",
+              "date": "2026-05-24",
+              "title": "新员工产品培训",
+              "type": "training",
+              "department": "产品部",
+              "time": "10:00-12:00",
+              "location": "线上会议室",
+              "description": "用于 query-first update 评测",
+              "weekday_zh": "星期日"
+            },
+            "message": "公司日程已更新"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询 2026-05-24 的培训日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "training",
+              "department": "all",
+              "start_date": "2026-05-24",
+              "end_date": "2026-05-24"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-24",
+                "end_date": "2026-05-24"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。   用户要求分两步：先查 2026-05-24 培训日程（需 query），再更新第一个事件的地点为线上会议室（需后续 update）。当前仅确定首步工具与动作；第二步需依赖 t1 返回结果中的 event_id 才能执行，故暂不放入 plan；按规则只输出可立即执行的第一步任务。",
+            "tool": "manage_company_calendar",
+            "action": "update",
+            "tool_input": {
+              "action": "update",
+              "location": "线上会议室",
+              "selector": {
+                "ordinal": "first",
+                "event_type": "training",
+                "date_range": {
+                  "start_date": "2026-05-24",
+                  "end_date": "2026-05-24"
+                }
+              }
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            },
+            "depends_on": [
+              "t1"
+            ]
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "canonical_relative": "null"
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "包含具体绝对日期查询与后续修改操作，需分步调用工具；首步为查询，第二步为更新，但当前仅确定首步工具与动作"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "先查 2026-05-24 的培训日程，再把第一个培训地点改成线上会议室。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-24",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询 2026-05-24 的培训日程",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "event_type": "training",
+                "date": "2026-05-24",
+                "department": "all"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户要求分两步：先查 2026-05-24 培训日程（需 query），再更新第一个事件的地点为线上会议室（需后续 update）。当前仅确定首步工具与动作；第二步需依赖 t1 返回结果中的 event_id 才能执行，故暂不放入 plan；按规则只输出可立即执行的第一步任务。"
+      },
+      "answer_preview": "已按您的要求完成两项操作：\n\n1. **查询 2026-05-24 的培训日程**  \n   查询结果为：  \n   - 2026-05-24 星期日 10:00–12:00，新员工产品培训，地点为培训室 2（event_id：EVT-20260524-0001）。\n\n2. **将第一个培训地点改为线上会议室**  \n   已成功更新该日程的地点为“线上会议室”。更新后的日程为：  \n   - 2026-05-24 星期日 10:00–12:00，新员工产品培训，地点为线上会议室。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_update_003",
+      "question": "先查下周所有公司团建日程，再把第一个改成公司高层会议，时间 21:00-22:00，地点会议室A。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 22208.55,
+      "route": "tool",
+      "trace_id": "eval_trace_2e8282bd73bd49778c31db33e64bbf60",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 22208.55
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "type_filtered",
+            "event_type": "activity",
+            "department": "all",
+            "query": "先查下周所有公司团建日程，再把第一个改成公司高层会议，时间 21:00-22:00，地点会议室A。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "args": {
+            "action": "update",
+            "event_id": "EVT-20260519-0001",
+            "title": "公司高层会议",
+            "type": "meeting",
+            "time": "21:00-22:00",
+            "location": "会议室A",
+            "query": "先查下周所有公司团建日程，再把第一个改成公司高层会议，时间 21:00-22:00，地点会议室A。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询下周所有公司团建日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "type_filtered",
+            "event_type": "activity",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-24 的公司日程：\n- 2026-05-19 星期二 16:00-18:00 公司团建（城市公园，event_id：EVT-20260519-0001）\n- 2026-05-21 星期四 18:00-20:00 公司团建（团建餐厅，event_id：EVT-20260521-0002）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260519-0001",
+                "date": "2026-05-19",
+                "title": "公司团建",
+                "type": "activity",
+                "department": "all",
+                "time": "16:00-18:00",
+                "location": "城市公园",
+                "description": "下周第一个团建活动，用于 update/delete 评测",
+                "weekday_zh": "星期二"
+              },
+              {
+                "event_id": "EVT-20260521-0002",
+                "date": "2026-05-21",
+                "title": "公司团建",
+                "type": "activity",
+                "department": "all",
+                "time": "18:00-20:00",
+                "location": "团建餐厅",
+                "description": "第二个团建活动",
+                "weekday_zh": "星期四"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "将查询结果中的第一个团建日程更新为公司高层会议（21:00-22:00，会议室A）",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "tool_input": {
+            "action": "update",
+            "event_id": "EVT-20260519-0001",
+            "title": "公司高层会议",
+            "type": "meeting",
+            "time": "21:00-22:00",
+            "location": "会议室A"
+          },
+          "result_summary": "公司日程已更新：2026-05-19 星期二 21:00-22:00 公司高层会议。",
+          "tool_result": {
+            "status": "updated",
+            "event_id": "EVT-20260519-0001",
+            "action": "update",
+            "event": {
+              "event_id": "EVT-20260519-0001",
+              "date": "2026-05-19",
+              "title": "公司高层会议",
+              "type": "meeting",
+              "department": "all",
+              "time": "21:00-22:00",
+              "location": "会议室A",
+              "description": "下周第一个团建活动，用于 update/delete 评测",
+              "weekday_zh": "星期二"
+            },
+            "message": "公司日程已更新"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询下周所有公司团建日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "activity",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "next_week",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "将查询结果中的第一个团建日程更新为公司高层会议（21:00-22:00，会议室A）",
+            "tool": "manage_company_calendar",
+            "action": "update",
+            "tool_input": {
+              "action": "update",
+              "selector": {
+                "ordinal": 1
+              },
+              "title": "公司高层会议",
+              "type": "meeting",
+              "time": "21:00-22:00",
+              "location": "会议室A"
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "先查下周所有公司团建日程，再把第一个改成公司高层会议，时间 21:00-22:00，地点会议室A。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "复合操作：先查询下周团建日程，再更新第一条为高层会议；需用 manage_company_calendar 工具，首步为 query"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "先查下周所有公司团建日程，再把第一个改成公司高层会议，时间 21:00-22:00，地点会议室A。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": true,
+          "needs_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询下周所有公司团建日程",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "event_type": "activity",
+                "department": "all",
+                "start_date": "",
+                "end_date": ""
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "将查询结果中的第一个团建日程更新为公司高层会议（21:00-22:00，会议室A）",
+              "tool": "manage_company_calendar",
+              "action": "update",
+              "tool_input": {
+                "action": "update",
+                "selector": {
+                  "ordinal": 1
+                },
+                "title": "公司高层会议",
+                "type": "meeting",
+                "time": "21:00-22:00",
+                "location": "会议室A"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "复合操作：第一步 query 获取下周 activity 类型日程，第二步 update 使用 selector.ordinal=1 更新第一条；需确保 time_requirement 由执行层解析 start_date/end_date，此处仅保留相对时间框架。"
+      },
+      "answer_preview": "已按您的要求完成以下两项操作：\n\n### 1. 查询下周所有公司团建日程  \n根据查询结果，2026年5月18日至5月24日的公司团建日程如下：  \n- **2026-05-19（星期二）16:00-18:00**：公司团建（城市公园，event_id：EVT-20260519-0001）  \n- **2026-05-21（星期四）18:00-20:00**：公司团建（团建餐厅，event_id：EVT-20260521-0002）\n\n### 2. 更新第一个团建日程  \n已将第一个团建日程（event_id：EVT-20260519-0001）成功更新为：  \n- **2026-05-19（星期二）21:00-22:00**：公司高层会议（会议室A）",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_update_004",
+      "question": "把 2026-05-21 的季度经营复盘地点改到会议室 D，只改地点。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 17006.7,
+      "route": "tool",
+      "trace_id": "eval_trace_88e60c2f93e847938c06de5ca38c4623",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 17006.7
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-21",
+            "end_date": "2026-05-21",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all",
+            "query": "把 2026-05-21 的季度经营复盘地点改到会议室 D，只改地点。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "args": {
+            "action": "update",
+            "event_id": "EVT-20260521-0001",
+            "location": "会议室 D",
+            "query": "把 2026-05-21 的季度经营复盘地点改到会议室 D，只改地点。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询 2026-05-21 的‘季度经营复盘’日程事件，获取 event_id",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-21",
+            "end_date": "2026-05-21",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all"
+          },
+          "result_summary": "2026-05-21 至 2026-05-21 的公司日程：\n- 2026-05-21 星期四 14:00-15:00 季度经营复盘（会议室 A，event_id：EVT-20260521-0001）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260521-0001",
+                "date": "2026-05-21",
+                "title": "季度经营复盘",
+                "type": "meeting",
+                "department": "all",
+                "time": "14:00-15:00",
+                "location": "会议室 A",
+                "description": "固定 ID，用于 update/delete 评测",
+                "weekday_zh": "星期四"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "更新找到的事件地点为‘会议室 D’",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "tool_input": {
+            "action": "update",
+            "event_id": "EVT-20260521-0001",
+            "location": "会议室 D"
+          },
+          "result_summary": "公司日程已更新：2026-05-21 星期四 14:00-15:00 季度经营复盘。",
+          "tool_result": {
+            "status": "updated",
+            "event_id": "EVT-20260521-0001",
+            "action": "update",
+            "event": {
+              "event_id": "EVT-20260521-0001",
+              "date": "2026-05-21",
+              "title": "季度经营复盘",
+              "type": "meeting",
+              "department": "all",
+              "time": "14:00-15:00",
+              "location": "会议室 D",
+              "description": "固定 ID，用于 update/delete 评测",
+              "weekday_zh": "星期四"
+            },
+            "message": "公司日程已更新"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询 2026-05-21 的‘季度经营复盘’日程事件，获取 event_id",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "meeting",
+              "title": "季度经营复盘",
+              "start_date": "2026-05-21",
+              "end_date": "2026-05-21"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-21",
+                "end_date": "2026-05-21"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "更新找到的事件地点为‘会议室 D’",
+            "tool": "manage_company_calendar",
+            "action": "update",
+            "tool_input": {
+              "action": "update",
+              "selector": {
+                "date": "2026-05-21",
+                "title": "季度经营复盘"
+              },
+              "location": "会议室 D"
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把 2026-05-21 的季度经营复盘地点改到会议室 D，只改地点",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "更新指定日期的公司日程事件地点，需使用 manage_company_calendar 的 update 动作"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把 2026-05-21 的季度经营复盘地点改到会议室 D，只改地点",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-21",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询 2026-05-21 的‘季度经营复盘’日程事件，获取 event_id",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "event_type": "meeting",
+                "date": "2026-05-21",
+                "title": "季度经营复盘"
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "更新找到的事件地点为‘会议室 D’",
+              "tool": "manage_company_calendar",
+              "action": "update",
+              "tool_input": {
+                "action": "update",
+                "selector": {
+                  "date": "2026-05-21",
+                  "title": "季度经营复盘"
+                },
+                "location": "会议室 D"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "需先通过 query 获取 event_id（或匹配条件），再用 update 修改 location；因用户未提供 event_id，必须先规划 query 任务。"
+      },
+      "answer_preview": "已成功将 2026-05-21 的“季度经营复盘”日程地点修改为会议室 D。具体信息如下：\n\n- **日期**：2026-05-21（星期四）  \n- **时间**：14:00–15:00  \n- **标题**：季度经营复盘  \n- **更新后地点**：会议室 D  \n\n根据工具查询结果，该日程事件（event_id: EVT-20260521-0001）已按要求完成地点变更。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_update_005",
+      "question": "把 2026-05-18 的会议改到 10 点。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 40565.58,
+      "route": "tool",
+      "trace_id": "eval_trace_61d41d8fc3bb432ca43d6e6343aab103",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 40565.58
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all",
+            "query": "把 2026-05-18 的会议改到 10 点。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询 2026-05-18 的会议事件，获取 event_id",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-18 的公司日程：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B，event_id：EVT-20260518-0001）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C，event_id：EVT-20260518-0002）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260518-0001",
+                "date": "2026-05-18",
+                "title": "产品部 OKR 同步会",
+                "type": "meeting",
+                "department": "产品部",
+                "time": "10:00-11:00",
+                "location": "会议室 B",
+                "description": "产品部 OKR 对齐",
+                "weekday_zh": "星期一"
+              },
+              {
+                "event_id": "EVT-20260518-0002",
+                "date": "2026-05-18",
+                "title": "研发部周会",
+                "type": "meeting",
+                "department": "研发部",
+                "time": "14:00-15:00",
+                "location": "会议室 C",
+                "description": "研发进度同步",
+                "weekday_zh": "星期一"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "将查到的 2026-05-18 会议时间更新为 10:00",
+          "status": "needs_clarification",
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "tool_input": {
+            "action": "update",
+            "selector": {
+              "date": "2026-05-18",
+              "event_type": "meeting"
+            },
+            "time": "10:00"
+          },
+          "result_summary": "匹配到多个日程，请指定要更新的 event_id 后再修改。",
+          "tool_result": {
+            "status": "needs_clarification",
+            "action": "update",
+            "message": "匹配到多个日程，请指定要更新的 event_id 后再修改。"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询 2026-05-18 的会议事件，获取 event_id",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "query_scope": "all_events",
+              "event_type": "meeting",
+              "department": "all",
+              "start_date": "2026-05-18",
+              "end_date": "2026-05-18"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "将查到的 2026-05-18 会议时间更新为 10:00",
+            "tool": "manage_company_calendar",
+            "action": "update",
+            "tool_input": {
+              "action": "update",
+              "selector": {
+                "date": "2026-05-18",
+                "event_type": "meeting"
+              },
+              "time": "10:00"
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把 2026-05-18 的会议改到 10 点",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "修改指定日期会议时间，需使用日历管理工具"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把 2026-05-18 的会议改到 10 点",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-18",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询 2026-05-18 的会议事件，获取 event_id",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "query_scope": "all_events",
+                "event_type": "meeting",
+                "department": "all",
+                "date": "2026-05-18"
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "将查到的 2026-05-18 会议时间更新为 10:00",
+              "tool": "manage_company_calendar",
+              "action": "update",
+              "tool_input": {
+                "action": "update",
+                "selector": {
+                  "date": "2026-05-18",
+                  "event_type": "meeting"
+                },
+                "time": "10:00"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户未提供 event_id，需先通过 query 获取目标会议；update 操作需明确 event_id 或 selector，此处使用 date+event_type selector；时间修改需在确认事件后执行。"
+      },
+      "answer_preview": "根据工具查询结果，2026-05-18（星期一）当天有两场会议：\n\n- **10:00-11:00**：产品部 OKR 同步会（会议室 B，event_id：EVT-20260518-0001）  \n- **14:00-15:00**：研发部周会（会议室 C，event_id：EVT-20260518-0002）\n\n您希望将“2026-05-18 的会议改到 10 点”，但当天已有会议在 10 点开始，且存在多个会议事件。系统无法自动判断您要修改的是哪一场。\n\n请明确指定要修改的会议对应的 **event_id**（例如 EVT-20260518-0001 或 EVT-20260518-0002），以便进行更新操作。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_update_006",
+      "question": "把那个会议改成 10 点。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 10643.48,
+      "route": "direct",
+      "trace_id": "eval_trace_f28c585d78724c63a14e74daa4de9b36",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 10643.48
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [],
+      "task_results": [],
+      "execution_plan": {
+        "tasks": [],
+        "strategy": "用户未提供具体会议标识，需先通过 query 定位会议；再用 selector 匹配并更新时间。由于时间是绝对值 10 点，无需依赖当前时间解析。"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把那个会议改成 10 点",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "修改会议时间需调用日历管理工具"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把那个会议改成 10 点",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询当前日历中所有会议，以定位‘那个会议’",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "query_scope": "all_events",
+                "event_type": "meeting",
+                "department": "all"
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "将查到的会议时间更新为10点（假设为上午10:00）",
+              "tool": "manage_company_calendar",
+              "action": "update",
+              "tool_input": {
+                "action": "update",
+                "selector": {
+                  "event_type": "meeting",
+                  "title": "那个会议"
+                },
+                "time": "10:00"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户未提供具体会议标识，需先通过 query 定位会议；再用 selector 匹配并更新时间。由于时间是绝对值 10 点，无需依赖当前时间解析。"
+      },
+      "answer_preview": "请说明具体要修改哪一个公司日程，例如提供 event_id、会议标题和日期，或先查询后指定第几个；在目标明确前我不会执行修改或删除。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_update_008",
+      "question": "把不存在的 event_id EVT-20990101-9999 改成测试会议。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 11289.18,
+      "route": "tool",
+      "trace_id": "eval_trace_74ce35bf065241dbb13353f5742d3138",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 11289.18
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "args": {
+            "action": "update",
+            "event_id": "EVT-20990101-9999",
+            "title": "测试会议",
+            "query": "把不存在的 event_id EVT-20990101-9999 改成测试会议。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": false,
+          "error": "event not found",
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "更新 event_id 为 EVT-20990101-9999 的日程标题为‘测试会议’",
+          "status": "error",
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "tool_input": {
+            "action": "update",
+            "event_id": "EVT-20990101-9999",
+            "title": "测试会议"
+          },
+          "result_summary": "工具调用失败：event not found",
+          "tool_result": {
+            "error": "event not found",
+            "event_id": "EVT-20990101-9999",
+            "action": "update"
+          },
+          "source_count": 0,
+          "error_message": "没有找到指定 event_id 的公司日程，本次没有更新或删除。"
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "更新 event_id 为 EVT-20990101-9999 的日程标题为‘测试会议’",
+            "tool": "manage_company_calendar",
+            "action": "update",
+            "tool_input": {
+              "action": "update",
+              "event_id": "EVT-20990101-9999",
+              "title": "测试会议"
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "direct",
+        "route": "tool",
+        "standalone_query": "把不存在的 event_id EVT-20990101-9999 改成测试会议",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "time_reference_type": "none",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "更新指定 event_id 的会议标题，即使该 ID 不存在也需尝试执行更新操作"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "direct",
+        "route": "tool",
+        "standalone_query": "把不存在的 event_id EVT-20990101-9999 改成测试会议",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "has_time_requirement": false,
+          "time_reference_type": "none",
+          "canonical_relative": null,
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "更新 event_id 为 EVT-20990101-9999 的日程标题为‘测试会议’",
+              "tool": "manage_company_calendar",
+              "action": "update",
+              "tool_input": {
+                "action": "update",
+                "event_id": "EVT-20990101-9999",
+                "title": "测试会议"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户明确指定 event_id，直接执行 update 操作；即使该 ID 不存在，仍按要求尝试更新"
+      },
+      "answer_preview": "没有找到指定 event_id 的公司日程，本次没有更新或删除。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_delete_001",
+      "question": "删除 2099-01-01 的所有公司会议。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 19575.85,
+      "route": "tool",
+      "trace_id": "eval_trace_07fd95e2e6f240e4800ed35fd7bf7ed9",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 19575.85
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2099-01-01",
+            "end_date": "2099-01-01",
+            "query_scope": "all_events",
+            "event_type": "all",
+            "department": "all",
+            "query": "删除 2099-01-01 的所有公司会议。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询 2099-01-01 的所有公司会议事件 ID",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2099-01-01",
+            "end_date": "2099-01-01",
+            "query_scope": "all_events",
+            "event_type": "all",
+            "department": "all"
+          },
+          "result_summary": "2099-01-01 至 2099-01-01 暂无公司日程。",
+          "tool_result": {
+            "events": [],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "删除上一步查到的所有会议事件",
+          "status": "skipped",
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "tool_input": {
+            "action": "delete",
+            "selector": {
+              "date": "2099-01-01",
+              "event_type": "all"
+            }
+          },
+          "result_summary": "没有匹配日程可删除，无需删除。",
+          "tool_result": {
+            "status": "skipped",
+            "action": "delete",
+            "message": "没有匹配日程可删除，无需删除。"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询 2099-01-01 的所有公司会议事件 ID",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "all",
+              "start_date": "2099-01-01",
+              "end_date": "2099-01-01"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2099-01-01",
+                "end_date": "2099-01-01"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "删除上一步查到的所有会议事件",
+            "tool": "manage_company_calendar",
+            "action": "delete",
+            "tool_input": {
+              "action": "delete",
+              "selector": {
+                "date": "2099-01-01",
+                "event_type": "all"
+              }
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "command",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "删除 2099-01-01 的所有公司会议",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "delete",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "canonical_relative": "null"
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "删除指定绝对日期的公司会议，需使用 manage_company_calendar 的 delete 动作"
+      },
+      "build_plan": {
+        "message_type": "command",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "删除 2099-01-01 的所有公司会议",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "delete",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2099-01-01",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询 2099-01-01 的所有公司会议事件 ID",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "event_type": "all",
+                "date": "2099-01-01"
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "删除上一步查到的所有会议事件",
+              "tool": "manage_company_calendar",
+              "action": "delete",
+              "tool_input": {
+                "action": "delete",
+                "selector": {
+                  "date": "2099-01-01",
+                  "event_type": "all"
+                }
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "因 delete 动作仅支持单 event_id，需先 query 获取具体 event_id 再执行 delete；用户要求删除指定绝对日期所有会议，故用 date+event_type=all 查询并批量删除"
+      },
+      "answer_preview": "根据工具查询结果：\n\n1. **查询 2099-01-01 的所有公司会议事件 ID**  \n   查询结果显示：2099-01-01 至 2099-01-01 暂无公司日程。\n\n2. **删除上一步查到的所有会议事件**  \n   由于未查询到任何会议事件，系统提示“没有匹配日程可删除，无需删除”。\n\n综上，2099-01-01 当天没有公司会议，因此无需执行删除操作。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_delete_002",
+      "question": "删除 event_id 为 EVT-20260521-0001 的日程。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 10659.95,
+      "route": "tool",
+      "trace_id": "eval_trace_ac93b42a181b471bbde60044108f7983",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 10659.95
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "args": {
+            "action": "delete",
+            "event_id": "EVT-20260521-0001",
+            "query": "删除 event_id 为 EVT-20260521-0001 的日程。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "删除 event_id 为 EVT-20260521-0001 的日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "tool_input": {
+            "action": "delete",
+            "event_id": "EVT-20260521-0001"
+          },
+          "result_summary": "公司日程已删除：EVT-20260521-0001。",
+          "tool_result": {
+            "status": "deleted",
+            "event_id": "EVT-20260521-0001",
+            "action": "delete",
+            "message": "公司日程已删除"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "删除 event_id 为 EVT-20260521-0001 的日程",
+            "tool": "manage_company_calendar",
+            "action": "delete",
+            "tool_input": {
+              "action": "delete",
+              "event_id": "EVT-20260521-0001"
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "command",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "删除 event_id 为 EVT-20260521-0001 的日程。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "delete",
+        "time_requirement": {
+          "time_reference_type": "none",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "删除指定 event_id 的日程，属于公司日历管理操作"
+      },
+      "build_plan": {
+        "message_type": "command",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "删除 event_id 为 EVT-20260521-0001 的日程。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "delete",
+        "time_requirement": {
+          "has_time_requirement": false,
+          "time_reference_type": "none",
+          "canonical_relative": null,
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "删除 event_id 为 EVT-20260521-0001 的日程",
+              "tool": "manage_company_calendar",
+              "action": "delete",
+              "tool_input": {
+                "action": "delete",
+                "event_id": "EVT-20260521-0001"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户明确指定 event_id，可直接执行 delete 操作，无需额外查询"
+      },
+      "answer_preview": "公司日程已删除：EVT-20260521-0001。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_delete_003",
+      "question": "先查下周所有公司团建，再删除第一个团建。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 18993.76,
+      "route": "tool",
+      "trace_id": "eval_trace_956028b941984800a7db7c346bf0f0e2",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 18993.76
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "type_filtered",
+            "event_type": "activity",
+            "department": "all",
+            "query": "先查下周所有公司团建，再删除第一个团建。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "args": {
+            "action": "delete",
+            "event_id": "EVT-20260519-0001",
+            "query": "先查下周所有公司团建，再删除第一个团建。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询下周所有公司团建",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "type_filtered",
+            "event_type": "activity",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-24 的公司日程：\n- 2026-05-19 星期二 16:00-18:00 公司团建（城市公园，event_id：EVT-20260519-0001）\n- 2026-05-21 星期四 18:00-20:00 公司团建（团建餐厅，event_id：EVT-20260521-0002）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260519-0001",
+                "date": "2026-05-19",
+                "title": "公司团建",
+                "type": "activity",
+                "department": "all",
+                "time": "16:00-18:00",
+                "location": "城市公园",
+                "description": "下周第一个团建活动，用于 update/delete 评测",
+                "weekday_zh": "星期二"
+              },
+              {
+                "event_id": "EVT-20260521-0002",
+                "date": "2026-05-21",
+                "title": "公司团建",
+                "type": "activity",
+                "department": "all",
+                "time": "18:00-20:00",
+                "location": "团建餐厅",
+                "description": "第二个团建活动",
+                "weekday_zh": "星期四"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "删除日程：公司团建",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "tool_input": {
+            "action": "delete",
+            "event_id": "EVT-20260519-0001"
+          },
+          "result_summary": "公司日程已删除：EVT-20260519-0001。",
+          "tool_result": {
+            "status": "deleted",
+            "event_id": "EVT-20260519-0001",
+            "action": "delete",
+            "message": "公司日程已删除"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询下周所有公司团建",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "activity",
+              "department": "all"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "next_week",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "删除查询结果中的第一个团建",
+            "tool": "manage_company_calendar",
+            "action": "delete",
+            "tool_input": {
+              "action": "delete",
+              "selector": {
+                "ordinal": 1
+              }
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "先查下周所有公司团建，再删除第一个团建",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "复合操作：先查询下周团建（需用manage_company_calendar/query），再删除第一个（需用manage_company_calendar/delete）"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "先查下周所有公司团建，再删除第一个团建",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "query",
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": true,
+          "needs_current_datetime": true
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询下周所有公司团建",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "event_type": "activity",
+                "department": "all",
+                "start_date": "",
+                "end_date": ""
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "删除查询结果中的第一个团建",
+              "tool": "manage_company_calendar",
+              "action": "delete",
+              "tool_input": {
+                "action": "delete",
+                "selector": {
+                  "ordinal": 1
+                }
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "复合操作：先通过 manage_company_calendar/query 查询下周所有团建（event_type=activity），再用 selector.ordinal=1 定位并删除第一个事件；由于 event_id 未知，需依赖 query 结果推导具体 event_id，因此第二步使用 selector 而非 event_id。"
+      },
+      "answer_preview": "### 1. 查询下周所有公司团建  \n根据查询结果，2026年5月18日至5月24日（下周）共有以下两场公司团建：  \n- **2026-05-19 星期二 16:00-18:00**：公司团建（城市公园，event_id：EVT-20260519-0001）  \n- **2026-05-21 星期四 18:00-20:00**：公司团建（团建餐厅，event_id：EVT-20260521-0002）  \n\n### 2. 删除第一个团建  \n已成功删除上述查询结果中的第一个团建活动：  \n- **已删除**：2026-05-19 星期二 16:00-18:00 的公司团建（城市公园，event_id：EVT-20260519-0001）",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_delete_007",
+      "question": "删除 EVT-20260522-0001，然后查询 2026-05-22 确认。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 17414.67,
+      "route": "tool",
+      "trace_id": "eval_trace_ca5b75e88ce046ed8bb023d5eb27a9a5",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 17414.67
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "args": {
+            "action": "delete",
+            "event_id": "EVT-20260522-0001",
+            "query": "删除 EVT-20260522-0001，然后查询 2026-05-22 确认。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-22",
+            "end_date": "2026-05-22",
+            "query_scope": "all_events",
+            "event_type": "all",
+            "department": "all",
+            "query": "删除 EVT-20260522-0001，然后查询 2026-05-22 确认。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "删除事件 EVT-20260522-0001",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "tool_input": {
+            "action": "delete",
+            "event_id": "EVT-20260522-0001"
+          },
+          "result_summary": "公司日程已删除：EVT-20260522-0001。",
+          "tool_result": {
+            "status": "deleted",
+            "event_id": "EVT-20260522-0001",
+            "action": "delete",
+            "message": "公司日程已删除"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "查询 2026-05-22 的日程安排",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-22",
+            "end_date": "2026-05-22",
+            "query_scope": "all_events",
+            "event_type": "all",
+            "department": "all"
+          },
+          "result_summary": "2026-05-22 至 2026-05-22 的公司日程：\n- 2026-05-22 星期五 15:00-16:00 客户项目同步（会议室 B，event_id：EVT-20260522-0002）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260522-0002",
+                "date": "2026-05-22",
+                "title": "客户项目同步",
+                "type": "meeting",
+                "department": "销售部",
+                "time": "15:00-16:00",
+                "location": "会议室 B",
+                "description": "固定 ID，用于更新为客户复盘会",
+                "weekday_zh": "星期五"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "删除事件 EVT-20260522-0001",
+            "tool": "manage_company_calendar",
+            "action": "delete",
+            "tool_input": {
+              "action": "delete",
+              "event_id": "EVT-20260522-0001"
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "查询 2026-05-22 的日程安排",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "query_scope": "all_events",
+              "event_type": "all",
+              "department": "all",
+              "start_date": "2026-05-22",
+              "end_date": "2026-05-22"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-22",
+                "end_date": "2026-05-22"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "删除 EVT-20260522-0001，然后查询 2026-05-22 确认。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "delete",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "包含日程删除与特定日期查询，需使用 manage_company_calendar 工具；时间明确为绝对日期，但操作需分步处理"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "删除 EVT-20260522-0001，然后查询 2026-05-22 确认。",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "delete",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-22",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "删除事件 EVT-20260522-0001",
+              "tool": "manage_company_calendar",
+              "action": "delete",
+              "tool_input": {
+                "action": "delete",
+                "event_id": "EVT-20260522-0001"
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "查询 2026-05-22 的日程安排",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "query_scope": "all_events",
+                "event_type": "all",
+                "department": "all",
+                "date": "2026-05-22"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户明确要求先删除指定 event_id，再查询指定日期；delete 操作需直接使用 event_id，query 需按 date 查询当日事件；两个子目标均需独立执行，故拆为两个 task。"
+      },
+      "answer_preview": "### 1. 删除事件 EVT-20260522-0001  \n根据工具操作结果，事件 **EVT-20260522-0001** 已成功删除。\n\n### 2. 查询 2026-05-22 的日程安排  \n2026-05-22（星期五）当前的公司日程如下：  \n- **15:00-16:00**：客户项目同步（会议室 B，event_id：EVT-20260522-0002）",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_delete_004",
+      "question": "删除 2026-05-18 的公司会议。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 17143.61,
+      "route": "tool",
+      "trace_id": "eval_trace_a0f1944a57a14240a715fb2fcb781438",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 17143.61
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all",
+            "query": "删除 2026-05-18 的公司会议。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询 2026-05-18 的公司会议事件 ID",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-18",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-18 的公司日程：\n- 2026-05-18 星期一 10:00-11:00 产品部 OKR 同步会（会议室 B，event_id：EVT-20260518-0001）\n- 2026-05-18 星期一 14:00-15:00 研发部周会（会议室 C，event_id：EVT-20260518-0002）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260518-0001",
+                "date": "2026-05-18",
+                "title": "产品部 OKR 同步会",
+                "type": "meeting",
+                "department": "产品部",
+                "time": "10:00-11:00",
+                "location": "会议室 B",
+                "description": "产品部 OKR 对齐",
+                "weekday_zh": "星期一"
+              },
+              {
+                "event_id": "EVT-20260518-0002",
+                "date": "2026-05-18",
+                "title": "研发部周会",
+                "type": "meeting",
+                "department": "研发部",
+                "time": "14:00-15:00",
+                "location": "会议室 C",
+                "description": "研发进度同步",
+                "weekday_zh": "星期一"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "删除查到的 2026-05-18 公司会议事件",
+          "status": "needs_clarification",
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "tool_input": {
+            "action": "delete",
+            "event_id": "EVT-20260518-XXXX"
+          },
+          "result_summary": "匹配到多个日程，请指定要删除的 event_id 后再删除。",
+          "tool_result": {
+            "status": "needs_clarification",
+            "action": "delete",
+            "message": "匹配到多个日程，请指定要删除的 event_id 后再删除。"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询 2026-05-18 的公司会议事件 ID",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "query_scope": "all_events",
+              "event_type": "meeting",
+              "department": "all",
+              "start_date": "2026-05-18",
+              "end_date": "2026-05-18"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-18"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "删除查到的 2026-05-18 公司会议事件",
+            "tool": "manage_company_calendar",
+            "action": "delete",
+            "tool_input": {
+              "action": "delete",
+              "event_id": "EVT-20260518-XXXX"
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "删除 2026-05-18 的公司会议",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "delete",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "删除指定日期的公司会议，需调用管理日历工具"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "删除 2026-05-18 的公司会议",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "delete",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-18",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询 2026-05-18 的公司会议事件 ID",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "query_scope": "all_events",
+                "event_type": "meeting",
+                "department": "all",
+                "date": "2026-05-18"
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "删除查到的 2026-05-18 公司会议事件",
+              "tool": "manage_company_calendar",
+              "action": "delete",
+              "tool_input": {
+                "action": "delete",
+                "event_id": "EVT-20260518-XXXX"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "删除指定绝对日期会议需先 query 获取 event_id，再用 delete 执行；工具仅支持单 event_id 删除，故分两步：先查后删"
+      },
+      "answer_preview": "根据工具查询结果，2026-05-18（星期一）共有两场公司会议：\n\n- **10:00-11:00**：产品部 OKR 同步会（会议室 B，event_id：EVT-20260518-0001）  \n- **14:00-15:00**：研发部周会（会议室 C，event_id：EVT-20260518-0002）\n\n在尝试删除时，系统提示：**匹配到多个日程，请指定要删除的 event_id 后再删除**。\n\n因此，请您明确要删除哪一场会议，并提供对应的 `event_id`（例如 EVT-20260518-0001 或 EVT-20260518-0002），以便执行删除操作。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_delete_006",
+      "question": "删除下周所有公司团建。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 15560.19,
+      "route": "tool",
+      "trace_id": "eval_trace_de9ca58654464accbbcd1890b1c94612",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 15560.19
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "get_current_datetime",
+          "action": "*",
+          "args": {
+            "timezone": "Asia/Shanghai"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": "resolve_time_reference"
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "activity",
+            "department": "all",
+            "query": "删除下周所有公司团建。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "args": {
+            "action": "delete",
+            "event_id": "EVT-20260519-0001",
+            "query": "删除下周所有公司团建。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "args": {
+            "action": "delete",
+            "event_id": "EVT-20260521-0002",
+            "query": "删除下周所有公司团建。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询下周所有公司团建日程",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-18",
+            "end_date": "2026-05-24",
+            "query_scope": "all_events",
+            "event_type": "activity",
+            "department": "all"
+          },
+          "result_summary": "2026-05-18 至 2026-05-24 的公司日程：\n- 2026-05-19 星期二 16:00-18:00 公司团建（城市公园，event_id：EVT-20260519-0001）\n- 2026-05-21 星期四 18:00-20:00 公司团建（团建餐厅，event_id：EVT-20260521-0002）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260519-0001",
+                "date": "2026-05-19",
+                "title": "公司团建",
+                "type": "activity",
+                "department": "all",
+                "time": "16:00-18:00",
+                "location": "城市公园",
+                "description": "下周第一个团建活动，用于 update/delete 评测",
+                "weekday_zh": "星期二"
+              },
+              {
+                "event_id": "EVT-20260521-0002",
+                "date": "2026-05-21",
+                "title": "公司团建",
+                "type": "activity",
+                "department": "all",
+                "time": "18:00-20:00",
+                "location": "团建餐厅",
+                "description": "第二个团建活动",
+                "weekday_zh": "星期四"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "删除日程：公司团建",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "tool_input": {
+            "action": "delete",
+            "event_id": "EVT-20260519-0001"
+          },
+          "result_summary": "公司日程已删除：EVT-20260519-0001。",
+          "tool_result": {
+            "status": "deleted",
+            "event_id": "EVT-20260519-0001",
+            "action": "delete",
+            "message": "公司日程已删除"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2_2",
+          "kind": "tool",
+          "objective": "删除日程：公司团建",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "delete",
+          "tool_input": {
+            "action": "delete",
+            "event_id": "EVT-20260521-0002"
+          },
+          "result_summary": "公司日程已删除：EVT-20260521-0002。",
+          "tool_result": {
+            "status": "deleted",
+            "event_id": "EVT-20260521-0002",
+            "action": "delete",
+            "message": "公司日程已删除"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询下周所有公司团建日程",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "event_type": "activity",
+              "department": "all",
+              "query_scope": "all_events",
+              "date_range": "next_week"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "relative",
+              "canonical_relative": "next_week",
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": true,
+              "needs_current_datetime": true
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "删除查询到的下周所有公司团建日程",
+            "tool": "manage_company_calendar",
+            "action": "delete",
+            "tool_input": {
+              "action": "delete",
+              "selector": {
+                "event_type": "activity",
+                "date_range": "next_week",
+                "ordinal": "all"
+              }
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "删除下周所有公司团建",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "delete",
+        "time_requirement": {
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "requires_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "should_use_rag": false
+        },
+        "reason": "删除下周公司团建属于日程管理操作，需使用 manage_company_calendar 工具的 delete 动作"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "删除下周所有公司团建",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "delete",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "relative",
+          "canonical_relative": "next_week",
+          "absolute_date": null,
+          "date_range": null,
+          "requires_current_datetime": true,
+          "needs_current_datetime": true
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": true,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询下周所有公司团建日程",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "event_type": "activity",
+                "department": "all",
+                "query_scope": "all_events",
+                "date_range": "next_week"
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "删除查询到的下周所有公司团建日程",
+              "tool": "manage_company_calendar",
+              "action": "delete",
+              "tool_input": {
+                "action": "delete",
+                "selector": {
+                  "event_type": "activity",
+                  "date_range": "next_week",
+                  "ordinal": "all"
+                }
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "删除下周所有公司团建需先查询再删除；query 任务获取事件列表，delete 任务使用 selector 批量删除匹配项，避免直接使用 all/* 等模糊标识。"
+      },
+      "answer_preview": "已成功删除下周所有的公司团建日程，具体如下：\n\n1. **2026-05-19（星期二）16:00-18:00** 的公司团建（地点：城市公园，event_id：EVT-20260519-0001）已删除。  \n2. **2026-05-21（星期四）18:00-20:00** 的公司团建（地点：团建餐厅，event_id：EVT-20260521-0002）已删除。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    },
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_delete_008",
+      "question": "删除这个活动。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 4134.02,
+      "route": "direct",
+      "trace_id": "eval_trace_624c73f2a5434f8494df2f2fe2166f88",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": false,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 4134.02
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [],
+      "task_results": [],
+      "execution_plan": {
+        "tasks": [],
+        "strategy": "命令类操作，需明确上下文中的活动指代；当前无历史上下文，视为独立指令"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "command",
+        "context_usage": "none",
+        "intent": "direct",
+        "route": "direct",
+        "standalone_query": "删除这个活动。",
+        "risk_level": "low",
+        "reason": "命令类操作，需明确上下文中的活动指代；当前无历史上下文，视为独立指令"
+      },
+      "build_plan": {},
+      "answer_preview": "请提供要删除的活动的具体信息（例如活动名称或 event_id），以便执行删除操作。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    }
+  ]
+}

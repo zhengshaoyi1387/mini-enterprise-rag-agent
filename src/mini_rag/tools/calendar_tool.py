@@ -9,6 +9,7 @@ CALENDAR_FILE = Path("data/business/company_calendar.json")
 WRITE_ACTIONS = {"create", "update", "delete"}
 QUERY_ROLES = {"user", "employee", "finance", "hr", "it", "admin"}
 UPDATE_FIELDS = {"title", "type", "date", "time", "department", "location", "description"}
+WEEKDAY_ZH = ("星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日")
 
 
 def _parse_date(value: Any, field_name: str) -> date | dict[str, str]:
@@ -16,6 +17,21 @@ def _parse_date(value: Any, field_name: str) -> date | dict[str, str]:
         return date.fromisoformat(str(value or ""))
     except ValueError:
         return {"error": "invalid date format", "field": field_name, "expected": "YYYY-MM-DD"}
+
+
+def _weekday_zh(value: Any) -> str | None:
+    try:
+        return WEEKDAY_ZH[date.fromisoformat(str(value or "")).weekday()]
+    except ValueError:
+        return None
+
+
+def _with_weekday(event: dict[str, Any]) -> dict[str, Any]:
+    output = dict(event)
+    weekday = _weekday_zh(output.get("date"))
+    if weekday:
+        output["weekday_zh"] = weekday
+    return output
 
 
 def _ensure_file(path: Path) -> None:
@@ -110,7 +126,7 @@ def _query(payload: dict[str, Any], events: list[dict[str, Any]]) -> dict[str, A
         event_department = str(event.get("department") or "all")
         if department != "all" and event_department not in {"all", department}:
             continue
-        matched.append(dict(event))
+        matched.append(_with_weekday(event))
     matched.sort(key=lambda item: (str(item.get("date") or ""), str(item.get("time") or ""), str(item.get("event_id") or "")))
     return {
         "action": "query",
@@ -142,7 +158,14 @@ def _create(payload: dict[str, Any], events: list[dict[str, Any]], file_path: Pa
     events.append(event)
     events.sort(key=lambda item: (str(item.get("date") or ""), str(item.get("time") or ""), str(item.get("event_id") or "")))
     _write_events(file_path, events)
-    return {"action": "create", "risk_level": "medium", "event_id": event["event_id"], "status": "created", "message": "公司日程已创建", "event": event}
+    return {
+        "action": "create",
+        "risk_level": "medium",
+        "event_id": event["event_id"],
+        "status": "created",
+        "message": "公司日程已创建",
+        "event": _with_weekday(event),
+    }
 
 
 def _update(payload: dict[str, Any], events: list[dict[str, Any]], file_path: Path) -> dict[str, Any]:
@@ -162,7 +185,14 @@ def _update(payload: dict[str, Any], events: list[dict[str, Any]], file_path: Pa
                 event[field] = str(payload.get(field) or "").strip()
         events.sort(key=lambda item: (str(item.get("date") or ""), str(item.get("time") or ""), str(item.get("event_id") or "")))
         _write_events(file_path, events)
-        return {"action": "update", "risk_level": "medium", "event_id": event_id, "status": "updated", "message": "公司日程已更新", "event": dict(event)}
+        return {
+            "action": "update",
+            "risk_level": "medium",
+            "event_id": event_id,
+            "status": "updated",
+            "message": "公司日程已更新",
+            "event": _with_weekday(event),
+        }
     return {"action": "update", "event_id": event_id, "error": "event not found"}
 
 

@@ -1,0 +1,347 @@
+{
+  "suite": "e2e",
+  "judge": "rule",
+  "mode": "hybrid",
+  "generated_at": "2026-05-17T12:38:45.634119+00:00",
+  "summary": {
+    "overall": {
+      "total_cases": 1,
+      "executed_cases": 1,
+      "infra_error_cases": 0,
+      "agent_passed_cases": 1,
+      "agent_failed_cases": 0,
+      "agent_pass_rate": 1.0,
+      "case_count": 1,
+      "passed": 1,
+      "failed": 0,
+      "pass_rate": 1.0,
+      "avg_latency_ms": 17390.1,
+      "p95_latency_ms": 17390.1,
+      "actual_success_no_blocked_tasks": 1.0,
+      "answer_must_contain_hit": 1.0,
+      "answer_must_not_contain_pass": 1.0,
+      "expected_source_citation": 1.0,
+      "expected_source_recall": 1.0,
+      "expected_status_pass": 1.0,
+      "expected_tool_coverage": 1.0,
+      "forbidden_actions_pass": 1.0,
+      "grounded_answer_rate": 1.0,
+      "multi_task_completion_rate": 1.0,
+      "no_unwanted_write": 1.0,
+      "refusal_accuracy": 1.0,
+      "task_success": 1.0,
+      "write_result_success": 1.0
+    },
+    "by_suite": {
+      "e2e": {
+        "total_cases": 1,
+        "executed_cases": 1,
+        "infra_error_cases": 0,
+        "agent_passed_cases": 1,
+        "agent_failed_cases": 0,
+        "agent_pass_rate": 1.0,
+        "case_count": 1,
+        "passed": 1,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "avg_latency_ms": 17390.1,
+        "p95_latency_ms": 17390.1,
+        "actual_success_no_blocked_tasks": 1.0,
+        "answer_must_contain_hit": 1.0,
+        "answer_must_not_contain_pass": 1.0,
+        "expected_source_citation": 1.0,
+        "expected_source_recall": 1.0,
+        "expected_status_pass": 1.0,
+        "expected_tool_coverage": 1.0,
+        "forbidden_actions_pass": 1.0,
+        "grounded_answer_rate": 1.0,
+        "multi_task_completion_rate": 1.0,
+        "no_unwanted_write": 1.0,
+        "refusal_accuracy": 1.0,
+        "task_success": 1.0,
+        "write_result_success": 1.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "suite": "e2e",
+      "id": "e2e_v2_cal_update_004",
+      "question": "把 2026-05-21 的季度经营复盘地点改到会议室 D，只改地点。",
+      "role": "admin",
+      "passed": true,
+      "latency_ms": 17390.1,
+      "route": "tool",
+      "trace_id": "eval_trace_707118619b1a4155977a342646df5856",
+      "rule_scores": {
+        "task_success": true,
+        "expected_tool_coverage": true,
+        "expected_source_recall": true,
+        "expected_source_citation": true,
+        "answer_must_contain_hit": true,
+        "answer_must_not_contain_pass": true,
+        "refusal_accuracy": true,
+        "grounded_answer_rate": true,
+        "multi_task_completion_rate": true,
+        "no_unwanted_write": true,
+        "actual_success_no_blocked_tasks": true,
+        "write_result_success": true,
+        "forbidden_actions_pass": true,
+        "expected_status_pass": true,
+        "latency_ms": 17390.1
+      },
+      "llm_scores": {},
+      "retrieved_sources": [],
+      "tool_calls": [
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "args": {
+            "action": "query",
+            "start_date": "2026-05-21",
+            "end_date": "2026-05-21",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all",
+            "query": "把 2026-05-21 的季度经营复盘地点改到会议室 D，只改地点。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        },
+        {
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "args": {
+            "action": "update",
+            "event_id": "EVT-20260521-0001",
+            "location": "会议室 D",
+            "query": "把 2026-05-21 的季度经营复盘地点改到会议室 D，只改地点。",
+            "user_id": "eval_user",
+            "role": "admin"
+          },
+          "ok": true,
+          "error": null,
+          "purpose": null
+        }
+      ],
+      "task_results": [
+        {
+          "task_id": "t1",
+          "kind": "tool",
+          "objective": "查询 2026-05-21 的‘季度经营复盘’日程事件以获取 event_id",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "query",
+          "tool_input": {
+            "action": "query",
+            "start_date": "2026-05-21",
+            "end_date": "2026-05-21",
+            "query_scope": "all_events",
+            "event_type": "meeting",
+            "department": "all"
+          },
+          "result_summary": "2026-05-21 至 2026-05-21 的公司日程：\n- 2026-05-21 星期四 14:00-15:00 季度经营复盘（会议室 A，event_id：EVT-20260521-0001）",
+          "tool_result": {
+            "events": [
+              {
+                "event_id": "EVT-20260521-0001",
+                "date": "2026-05-21",
+                "title": "季度经营复盘",
+                "type": "meeting",
+                "department": "all",
+                "time": "14:00-15:00",
+                "location": "会议室 A",
+                "description": "固定 ID，用于 update/delete 评测",
+                "weekday_zh": "星期四"
+              }
+            ],
+            "action": "query"
+          },
+          "source_count": 0,
+          "error_message": ""
+        },
+        {
+          "task_id": "t2",
+          "kind": "tool",
+          "objective": "更新匹配到的日程事件的地点为‘会议室 D’",
+          "status": "ok",
+          "tool_name": "manage_company_calendar",
+          "action": "update",
+          "tool_input": {
+            "action": "update",
+            "event_id": "EVT-20260521-0001",
+            "location": "会议室 D"
+          },
+          "result_summary": "公司日程已更新：2026-05-21 星期四 14:00-15:00 季度经营复盘。",
+          "tool_result": {
+            "action": "update",
+            "message": "公司日程已更新",
+            "event": {
+              "event_id": "EVT-20260521-0001",
+              "date": "2026-05-21",
+              "title": "季度经营复盘",
+              "type": "meeting",
+              "department": "all",
+              "time": "14:00-15:00",
+              "location": "会议室 D",
+              "description": "固定 ID，用于 update/delete 评测",
+              "weekday_zh": "星期四"
+            },
+            "event_id": "EVT-20260521-0001",
+            "status": "updated"
+          },
+          "source_count": 0,
+          "error_message": ""
+        }
+      ],
+      "execution_plan": {
+        "tasks": [
+          {
+            "task_id": "t1",
+            "kind": "tool",
+            "objective": "查询 2026-05-21 的‘季度经营复盘’日程事件以获取 event_id",
+            "tool": "manage_company_calendar",
+            "action": "query",
+            "tool_input": {
+              "action": "query",
+              "query_scope": "all_events",
+              "event_type": "meeting",
+              "department": "all",
+              "title": "季度经营复盘",
+              "start_date": "2026-05-21",
+              "end_date": "2026-05-21"
+            },
+            "time_requirement": {
+              "has_time_requirement": true,
+              "time_reference_type": "range",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": {
+                "start_date": "2026-05-21",
+                "end_date": "2026-05-21"
+              },
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          },
+          {
+            "task_id": "t2",
+            "kind": "tool",
+            "objective": "更新匹配到的日程事件的地点为‘会议室 D’",
+            "tool": "manage_company_calendar",
+            "action": "update",
+            "tool_input": {
+              "action": "update",
+              "selector": {
+                "date": "2026-05-21",
+                "title": "季度经营复盘"
+              },
+              "location": "会议室 D"
+            },
+            "time_requirement": {
+              "has_time_requirement": false,
+              "time_reference_type": "none",
+              "canonical_relative": null,
+              "absolute_date": null,
+              "date_range": null,
+              "requires_current_datetime": false,
+              "needs_current_datetime": false
+            }
+          }
+        ],
+        "strategy": "short"
+      },
+      "actual_success": true,
+      "infra_error": false,
+      "error_type": null,
+      "classify_intent": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把 2026-05-21 的季度经营复盘地点改到会议室 D，只改地点",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "requires_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "should_use_rag": false
+        },
+        "reason": "更新指定日期的日程事件地点，属于 manage_company_calendar 的 update 动作"
+      },
+      "build_plan": {
+        "message_type": "business_question",
+        "context_usage": "none",
+        "intent": "daily_tool",
+        "route": "tool",
+        "standalone_query": "把 2026-05-21 的季度经营复盘地点改到会议室 D，只改地点",
+        "risk_level": "medium",
+        "selected_tool": "manage_company_calendar",
+        "selected_action": "update",
+        "time_requirement": {
+          "has_time_requirement": true,
+          "time_reference_type": "absolute",
+          "canonical_relative": null,
+          "absolute_date": "2026-05-21",
+          "date_range": null,
+          "requires_current_datetime": false,
+          "needs_current_datetime": false
+        },
+        "knowledge_requirement": {
+          "requires_company_knowledge": false,
+          "known_from_user_message": false,
+          "should_use_rag": false
+        },
+        "execution_plan": {
+          "tasks": [
+            {
+              "task_id": "t1",
+              "kind": "tool",
+              "objective": "查询 2026-05-21 的‘季度经营复盘’日程事件以获取 event_id",
+              "tool": "manage_company_calendar",
+              "action": "query",
+              "tool_input": {
+                "action": "query",
+                "query_scope": "all_events",
+                "event_type": "meeting",
+                "department": "all",
+                "date": "2026-05-21",
+                "title": "季度经营复盘"
+              }
+            },
+            {
+              "task_id": "t2",
+              "kind": "tool",
+              "objective": "更新匹配到的日程事件的地点为‘会议室 D’",
+              "tool": "manage_company_calendar",
+              "action": "update",
+              "tool_input": {
+                "action": "update",
+                "selector": {
+                  "date": "2026-05-21",
+                  "title": "季度经营复盘"
+                },
+                "location": "会议室 D"
+              }
+            }
+          ],
+          "strategy": "short"
+        },
+        "missing_required_slots": [],
+        "reason": "用户未提供 event_id，需先通过 query 获取目标事件；update 操作仅修改 location 字段，其他字段保持不变。"
+      },
+      "answer_preview": "已成功将 2026-05-21 的“季度经营复盘”日程地点修改为会议室 D。具体安排如下：\n\n- **日期**：2026-05-21（星期四）  \n- **时间**：14:00-15:00  \n- **标题**：季度经营复盘  \n- **地点**：会议室 D  \n\n该变更已生效。",
+      "failure_reasons": [],
+      "warnings": [],
+      "error": null
+    }
+  ]
+}

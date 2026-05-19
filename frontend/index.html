@@ -393,7 +393,7 @@
     .drawer.open { transform: translateX(0); }
     .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--line); }
     .drawer-head h3 { margin: 0; font-size: 16px; }
-    .tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
+    .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
     .tab { border-radius: 0; background: #fff; color: var(--muted); border-right: 1px solid var(--line); font-size: 13px; }
     .tab.active { background: var(--panel); color: var(--text); }
     .drawer-body { overflow: auto; padding: 14px; }
@@ -422,10 +422,26 @@
     th { color: var(--muted); font-size: 12px; }
     .admin-actions { display: grid; gap: 8px; margin-top: 10px; }
     .admin-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .admin-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
     .matrix { display: grid; gap: 4px; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; }
     .check-group { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
     .check-group:last-child { border-bottom: 0; }
     .check-group .check-line { padding-left: 10px; min-height: 28px; }
+    .kb-doc-list { display: grid; gap: 8px; max-height: 260px; overflow: auto; margin-top: 10px; }
+    .kb-doc-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px;
+      background: var(--panel);
+    }
+    .kb-doc-title { font-weight: 760; overflow-wrap: anywhere; }
+    .kb-doc-meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
+    .kb-doc-preview { color: var(--muted); font-size: 12px; line-height: 1.45; margin-top: 5px; overflow-wrap: anywhere; }
+    .kb-import-content { min-height: 132px; resize: vertical; }
     .toast {
       position: fixed;
       left: 50%;
@@ -608,7 +624,7 @@ const state = {
   sidebarOpen: false,
   aborter: null,
   lastPrompt: '',
-  admin: { users: [], roles: [], tools: [] },
+  admin: { users: [], roles: [], tools: [], kbs: [], activeKbId: '' },
 };
 
 const uid = () => `web-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -726,6 +742,7 @@ async function bootstrap() {
   $('currentRole').textContent = state.me.role;
   $('userAvatar').textContent = state.me.username.slice(0, 1).toUpperCase();
   $('adminBtn').classList.toggle('hidden', state.me.role !== 'admin');
+  document.querySelector('[data-tab="admin"]')?.classList.toggle('hidden', state.me.role !== 'admin');
   renderAll();
   if (state.me.role === 'admin') await loadAdmin();
   else renderAdminRestricted();
@@ -1039,14 +1056,19 @@ async function loadAdmin() {
     return;
   }
   try {
-    const [users, roles, tools] = await Promise.all([
+    const [users, roles, tools, kbs] = await Promise.all([
       request('/admin/users', { headers: authHeaders() }),
       request('/admin/roles', { headers: authHeaders() }),
       request('/admin/tools', { headers: authHeaders() }),
+      request('/admin/kbs', { headers: authHeaders() }),
     ]);
     state.admin.users = users.users || [];
     state.admin.roles = roles.roles || [];
     state.admin.tools = tools.tools || [];
+    state.admin.kbs = kbs.kbs || [];
+    if (!state.admin.kbs.some(kb => kb.kb_id === state.admin.activeKbId)) {
+      state.admin.activeKbId = state.admin.kbs[0]?.kb_id || '';
+    }
     renderAdmin();
   } catch (err) {
     $('adminBox').innerHTML = `<div class="admin-card status error">${escapeHtml(err.message || err)}</div>`;
@@ -1083,6 +1105,29 @@ function renderAdmin() {
       </div>
     </div>
     <div class="admin-card">
+      <b>知识库管理</b>
+      <div class="muted" style="font-size:12px;margin-top:6px">仅 admin 可导入、删除文档；修改后需要重建索引才会影响检索结果。</div>
+      <label>知识库</label>
+      <select id="kbManagerSelect">${state.admin.kbs.map(kb => `<option value="${escapeHtml(kb.kb_id)}" ${kb.kb_id === state.admin.activeKbId ? 'selected' : ''}>${escapeHtml(kb.kb_id)} · ${escapeHtml(kb.name)}（${Number(kb.file_count || 0)} 个文件）</option>`).join('')}</select>
+      <label>导入 Markdown / 文本文档</label>
+      <div class="admin-inline">
+        <input id="kbImportName" placeholder="文件名，例如 policy_update.md">
+        <input id="kbImportFile" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain">
+      </div>
+      <label>内容</label>
+      <textarea id="kbImportContent" class="kb-import-content" placeholder="# 文档标题&#10;&#10;把需要导入知识库的内容粘贴到这里"></textarea>
+      <div class="admin-toolbar">
+        <label class="check-line" style="margin:0">
+          <input id="kbOverwrite" type="checkbox">
+          <span>覆盖同名文件</span>
+        </label>
+        <button id="kbSaveDocBtn" class="secondary">导入文档</button>
+        <button id="kbReindexBtn" class="secondary">增量重建索引</button>
+        <button id="kbResetReindexBtn" class="danger">全量重建索引</button>
+      </div>
+      <div id="kbDocumentList" class="kb-doc-list"></div>
+    </div>
+    <div class="admin-card">
       <b>角色权限</b>
       <label>角色</label>
       <select id="roleEditor">${roles.map(role => `<option>${escapeHtml(role)}</option>`).join('')}</select>
@@ -1096,8 +1141,109 @@ function renderAdmin() {
   $('roleEditor').addEventListener('change', renderRoleEditor);
   $('saveRoleBtn').addEventListener('click', saveRolePolicy);
   $('createUserBtn').addEventListener('click', createUser);
+  $('kbManagerSelect').addEventListener('change', renderKbManager);
+  $('kbImportFile').addEventListener('change', loadKbImportFile);
+  $('kbSaveDocBtn').addEventListener('click', saveKbDocument);
+  $('kbReindexBtn').addEventListener('click', () => reindexKnowledgeBase(false));
+  $('kbResetReindexBtn').addEventListener('click', () => reindexKnowledgeBase(true));
   document.querySelectorAll('[data-save-user]').forEach(btn => btn.addEventListener('click', () => saveUser(btn.dataset.saveUser)));
+  renderKbManager();
   renderRoleEditor();
+}
+function currentManagedKb() {
+  const kbId = $('kbManagerSelect')?.value || state.admin.activeKbId || state.admin.kbs[0]?.kb_id || '';
+  return state.admin.kbs.find(kb => kb.kb_id === kbId) || null;
+}
+function formatBytes(bytes) {
+  const size = Number(bytes || 0);
+  if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  if (size >= 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${size} B`;
+}
+function renderKbManager() {
+  const box = $('kbDocumentList');
+  if (!box) return;
+  const kb = currentManagedKb();
+  state.admin.activeKbId = kb?.kb_id || '';
+  if (!kb) {
+    box.innerHTML = '<div class="muted">暂无知识库配置</div>';
+    return;
+  }
+  const docs = kb.documents || [];
+  box.innerHTML = docs.map(doc => `
+    <div class="kb-doc-item">
+      <div>
+        <div class="kb-doc-title">${escapeHtml(doc.filename || doc.path)}</div>
+        <div class="kb-doc-meta mono">${escapeHtml(doc.path)} · ${escapeHtml(doc.file_type || '')} · ${formatBytes(doc.size_bytes)}</div>
+        ${doc.preview ? `<div class="kb-doc-preview">${escapeHtml(doc.preview)}</div>` : ''}
+      </div>
+      <button class="danger" data-delete-kb-doc="${escapeHtml(doc.path)}" data-delete-kb="${escapeHtml(kb.kb_id)}">删除</button>
+    </div>
+  `).join('') || '<div class="muted">这个知识库还没有源文档。</div>';
+  document.querySelectorAll('[data-delete-kb-doc]').forEach(btn => {
+    btn.addEventListener('click', () => deleteKbDocument(btn.dataset.deleteKb, btn.dataset.deleteKbDoc));
+  });
+}
+async function loadKbImportFile(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  $('kbImportName').value = file.name;
+  $('kbImportContent').value = await file.text();
+}
+async function saveKbDocument() {
+  const kb = currentManagedKb();
+  if (!kb) return;
+  const filename = $('kbImportName').value.trim();
+  const content = $('kbImportContent').value.trim();
+  if (!filename || !content) {
+    toast('请填写文件名和内容');
+    return;
+  }
+  try {
+    await request(`/admin/kbs/${encodeURIComponent(kb.kb_id)}/documents`, {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ filename, content, overwrite: $('kbOverwrite').checked }),
+    });
+    $('kbImportContent').value = '';
+    $('kbImportFile').value = '';
+    await loadAdmin();
+    toast('文档已导入，建议重建索引');
+  } catch (err) {
+    toast(err.message || '导入失败');
+  }
+}
+async function deleteKbDocument(kbId, docPath) {
+  if (!kbId || !docPath) return;
+  if (!confirm(`删除知识库文档？\n${docPath}`)) return;
+  const relative = docPath.startsWith(`${kbId}/`) ? docPath.slice(kbId.length + 1) : docPath;
+  try {
+    await request(`/admin/kbs/${encodeURIComponent(kbId)}/documents/${relative.split('/').map(encodeURIComponent).join('/')}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    state.admin.activeKbId = kbId;
+    await loadAdmin();
+    toast('文档已删除，建议重建索引');
+  } catch (err) {
+    toast(err.message || '删除失败');
+  }
+}
+async function reindexKnowledgeBase(reset) {
+  const message = reset ? '全量重建会先清空现有向量索引，继续吗？' : '开始增量重建知识库索引？';
+  if (!confirm(message)) return;
+  toast(reset ? '正在全量重建索引...' : '正在增量重建索引...');
+  try {
+    const data = await request('/admin/kbs/reindex', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ reset }),
+    });
+    await loadAdmin();
+    toast(`索引完成：新增/更新 ${data.result?.changed_source_count ?? '-'} 个文件`);
+  } catch (err) {
+    toast(err.message || '索引失败');
+  }
 }
 function currentRolePolicy() {
   const role = $('roleEditor')?.value;
@@ -1172,6 +1318,7 @@ async function refreshAll() {
   $('currentUser').textContent = state.me.username;
   $('currentRole').textContent = state.me.role;
   $('adminBtn').classList.toggle('hidden', state.me.role !== 'admin');
+  document.querySelector('[data-tab="admin"]')?.classList.toggle('hidden', state.me.role !== 'admin');
   renderKbPopover();
   renderTopbar();
   if (state.me.role === 'admin') await loadAdmin();
