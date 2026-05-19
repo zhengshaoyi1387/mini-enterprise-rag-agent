@@ -61,7 +61,8 @@ def _must_preserve_locked_fact(state: dict[str, Any], locked_fact: str) -> bool:
     intent = str(state.get("intent") or "")
     if route == "reject" or intent in {"permission_required", "need_clarification", "clarification_required"}:
         return True
-    if (state.get("rag_answerability") or {}).get("answerable") is False:
+    assessment = state.get("rag_answerability") or {}
+    if assessment.get("answerable") is False or assessment.get("mode") == "partial":
         return True
     text = f"{state.get('question') or ''}\n{state.get('standalone_query') or ''}".lower()
     return "event_id" in text and any(token in text for token in ("event_id=all", "event_id = all", "event_id=multiple", "event_id_from"))
@@ -80,6 +81,7 @@ def _answer_preserves_locked_fact(answer: str, locked_fact: str) -> bool:
         "需要",
         "澄清",
         "当前可访问知识库未找到明确依据",
+        "知识库子问题缺少明确依据",
         "证据不足",
         "没有匹配",
     ]
@@ -124,6 +126,15 @@ class AnswerService:
         report = self.rag_answerability_gate.evaluate(state)
         state["rag_answerability"] = report.to_dict()
         if report.answerable:
+            if getattr(report, "mode", "") == "partial" and getattr(report, "unsupported_task_ids", ()):  # keep non-RAG facts locked
+                template_answer = _tool_template_answer(state)
+                if template_answer:
+                    rag_targets = "、".join(_rag_task_titles(state)) or "知识库部分"
+                    message = report.message or "当前可访问知识库未找到明确依据。"
+                    if "当前可访问知识库未找到明确依据" not in message:
+                        message = f"当前可访问知识库未找到明确依据；{message}"
+                    evidence_notice = f"关于{rag_targets}：{message}"
+                    return f"{template_answer}\n\n{evidence_notice}"
             return None
         state.setdefault("observations", []).append(
             {
@@ -164,7 +175,7 @@ class AnswerService:
             question=state.get("question", ""),
             standalone_query=state.get("standalone_query", state.get("question", "")),
             route=state.get("route", "direct"),
-            model_name=self.settings.qwen_chat_model,
+            model_name=self.settings.answer_model or self.settings.qwen_chat_model,
             evidence_assessment=state.get("rag_answerability", {}),
             evidence_text=evidence_text,
             selected_tool=None,
@@ -198,7 +209,7 @@ class AnswerService:
             system=GENERATE_ANSWER_SYSTEM,
             user=user_prompt,
             llm=self.answer_llm,
-            model_name=self.settings.qwen_chat_model,
+            model_name=self.settings.answer_model or self.settings.qwen_chat_model,
         )
         answer = answer.strip()
         if _must_preserve_locked_fact(state, locked_fact) and not _answer_preserves_locked_fact(answer, locked_fact):
@@ -239,7 +250,7 @@ class AnswerService:
             self.append_llm_call_trace(
                 state,
                 node="generate_answer",
-                model=self.settings.qwen_chat_model,
+                model=self.settings.answer_model or self.settings.qwen_chat_model,
                 system=GENERATE_ANSWER_SYSTEM,
                 user=user_prompt,
                 output=answer,
@@ -253,7 +264,7 @@ class AnswerService:
                 system=GENERATE_ANSWER_SYSTEM,
                 user=user_prompt,
                 llm=llm,
-                model_name=self.settings.qwen_chat_model,
+                model_name=self.settings.answer_model or self.settings.qwen_chat_model,
             ).strip()
             if answer:
                 yield answer

@@ -42,6 +42,7 @@ PLAN_WITH_LLM_SYSTEM = """
 - 考勤异常代表 late + leave + absent；明细/记录/谁/名单时 include_records=true 且 group_by=employee。
 - 企业制度/政策/说明走 kind=rag；mixed 请求必须同时保留 tool 和 rag 两类任务。
 - 不要新增用户没问的任务。
+- 只输出紧凑 JSON；空值用 JSON null，不要输出字符串 "null"。
 
 只输出 JSON。
 """.strip()
@@ -75,6 +76,9 @@ GENERATE_ANSWER_SYSTEM = """
 - 不要编造会议、考勤、工具结果、权限结果或 RAG 引用。
 - RAG 引用只能使用 packet 中实际 retrieved evidence 的 source/title_path/chunk_id。
 - evidence 不足时明确说当前可访问知识库没有找到明确依据。
+- 如果某个子任务只有“相关内容”而没有完整“证据”，可以说明“没有找到完整明确依据，但检索到以下相关内容”，然后谨慎概括相关内容；不得把相关内容说成完整结论。
+- mixed/多子任务场景若 evidence_assessment.mode=partial，必须回答 supported task，并对 unsupported task 单独说明证据不足；若 unsupported task 带有相关内容，可以按“相关参考”列出。不要整体拒答。
+- 只有 evidence_assessment.mode=none 或全部 RAG 子任务均无证据时，才整体按证据不足处理。
 - 权限/安全/澄清事件是 locked facts，只能解释原因，不能改写成允许执行。
 - tool answer 不要添加 RAG 引用；RAG answer 不要伪造 tool 结果。
 - 日历/考勤结果使用工具返回的日期、星期、时间、标题、地点、员工/部门等字段。
@@ -156,12 +160,26 @@ def compact_evidence_assessment(evidence_assessment: dict[str, Any] | None) -> d
     if not evidence_assessment:
         return {}
     output: dict[str, Any] = {}
-    for key in ("answerable", "is_sufficient", "can_answer_partial", "should_continue_retrieval"):
+    for key in (
+        "answerable",
+        "status",
+        "mode",
+        "answer_sufficiency",
+        "unsupported_task_ids",
+        "supported_task_ids",
+        "related_task_ids",
+        "is_sufficient",
+        "can_answer_partial",
+        "should_continue_retrieval",
+    ):
         if key in evidence_assessment:
             output[key] = evidence_assessment.get(key)
     message = str(evidence_assessment.get("message") or evidence_assessment.get("reason") or "").strip()
     if message:
         output["message"] = truncate(message, 180)
+    notes = evidence_assessment.get("notes")
+    if isinstance(notes, list) and notes:
+        output["notes"] = [truncate(str(item), 120) for item in notes[:5]]
     return output
 
 

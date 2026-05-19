@@ -9,21 +9,13 @@ from mini_rag.graph.utils import get_message_content, safe_json_loads
 
 
 RAG_EVIDENCE_JUDGE_SYSTEM = """
-你是企业 RAG 的证据审查器，不回答用户，只判断候选证据是否足够回答原问题。
-
-硬规则：
-- 判断对象只能是 original_question / rag_task_objective，不得把 retrieval_query 当成问题主题。
-- 不要因为候选证据“看起来相关”就判定充分；必须检查它是否覆盖用户问题的关键约束、对象、流程、条件、金额、时间、例外或结论。
-- 只能从 candidate_sources 中选择 supporting_source_ids，不得创造证据，不得选择不存在的 source_id。
-- 如果证据只相关但不完整，answerable=false 或 sufficiency=low，并写出 missing_evidence。
-- missing_evidence 必须和 reason 保持一致。
-- 如果 reason 中提到“缺少”“不足”“未覆盖”“没有说明”某些信息，必须把这些信息逐项写入 missing_evidence。
-- 如果 answerable=true 且 missing_evidence=[]，reason 只能说明“当前证据足以回答用户当前问题”，不要再说缺少其他内容。
-- 对概要型问题，如果证据足以做概要介绍但不足以展开完整细节，可以判 answerable=true、sufficiency=medium、missing_evidence=[]；reason 应表述为“足以回答概要问题，但不支持进一步展开未被用户要求的细节”。
-- 不要因为候选证据没有覆盖用户未要求的细节，就把它写成缺失证据。
-- 如果问题只是概要介绍，证据覆盖核心主题即可 sufficiency=medium/high；如果问题询问具体金额、材料、审批节点、日期、责任人或例外，则必须覆盖这些要点才可 answerable=true。
-- 不得扩大用户问题范围，不得要求检索用户没有问的新主题。
-- 只输出 JSON，不要输出自然语言解释。
+你是企业 RAG Evidence Judge，只输出 JSON。
+只评估 current_task_id 的 task_question / rag_task_objective；original_question 仅作背景，retrieval_query 不是回答主题。
+只能选择 candidate_sources 中已有 source_id，不得创造证据、扩大问题或要求其他子任务证据。
+answerable=true：证据覆盖当前任务核心对象/条件/流程/结论，missing_evidence=[]。
+证据不足或只相关但不完整：answerable=false，sufficiency=low，missing_evidence 只写当前任务缺失点。
+若候选证据和当前任务相关但不足以完整回答，可把这些候选 source_id 放入 related_source_ids；answerable=false 时 supporting_source_ids 必须为空。
+概要问题核心证据足够时可判 medium。
 """.strip()
 
 
@@ -32,6 +24,7 @@ class EvidenceJudgeDecision:
     answerable: bool = False
     sufficiency: str = "low"
     supporting_source_ids: tuple[str, ...] = ()
+    related_source_ids: tuple[str, ...] = ()
     missing_evidence: tuple[str, ...] = ()
     reason: str = ""
 
@@ -40,6 +33,7 @@ class EvidenceJudgeDecision:
             "answerable": self.answerable,
             "sufficiency": self.sufficiency,
             "supporting_source_ids": list(self.supporting_source_ids),
+            "related_source_ids": list(self.related_source_ids),
             "missing_evidence": list(self.missing_evidence),
             "reason": self.reason,
         }
@@ -90,7 +84,7 @@ def select_sources_by_ids(candidate_sources: list[dict[str, Any]], source_ids: l
     return output
 
 
-def _compact_candidate_sources(candidate_sources: list[dict[str, Any]], *, max_sources: int = 8, max_preview_chars: int = 900) -> list[dict[str, Any]]:
+def _compact_candidate_sources(candidate_sources: list[dict[str, Any]], *, max_sources: int = 6, max_preview_chars: int = 650) -> list[dict[str, Any]]:
     compact: list[dict[str, Any]] = []
     for item in attach_source_ids(candidate_sources)[:max_sources]:
         src = item.source
@@ -155,18 +149,23 @@ def build_evidence_judge_prompt(
     rag_task_objective: str,
     candidate_sources: list[dict[str, Any]],
     attempt: int,
+    current_task_id: str | None = None,
+    task_question: str | None = None,
 ) -> str:
     payload = {
         "original_question": original_question,
+        "current_task_id": current_task_id or "",
+        "task_question": task_question or rag_task_objective,
         "rag_task_objective": rag_task_objective,
         "attempt": attempt,
         "candidate_sources": _compact_candidate_sources(candidate_sources),
         "output_schema": {
             "answerable": True,
-            "sufficiency": "high | medium | low",
-            "supporting_source_ids": ["source_id from candidate_sources only"],
-            "missing_evidence": ["缺失的关键证据，若无则为空数组"],
-            "reason": "一句话说明判断依据",
+            "sufficiency": "high|medium|low",
+            "supporting_source_ids": ["candidate source_id only; empty when answerable=false"],
+            "related_source_ids": ["candidate source_id only; optional when answerable=false but related"],
+            "missing_evidence": [],
+            "reason": "一句话",
         },
     }
     return json.dumps(payload, ensure_ascii=False, indent=2, default=str)
@@ -181,6 +180,8 @@ def judge_rag_evidence_with_llm(
     attempt: int = 1,
     trace_state: dict[str, Any] | None = None,
     model_name: str = "control_llm",
+    current_task_id: str | None = None,
+    task_question: str | None = None,
 ) -> EvidenceJudgeDecision:
     if not candidate_sources:
         return EvidenceJudgeDecision(
@@ -202,6 +203,8 @@ def judge_rag_evidence_with_llm(
         rag_task_objective=rag_task_objective,
         candidate_sources=candidate_sources,
         attempt=attempt,
+        current_task_id=current_task_id,
+        task_question=task_question,
     )
     start = time.perf_counter()
     raw = ""
@@ -241,18 +244,34 @@ def judge_rag_evidence_with_llm(
     if sufficiency not in {"high", "medium", "low"}:
         sufficiency = "low"
     ids = _coerce_str_tuple((parsed or {}).get("supporting_source_ids"))
+    related_ids = _coerce_str_tuple((parsed or {}).get("related_source_ids"))
     valid_ids = {item.source_id for item in attach_source_ids(candidate_sources)}
     selected = tuple(source_id for source_id in ids if source_id in valid_ids)
+    related = tuple(source_id for source_id in related_ids if source_id in valid_ids)
     missing = _coerce_str_tuple((parsed or {}).get("missing_evidence"))
-    answerable = bool((parsed or {}).get("answerable")) and sufficiency in {"high", "medium"} and bool(selected)
-    if bool((parsed or {}).get("answerable")) and not selected:
+
+    raw_answerable = bool((parsed or {}).get("answerable"))
+    answerable = raw_answerable and sufficiency in {"high", "medium"} and bool(selected)
+    if raw_answerable and not selected:
         missing = missing or ("LLM judge 未选择任何候选 source_id",)
         answerable = False
         sufficiency = "low"
+
+    # Hard structural normalization: only fully answerable judgments may expose
+    # supporting_source_ids.  If the LLM returns IDs while answerable=false, keep
+    # them as related_source_ids so the final answer can say "未找到完整依据，
+    # 但检索到以下相关内容" without treating them as sufficient support.
+    if not answerable:
+        if not related and selected:
+            related = selected
+        selected = ()
+        sufficiency = "low"
+
     return EvidenceJudgeDecision(
         answerable=answerable,
         sufficiency=sufficiency,
         supporting_source_ids=selected,
+        related_source_ids=related,
         missing_evidence=missing,
         reason=str((parsed or {}).get("reason") or ""),
     )

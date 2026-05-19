@@ -43,12 +43,14 @@ def route_answer_policy(state: dict[str, Any]) -> AnswerPolicyDecision:
         return AnswerPolicyDecision("refusal_llm", True, "permission intent")
 
     kinds = _task_kinds(state)
-    if state.get("react_status") or ("tool" in kinds and "rag" in kinds):
-        return AnswerPolicyDecision("synthesis", True, "mixed local-react/tool-rag result")
-    if route == "rag" or kinds == {"rag"}:
+    if "tool" in kinds and "rag" in kinds:
+        return AnswerPolicyDecision("synthesis", True, "mixed tool-rag result")
+    if kinds == {"rag"} or route == "rag":
         return AnswerPolicyDecision("rag_grounded", True, "pure rag answer")
-    if route == "tool" or kinds == {"tool"}:
+    if kinds == {"tool"} or route == "tool":
         return AnswerPolicyDecision("tool_llm", True, "pure tool answer")
+    if state.get("react_status"):
+        return AnswerPolicyDecision("synthesis", True, "react execution result")
     if route == "direct":
         return AnswerPolicyDecision("direct_llm", True, "direct non-template answer")
     return AnswerPolicyDecision("direct_llm", True, "default answer llm")

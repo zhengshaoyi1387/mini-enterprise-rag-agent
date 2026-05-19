@@ -108,26 +108,36 @@
     "weekday_zh": "星期三"
   },
   {
+    "event_id": "EVT-20260521-0003",
+    "date": "2026-05-21",
+    "title": "迎新活动",
+    "type": "activity",
+    "department": "all",
+    "time": "14:00-15:00",
+    "location": "办公室A",
+    "description": ""
+  },
+  {
     "event_id": "EVT-20260521-0001",
     "date": "2026-05-21",
     "title": "季度经营复盘",
     "type": "meeting",
     "department": "all",
-    "time": "14:00-15:00",
+    "time": "21:00-21:30",
     "location": "会议室 A",
     "description": "固定 ID，用于 update/delete 评测",
     "weekday_zh": "星期四"
   },
   {
-    "event_id": "EVT-20260521-0002",
-    "date": "2026-05-21",
-    "title": "公司团建",
-    "type": "activity",
-    "department": "all",
-    "time": "18:00-20:00",
-    "location": "团建餐厅",
-    "description": "第二个团建活动",
-    "weekday_zh": "星期四"
+    "event_id": "EVT-20260522-0002",
+    "date": "2026-05-22",
+    "title": "客户项目同步",
+    "type": "meeting",
+    "department": "销售部",
+    "time": "09:00-09:30",
+    "location": "会议室 B",
+    "description": "固定 ID，用于更新为客户复盘会",
+    "weekday_zh": "星期五"
   },
   {
     "event_id": "EVT-20260522-0001",
@@ -138,17 +148,6 @@
     "time": "10:00-11:00",
     "location": "线上会议室",
     "description": "研发安全培训",
-    "weekday_zh": "星期五"
-  },
-  {
-    "event_id": "EVT-20260522-0002",
-    "date": "2026-05-22",
-    "title": "客户项目同步",
-    "type": "meeting",
-    "department": "销售部",
-    "time": "15:00-16:00",
-    "location": "会议室 B",
-    "description": "固定 ID，用于更新为客户复盘会",
     "weekday_zh": "星期五"
   },
   {

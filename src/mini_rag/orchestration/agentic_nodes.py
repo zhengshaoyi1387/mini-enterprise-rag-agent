@@ -65,13 +65,25 @@ class AgenticRAGNodes:
         self.settings = settings
         self.context_store = SQLiteContextStore(settings.context_db_path)
         if llm is None:
-            from mini_rag.models.qwen import build_qwen_chat_model, build_qwen_control_model
+            from mini_rag.models.qwen import (
+                build_qwen_answer_model,
+                build_qwen_control_model,
+                build_qwen_planner_model,
+                build_qwen_rag_judge_model,
+                build_qwen_rag_reflect_model,
+            )
 
-            self.answer_llm = build_qwen_chat_model(settings)
+            self.answer_llm = build_qwen_answer_model(settings)
             self.control_llm = build_qwen_control_model(settings)
+            self.planner_llm = build_qwen_planner_model(settings)
+            self.rag_judge_llm = build_qwen_rag_judge_model(settings)
+            self.rag_reflect_llm = build_qwen_rag_reflect_model(settings)
         else:
             self.answer_llm = llm
             self.control_llm = llm
+            self.planner_llm = llm
+            self.rag_judge_llm = llm
+            self.rag_reflect_llm = llm
         self.llm = self.answer_llm
         self.retriever: Any | None = retriever
         self.tool_registry = build_default_tool_registry()
@@ -79,7 +91,14 @@ class AgenticRAGNodes:
         self.auth_store = SQLiteAuthStore(settings.auth_db_path)
         self._role_policy_snapshots: dict[str, Any] = {}
         self.calendar_task_resolver = CalendarTaskResolver()
-        self.rag_service = RAGRetrievalService(settings, self._get_retriever, self._get_role_policies, llm=self.control_llm)
+        self.rag_service = RAGRetrievalService(
+            settings,
+            self._get_retriever,
+            self._get_role_policies,
+            llm=self.control_llm,
+            judge_llm=self.rag_judge_llm,
+            reflect_llm=self.rag_reflect_llm,
+        )
         self.trace_builder = TraceBuilder(settings)
         self.answer_service = AnswerService(
             settings=settings,
@@ -193,6 +212,8 @@ class AgenticRAGNodes:
                     time_context=state.get("time_context_result") or {},
                 ),
                 default=default,
+                llm=self.planner_llm,
+                model_name=self._planner_model_name(),
             )
             normalized = self._normalize_runtime_plan(payload if isinstance(payload, dict) else default, question)
             state["raw_plan"] = normalized
@@ -465,6 +486,9 @@ class AgenticRAGNodes:
     def stream_generate_answer(self, state: AgentState):
         with NodeTimer(state, "answer_with_llm"):
             yield from self.answer_service.stream(state)
+            summary, details = summarize_answer(state)
+            append_mainline_step(state, stage="answer_with_llm", title="生成最终回答", summary=summary, details=details)
+            refresh_state_views(state)
 
     def update_memory(self, state: AgentState) -> AgentState:
         with NodeTimer(state, "update_memory"):
@@ -544,12 +568,66 @@ class AgenticRAGNodes:
         return call_tool_task
 
     def _make_rag_callback(self, state: AgentState):
-        def search_rag_task(task: dict[str, Any], action: dict[str, Any]) -> dict[str, Any]:
-            executable = dict(task)
-            query = str(action.get("rag_query") or executable.get("rag_query") or executable.get("query") or executable.get("objective") or "").strip()
+        def _pending_from_task(executable: dict[str, Any], action: dict[str, Any]) -> dict[str, Any]:
+            # In batched RAG execution every worker must use its own validated task query.
+            # The batch action keeps the first task's rag_query for action signature / scope
+            # checks, so using action.rag_query here would leak t1's query into t2/t3.
+            # For normal single-task LLM fallback we still allow action.rag_query as a last
+            # resort, but the validated task is the source of truth whenever it has a query.
+            query = str(
+                executable.get("rag_query")
+                or executable.get("query")
+                or action.get("rag_query")
+                or executable.get("objective")
+                or ""
+            ).strip()
             executable["query"] = query
+            return {
+                "task_id": executable.get("task_id"),
+                "objective": executable.get("objective") or query,
+                "query": query,
+                "top_k": self.settings.top_k,
+                "candidate_k": self.settings.candidate_k,
+                "next_action_ms": action.get("_next_action_ms", action.get("next_action_ms", 0)),
+                "skipped_next_action": action.get("_next_action_source") == "deterministic" or action.get("next_action_source") == "deterministic",
+            }
+
+        def search_rag_task(task: dict[str, Any], action: dict[str, Any]) -> dict[str, Any]:
+            batch_tasks = action.get("_batch_tasks") if isinstance(action.get("_batch_tasks"), list) else []
+            if batch_tasks:
+                pending_tasks = [_pending_from_task(dict(item), action) for item in batch_tasks if isinstance(item, dict)]
+                pending_tasks = [item for item in pending_tasks if str(item.get("query") or "").strip()]
+                if not pending_tasks:
+                    return {"status": "empty", "summary": "没有可检索的 RAG 任务", "batch_results": []}
+                state["current_task"] = dict(batch_tasks[0])
+                state["pending_search_tasks"] = pending_tasks
+                before = len(state.get("task_results") or [])
+                try:
+                    self.rag_service.retrieve(state)
+                except PermissionError as exc:
+                    return {"status": "blocked", "summary": str(exc), "raw_result": {"error": "permission denied"}, "facts": []}
+                new_results = [item for item in (state.get("task_results") or [])[before:] if isinstance(item, dict)]
+                by_task_id = {str(item.get("task_id") or ""): item for item in new_results}
+                batch_results: list[dict[str, Any]] = []
+                for pending in pending_tasks:
+                    task_id = str(pending.get("task_id") or "")
+                    latest = by_task_id.get(task_id, {})
+                    status = "success" if str(latest.get("status") or "") == "ok" else str(latest.get("status") or "empty")
+                    batch_results.append(
+                        {
+                            "task_id": task_id,
+                            "status": status,
+                            "summary": str(latest.get("evidence_summary") or latest.get("unsupported_reason") or ""),
+                            "raw_result": {"sources": latest.get("sources") or [], "candidate_sources": latest.get("candidate_sources") or []},
+                            "facts": latest.get("sources") or [],
+                        }
+                    )
+                return {"status": "success", "summary": "batched rag tasks completed", "batch_results": batch_results}
+
+            executable = dict(task)
+            pending = _pending_from_task(executable, action)
             state["current_task"] = executable
-            state["pending_search_tasks"] = [{"task_id": executable.get("task_id"), "objective": executable.get("objective") or query, "query": query, "top_k": self.settings.top_k, "candidate_k": self.settings.candidate_k}]
+            state["pending_search_tasks"] = [pending]
             before = len(state.get("task_results") or [])
             try:
                 self.rag_service.retrieve(state)
@@ -578,7 +656,8 @@ class AgenticRAGNodes:
             if not isinstance(raw_task, dict):
                 continue
             kind = str(raw_task.get("kind") or "").strip().lower()
-            tool = str(raw_task.get("tool_name") or raw_task.get("tool") or "").strip() or None
+            raw_tool_value = str(raw_task.get("tool_name") or raw_task.get("tool") or "").strip()
+            tool = None if raw_tool_value.lower() in {"", "null", "none"} else raw_tool_value
             if not kind:
                 kind = "tool" if tool else "rag" if raw_task.get("rag_query") or raw_task.get("query") else "answer"
             if kind == "direct":
@@ -586,7 +665,8 @@ class AgenticRAGNodes:
             if kind not in {"tool", "rag", "answer"}:
                 continue
             tool_input = raw_task.get("tool_input") if isinstance(raw_task.get("tool_input"), dict) else {}
-            action = str(raw_task.get("action") or tool_input.get("action") or "").strip() or None
+            raw_action_value = str(raw_task.get("action") or tool_input.get("action") or "").strip()
+            action = None if raw_action_value.lower() in {"", "null", "none"} else raw_action_value
             task = {
                 "task_id": str(raw_task.get("task_id") or raw_task.get("id") or f"t{idx}"),
                 "kind": kind,
@@ -910,6 +990,9 @@ class AgenticRAGNodes:
     def _append_llm_call_trace(self, state: AgentState, *, node: str, model: str, system: str, user: str, output: str, latency_ms: float, streaming: bool = False) -> dict[str, Any]:
         return self.trace_builder.append_llm_call_trace(state, node=node, model=model, system=system, user=user, output=output, latency_ms=latency_ms, streaming=streaming)
 
+    def _planner_model_name(self) -> str:
+        return str(self.settings.planner_model or self.settings.qwen_control_model or self.settings.qwen_chat_model)
+
     def _invoke_text(self, state: AgentState, node: str, system: str, user: str, llm: Any | None = None, model_name: str | None = None) -> str:
         model = model_name or self.settings.qwen_control_model or self.settings.qwen_chat_model
         start = time.perf_counter()
@@ -919,9 +1002,19 @@ class AgenticRAGNodes:
         self._append_llm_call_trace(state, node=node, model=model, system=system, user=user, output=content, latency_ms=elapsed_ms)
         return content
 
-    def _invoke_json(self, state: AgentState, node: str, system: str, user: str, default: dict[str, Any]) -> dict[str, Any]:
+    def _invoke_json(
+        self,
+        state: AgentState,
+        node: str,
+        system: str,
+        user: str,
+        default: dict[str, Any],
+        *,
+        llm: Any | None = None,
+        model_name: str | None = None,
+    ) -> dict[str, Any]:
         before = len(state.get("llm_calls") or [])
-        raw = self._invoke_text(state=state, node=node, system=system, user=user, llm=self.control_llm)
+        raw = self._invoke_text(state=state, node=node, system=system, user=user, llm=llm or self.control_llm, model_name=model_name)
         parsed = safe_json_loads(raw, default=None)
         payload = parsed if isinstance(parsed, dict) else default
         calls = state.get("llm_calls") or []

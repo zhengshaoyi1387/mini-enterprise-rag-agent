@@ -108,6 +108,7 @@ class TraceBuilder:
             "skipped_reflection_reason": state.get("skipped_reflection_reason"),
             "react_status": state.get("react_status", ""),
             "react_steps": state.get("react_steps", []),
+            "rag_latency_summary": state.get("rag_latency_summary", {}),
             "answer_policy": state.get("answer_policy", {}),
             "node_trace": state.get("node_trace", []),
             "mainline_log": state.get("mainline_log", []),

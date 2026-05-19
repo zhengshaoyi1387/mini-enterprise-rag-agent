@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -58,6 +59,10 @@ def _compact_raw_result(raw: Any) -> dict[str, Any]:
 
 def _action_signature(action: dict[str, Any], task: dict[str, Any]) -> str:
     kind = str(action.get("next_action") or "").strip()
+    batch_tasks = action.get("_batch_tasks") if isinstance(action.get("_batch_tasks"), list) else []
+    if kind == "search_rag" and batch_tasks:
+        ids = [str(item.get("task_id") or "") for item in batch_tasks if isinstance(item, dict)]
+        return "search_rag_batch:" + ",".join(ids)
     if kind == "call_tool":
         tool = str(action.get("tool_name") or task.get("tool") or task.get("tool_name") or "").strip()
         tool_input = action.get("tool_input") if isinstance(action.get("tool_input"), dict) else task.get("tool_input")
@@ -112,6 +117,65 @@ class ReActExecutor:
             }
         return {"next_action": "finish", "task_id": _task_id(task), "finish_reason": "answer task uses resolved facts"}
 
+
+    @staticmethod
+    def _validated_executable_ids(state: dict[str, Any]) -> set[str]:
+        validation = state.get("plan_validation") if isinstance(state.get("plan_validation"), dict) else {}
+        if str(validation.get("validation_status") or "").lower() not in {"valid", "partial"}:
+            return set()
+        executable = validation.get("executable_tasks") if isinstance(validation.get("executable_tasks"), list) else []
+        return {_task_id(task) for task in executable if isinstance(task, dict) and _task_id(task)}
+
+    @staticmethod
+    def _can_direct_execute(state: dict[str, Any], task: dict[str, Any], completed_ids: set[str]) -> bool:
+        task_id = _task_id(task)
+        if not task_id or task_id not in ReActExecutor._validated_executable_ids(state):
+            return False
+        if any(str(dep).strip() for dep in (task.get("depends_on") or [])):
+            return False
+        kind = str(task.get("kind") or "").lower()
+        if kind == "tool":
+            tool = str(task.get("tool") or task.get("tool_name") or "").strip()
+            action = str(task.get("action") or (task.get("tool_input") or {}).get("action") or "").strip()
+            return bool(tool and action and isinstance(task.get("tool_input") or {}, dict)) and task_id not in completed_ids
+        if kind == "rag":
+            query = str(task.get("rag_query") or task.get("query") or task.get("objective") or "").strip()
+            return bool(query) and task_id not in completed_ids
+        return False
+
+    @staticmethod
+    def _direct_action_from_validated_plan(state: dict[str, Any], remaining: list[dict[str, Any]], completed_ids: set[str]) -> dict[str, Any] | None:
+        if not remaining:
+            return None
+        batch = ReActExecutor._direct_rag_batch_from_validated_plan(state, remaining, completed_ids)
+        if batch is not None:
+            return batch
+        task = remaining[0]
+        if not ReActExecutor._can_direct_execute(state, task, completed_ids):
+            return None
+        return ReActExecutor._fallback_action([task])
+
+    @staticmethod
+    def _direct_rag_batch_from_validated_plan(state: dict[str, Any], remaining: list[dict[str, Any]], completed_ids: set[str]) -> dict[str, Any] | None:
+        if not remaining or str(remaining[0].get("kind") or "").lower() != "rag":
+            return None
+        batch: list[dict[str, Any]] = []
+        for task in remaining:
+            if str(task.get("kind") or "").lower() != "rag":
+                continue
+            if not ReActExecutor._can_direct_execute(state, task, completed_ids):
+                continue
+            batch.append(task)
+        if len(batch) <= 1:
+            return None
+        first = batch[0]
+        return {
+            "next_action": "search_rag",
+            "task_id": _task_id(first),
+            "rag_query": first.get("rag_query") or first.get("query") or first.get("objective") or "",
+            "_batch_tasks": [dict(item) for item in batch],
+        }
+
     def _coerce_action(self, action: Any, remaining: list[dict[str, Any]]) -> dict[str, Any]:
         if not isinstance(action, dict):
             return self._fallback_action(remaining)
@@ -163,6 +227,21 @@ class ReActExecutor:
         remaining_ids = {_task_id(candidate) for candidate in remaining}
         if task_id and task_id not in remaining_ids:
             raise ReActGuardrailViolation(f"action repeats completed task: {task_id}")
+        batch_tasks = action.get("_batch_tasks") if isinstance(action.get("_batch_tasks"), list) else []
+        if batch_tasks:
+            if name != "search_rag":
+                raise ReActGuardrailViolation("batch execution only supports search_rag")
+            for batch_task in batch_tasks:
+                if not isinstance(batch_task, dict):
+                    raise ReActGuardrailViolation("invalid batch task")
+                batch_task_id = _task_id(batch_task)
+                if batch_task_id not in remaining_ids:
+                    raise ReActGuardrailViolation(f"batch task outside remaining plan: {batch_task_id}")
+                if str(batch_task.get("kind") or "").lower() != "rag":
+                    raise ReActGuardrailViolation("batch execution only supports rag tasks")
+                deps = [str(dep).strip() for dep in (batch_task.get("depends_on") or []) if str(dep).strip()]
+                if deps:
+                    raise ReActGuardrailViolation(f"batch task has dependencies: {batch_task_id}")
         if name == "call_tool" and str(task.get("kind") or "") != "tool":
             raise ReActGuardrailViolation("call_tool action is not approved for this task")
         if name == "search_rag" and str(task.get("kind") or "") != "rag":
@@ -199,9 +278,20 @@ class ReActExecutor:
                 observations.append({"type": "react_observation", **finish})
                 return ReActExecutionResult(status="success", steps=tuple(steps), finish_reason="all tasks completed")
 
-            action = self._coerce_action(next_action(state, step_number, remaining), remaining)
             completed_ids = {str(item) for item in (state.get("completed_tasks") or [])}
             completed_ids.update({_task_id(task) for task in tasks if _task_id(task) not in {_task_id(item) for item in remaining}})
+            direct_action = self._direct_action_from_validated_plan(state, remaining, completed_ids)
+            if direct_action is not None:
+                action = self._coerce_action(direct_action, remaining)
+                next_action_ms = 0.0
+                next_action_source = "deterministic"
+            else:
+                next_action_started = time.perf_counter()
+                action = self._coerce_action(next_action(state, step_number, remaining), remaining)
+                next_action_ms = round((time.perf_counter() - next_action_started) * 1000, 2)
+                next_action_source = "llm"
+            action["_next_action_ms"] = next_action_ms
+            action["_next_action_source"] = next_action_source
             self._validate_action_scope(action, remaining, tasks, completed_ids)
             task = self._task_by_action(tasks, action)
             name = str(action.get("next_action") or "")
@@ -241,23 +331,55 @@ class ReActExecutor:
             seen_signatures.add(signature)
 
             raw_observation = call_tool(task, action) if name == "call_tool" else search_rag(task, action)
-            status = str(raw_observation.get("status") or "success")
-            task_id = _task_id(task)
-            if status in {"success", "ok", "empty", "no_evidence"} and task_id and task_id not in set(state.get("completed_tasks") or []):
-                state.setdefault("completed_tasks", []).append(task_id)
-            step = {
-                "step": step_number,
-                "task_id": task_id,
-                "action": name,
-                "status": status,
-                "summary": str(raw_observation.get("summary") or ""),
-                "raw_result": _compact_raw_result(raw_observation.get("raw_result") or {}),
-                "facts": raw_observation.get("facts") or [],
-            }
-            steps.append(step)
-            observations.append({"type": "react_observation", **step})
-            if status in {"blocked", "need_clarification", "failed", "error"}:
-                return ReActExecutionResult(status=status, steps=tuple(steps), finish_reason=step["summary"])
+            batch_results = raw_observation.get("batch_results") if isinstance(raw_observation.get("batch_results"), list) else []
+            if batch_results:
+                terminal_status = "success"
+                terminal_summary = "all batched rag tasks completed"
+                for item in batch_results:
+                    if not isinstance(item, dict):
+                        continue
+                    item_status = str(item.get("status") or "success")
+                    item_task_id = str(item.get("task_id") or "").strip()
+                    if item_status in {"success", "ok", "empty", "no_evidence"} and item_task_id and item_task_id not in set(state.get("completed_tasks") or []):
+                        state.setdefault("completed_tasks", []).append(item_task_id)
+                    step = {
+                        "step": len(steps) + 1,
+                        "task_id": item_task_id,
+                        "action": name,
+                        "status": item_status,
+                        "summary": str(item.get("summary") or ""),
+                        "raw_result": _compact_raw_result(item.get("raw_result") or {}),
+                        "facts": item.get("facts") or [],
+                        "next_action_source": next_action_source,
+                        "next_action_ms": next_action_ms,
+                    }
+                    steps.append(step)
+                    observations.append({"type": "react_observation", **step})
+                    if item_status in {"blocked", "need_clarification", "failed", "error"} and terminal_status == "success":
+                        terminal_status = item_status
+                        terminal_summary = step["summary"]
+                if terminal_status != "success":
+                    return ReActExecutionResult(status=terminal_status, steps=tuple(steps), finish_reason=terminal_summary)
+            else:
+                status = str(raw_observation.get("status") or "success")
+                task_id = _task_id(task)
+                if status in {"success", "ok", "empty", "no_evidence"} and task_id and task_id not in set(state.get("completed_tasks") or []):
+                    state.setdefault("completed_tasks", []).append(task_id)
+                step = {
+                    "step": step_number,
+                    "task_id": task_id,
+                    "action": name,
+                    "status": status,
+                    "summary": str(raw_observation.get("summary") or ""),
+                    "raw_result": _compact_raw_result(raw_observation.get("raw_result") or {}),
+                    "facts": raw_observation.get("facts") or [],
+                    "next_action_source": next_action_source,
+                    "next_action_ms": next_action_ms,
+                }
+                steps.append(step)
+                observations.append({"type": "react_observation", **step})
+                if status in {"blocked", "need_clarification", "failed", "error"}:
+                    return ReActExecutionResult(status=status, steps=tuple(steps), finish_reason=step["summary"])
             next_remaining = self._remaining_tasks(state, self._tasks(state))
             executable_remaining = [
                 item for item in next_remaining if str(item.get("kind") or "").lower() in {"tool", "rag"}

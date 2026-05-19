@@ -32,11 +32,16 @@ class Settings(BaseSettings):
         alias="QWEN_BASE_URL",
     )
 
-    # 聊天模型，默认使用 qwen-plus。你也可以改成 qwen-turbo / qwen-max。
+    # 聊天模型，默认用于最终回答；你也可以改成 qwen-turbo / qwen-plus / qwen-max。
     qwen_chat_model: str = Field(default="qwen-max", alias="QWEN_CHAT_MODEL")
-    # 控制节点模型：用于理解、路由、规划、反思等结构化 JSON 任务。
-    # 默认不降级，继续使用 qwen_chat_model，确保质量优先；需要提速时可单独设为 qwen-plus/qwen-turbo。
+    # 控制节点模型：用于默认结构化 JSON 任务。
     qwen_control_model: str | None = Field(default="qwen-plus-2025-07-14", alias="QWEN_CONTROL_MODEL")
+    # 分层模型配置。默认继承现有模型，确保不设置环境变量时行为不变；
+    # 需要提速时可只把 Judge / Reflect 切到更快模型。
+    planner_model: str | None = Field(default=None, alias="PLANNER_MODEL")
+    rag_judge_model: str | None = Field(default=None, alias="RAG_JUDGE_MODEL")
+    rag_reflect_model: str | None = Field(default=None, alias="RAG_REFLECT_MODEL")
+    answer_model: str | None = Field(default=None, alias="ANSWER_MODEL")
 
     # 向量模型。text-embedding-v4 属于 Qwen3-Embedding 系列。
     qwen_embedding_model: str = Field(default="text-embedding-v4", alias="QWEN_EMBEDDING_MODEL")
@@ -89,6 +94,9 @@ class Settings(BaseSettings):
     # - entity_top_k/candidate_k 用于多实体解释类问题，减少每个实体的冗余证据。
     agent_reflect_max_rounds: int = Field(default=2, alias="AGENT_REFLECT_MAX_ROUNDS")
     agent_retrieval_workers: int = Field(default=4, alias="AGENT_RETRIEVAL_WORKERS")
+    # 多个独立 RAG 子任务的 pipeline 并发数。只并发无依赖的 RAG 读任务；
+    # 工具写操作仍由 ReActExecutor 串行执行。
+    agent_parallel_rag_tasks: int = Field(default=3, alias="AGENT_PARALLEL_RAG_TASKS")
     agent_max_search_tasks: int = Field(default=3, alias="AGENT_MAX_SEARCH_TASKS")
     agent_max_followup_tasks: int = Field(default=2, alias="AGENT_MAX_FOLLOWUP_TASKS")
     agent_completion_max_replans: int = Field(default=2, alias="AGENT_COMPLETION_MAX_REPLANS")

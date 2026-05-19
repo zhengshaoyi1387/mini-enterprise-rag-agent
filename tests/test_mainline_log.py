@@ -109,7 +109,6 @@ def test_rag_retry_mainline_log_summarizes_judge_reflect_and_supporting_count(tm
             '{"overall_intent":"rag","requires_tools":false,"requires_rag":true,'
             '"tasks":[{"task_id":"rag","kind":"rag","objective":"介绍公司的报销制度","rag_query":"公司报销制度"}],'
             '"answer_style":"concise"}',
-            '{"next_action":"search_rag","task_id":"rag","rag_query":"公司报销制度"}',
             '{"answerable":false,"sufficiency":"low","supporting_source_ids":[],"missing_evidence":["报销依据"],"reason":"第一次证据不足"}',
             '{"should_retry":true,"reason":"同主题补检索",'
             '"retrieval_query":"报销 费用报销 发票 支付凭证 审批流程 报销单 FIN-EXP-2026",'

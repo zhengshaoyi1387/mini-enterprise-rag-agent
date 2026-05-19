@@ -7,31 +7,46 @@
   <style>
     :root {
       color-scheme: light;
-      --bg: #ffffff;
-      --panel: #f7f7f8;
-      --panel-strong: #ececf1;
-      --sidebar: #171717;
-      --sidebar-soft: #212121;
-      --sidebar-hover: #2f2f2f;
-      --text: #202123;
-      --muted: #6b7280;
-      --line: #e5e7eb;
-      --accent: #10a37f;
-      --accent-dark: #0f8f70;
-      --danger: #c2410c;
-      --blue: #2563eb;
-      --shadow: 0 18px 50px rgba(0, 0, 0, .14);
-      --radius: 8px;
-      --sidebar-width: 300px;
-      --drawer-width: 420px;
+      --bg: #faf8f3;
+      --surface: #fffdf8;
+      --surface-soft: #f3eee5;
+      --surface-muted: #ebe4d8;
+      --panel: #fffaf2;
+      --panel-strong: #ede5d7;
+      --text: #26231f;
+      --muted: #766f65;
+      --subtle: #9b9387;
+      --border: rgba(38, 35, 31, .09);
+      --line: rgba(38, 35, 31, .09);
+      --accent: #2f6f58;
+      --accent-hover: #285f4b;
+      --accent-dark: #285f4b;
+      --accent-soft: #e7f0ea;
+      --danger: #b4532a;
+      --blue: #4d68a7;
+      --violet: #8a6d96;
+      --amber: #956f2a;
+      --radius-sm: 10px;
+      --radius: 14px;
+      --radius-lg: 20px;
+      --shadow-soft: 0 18px 55px rgba(74, 58, 38, .10);
+      --shadow: var(--shadow-soft);
+      --sidebar-width: 284px;
+      --drawer-width: 500px;
+      --chat-width: 900px;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; overflow: hidden; }
     body {
       margin: 0;
-      background: var(--bg);
+      background:
+        radial-gradient(circle at 15% -8%, rgba(210, 187, 142, .32), transparent 34%),
+        radial-gradient(circle at 95% 0%, rgba(47, 111, 88, .12), transparent 28%),
+        linear-gradient(180deg, #fbfaf7 0%, var(--bg) 42%, #f5efe4 100%),
+        var(--bg);
       color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+      font-size: 15px;
     }
     button, input, select, textarea { font: inherit; }
     button {
@@ -39,14 +54,16 @@
       border-radius: var(--radius);
       min-height: 36px;
       padding: 8px 12px;
-      background: var(--text);
+      background: #302a24;
       color: #fff;
       cursor: pointer;
       font-weight: 650;
+      transition: background .16s ease, border-color .16s ease, transform .16s ease, opacity .16s ease;
     }
-    button:hover { filter: brightness(.96); }
+    button:hover { filter: none; transform: translateY(-1px); }
     button:disabled { opacity: .55; cursor: not-allowed; }
-    button.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+    button.secondary { background: rgba(255,255,255,.72); color: var(--text); border: 1px solid var(--line); }
+    button.secondary:hover { background: #fff; border-color: rgba(47,111,88,.24); }
     button.ghost { background: transparent; color: inherit; border: 1px solid transparent; }
     button.icon {
       width: 36px;
@@ -55,19 +72,19 @@
       place-items: center;
       font-size: 15px;
     }
-    button.danger { background: #fff7ed; color: var(--danger); border: 1px solid #fed7aa; }
+    button.danger { background: #fff3eb; color: var(--danger); border: 1px solid #f1c3aa; }
     input, select, textarea {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: #fff;
+      background: rgba(255, 255, 255, .86);
       color: var(--text);
       padding: 10px 12px;
       outline: none;
     }
     input:focus, select:focus, textarea:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(16, 163, 127, .16);
+      box-shadow: 0 0 0 3px rgba(47, 111, 88, .14);
     }
     label { display: block; color: var(--muted); font-size: 12px; font-weight: 750; margin: 12px 0 6px; }
     .hidden { display: none !important; }
@@ -79,21 +96,88 @@
       display: grid;
       place-items: center;
       padding: 24px;
-      background: radial-gradient(circle at top, #f7faf8 0, #fff 42%);
+      background:
+        radial-gradient(circle at 20% 18%, rgba(47,111,88,.14), transparent 26%),
+        radial-gradient(circle at 82% 72%, rgba(149,111,42,.14), transparent 24%),
+        linear-gradient(145deg, #fbfaf7, #f3eee5);
+    }
+    .login-product-shell {
+      width: min(960px, 100%);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 420px;
+      gap: 34px;
+      align-items: center;
+    }
+    .login-story {
+      min-height: 520px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background:
+        linear-gradient(160deg, rgba(255,255,255,.76), rgba(255,250,242,.62)),
+        radial-gradient(circle at 76% 20%, rgba(47,111,88,.16), transparent 28%);
+      box-shadow: var(--shadow-soft);
+      padding: 34px;
+      display: grid;
+      align-content: space-between;
+      overflow: hidden;
+      position: relative;
+    }
+    .login-story::after {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      right: -80px;
+      bottom: -86px;
+      border-radius: 999px;
+      background: rgba(47,111,88,.10);
+      filter: blur(6px);
+    }
+    .login-story h2 {
+      margin: 0;
+      max-width: 560px;
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 1.04;
+      letter-spacing: 0;
+      color: #302a24;
+    }
+    .login-story p {
+      margin: 16px 0 0;
+      max-width: 520px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    .login-feature-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+    .login-feature {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.72);
+      padding: 8px 12px;
+      color: #4d4439;
+      font-weight: 760;
+      font-size: 13px;
     }
     .login-card {
       width: min(420px, 100%);
       border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: #fff;
-      padding: 28px;
-      box-shadow: 0 18px 48px rgba(17, 24, 39, .08);
+      border-radius: 24px;
+      background: rgba(255,253,248,.92);
+      padding: 30px;
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(16px);
     }
     .login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
     .brand-dot {
-      width: 36px;
-      height: 36px;
-      border-radius: var(--radius);
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
       background: var(--accent);
       color: #fff;
       display: grid;
@@ -101,9 +185,10 @@
       font-weight: 900;
     }
     .login-brand h1 { margin: 0; font-size: 23px; letter-spacing: 0; }
+    .login-subtitle { margin: -12px 0 18px 52px; color: var(--muted); line-height: 1.5; font-size: 13px; }
     .login-card button.primary { width: 100%; margin-top: 14px; background: var(--accent); }
     .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
-    .demo-account { min-height: 34px; font-size: 12px; }
+    .demo-account { min-height: 34px; font-size: 12px; border-radius: 999px; }
     .status { min-height: 20px; font-size: 13px; color: var(--muted); }
     .status.error { color: #b42318; }
     .status.ok { color: var(--accent-dark); }
@@ -114,25 +199,36 @@
       grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
       overflow: hidden;
     }
+    .app-shell { background: transparent; }
     .sidebar {
       min-width: 0;
       height: 100vh;
       min-height: 0;
       overflow: hidden;
-      background: var(--sidebar);
-      color: #f9fafb;
+      background: rgba(247, 243, 235, .92);
+      color: var(--text);
       display: flex;
       flex-direction: column;
-      border-right: 1px solid #0f0f0f;
+      border-right: 1px solid var(--line);
+      box-shadow: inset -1px 0 0 rgba(255,255,255,.45);
+      backdrop-filter: blur(18px);
     }
-    .side-top { padding: 12px; display: grid; gap: 10px; border-bottom: 1px solid #2a2a2a; }
-    .new-chat { width: 100%; text-align: left; background: transparent; border: 1px solid #3a3a3a; color: #fff; }
-    .side-search { background: var(--sidebar-soft); border-color: #303030; color: #fff; min-height: 36px; }
-    .side-search::placeholder { color: #9ca3af; }
+    .side-top { padding: 16px 14px 12px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); }
+    .new-chat {
+      width: 100%;
+      text-align: left;
+      background: #fffaf2;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 16px;
+      box-shadow: 0 8px 22px rgba(74,58,38,.06);
+    }
+    .side-search { background: rgba(255,255,255,.7); border-color: var(--line); color: var(--text); min-height: 38px; border-radius: 999px; }
+    .side-search::placeholder { color: var(--subtle); }
     .side-scroll { overflow: auto; padding: 8px; flex: 1; }
     .side-group-title {
       font-size: 12px;
-      color: #9ca3af;
+      color: var(--subtle);
       margin: 14px 8px 6px;
       font-weight: 750;
     }
@@ -145,9 +241,10 @@
       min-height: 42px;
       padding: 6px 8px;
       border-radius: var(--radius);
-      color: #ececf1;
+      color: #403a33;
     }
-    .chat-row:hover, .chat-row.active { background: var(--sidebar-hover); }
+    .chat-row:hover, .chat-row.active { background: rgba(255,255,255,.74); }
+    .chat-row.active { box-shadow: inset 0 0 0 1px rgba(47,111,88,.12); }
     .chat-title {
       overflow: hidden;
       text-overflow: ellipsis;
@@ -161,19 +258,19 @@
       min-height: 26px;
       padding: 0;
       background: transparent;
-      color: #d1d5db;
+      color: var(--muted);
       border: 0;
       display: grid;
       place-items: center;
       visibility: hidden;
     }
     .chat-row:hover .chat-action, .chat-row.active .chat-action { visibility: visible; }
-    .side-bottom { border-top: 1px solid #2a2a2a; padding: 12px; display: grid; gap: 10px; }
+    .side-bottom { border-top: 1px solid var(--line); padding: 12px; display: grid; gap: 10px; }
     .side-kbs {
       display: grid;
       gap: 8px;
       padding: 10px 8px 12px;
-      border-top: 1px solid #2a2a2a;
+      border-top: 1px solid var(--line);
     }
     .kb-list { display: flex; flex-wrap: wrap; gap: 6px; }
     .kb-chip {
@@ -183,8 +280,8 @@
       max-width: 100%;
       padding: 3px 8px;
       border-radius: 999px;
-      background: #1f2937;
-      color: #e5e7eb;
+      background: rgba(47,111,88,.10);
+      color: #2d604e;
       font-size: 12px;
       font-weight: 720;
       overflow: hidden;
@@ -211,8 +308,8 @@
       min-height: 22px;
       padding: 2px 7px;
       border-radius: 999px;
-      background: #064e3b;
-      color: #d1fae5;
+      background: var(--accent-soft);
+      color: var(--accent-hover);
       font-size: 12px;
       font-weight: 760;
     }
@@ -224,62 +321,117 @@
       overflow: hidden;
       position: relative;
       display: grid;
-      grid-template-rows: 58px minmax(0, 1fr);
-      background: #fff;
+      grid-template-rows: 64px minmax(0, 1fr);
+      background: linear-gradient(180deg, rgba(255,253,248,.82), rgba(250,248,243,.90));
     }
     .topbar {
-      border-bottom: 1px solid var(--line);
+      border-bottom: 1px solid rgba(38,35,31,.06);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 0 18px;
+      padding: 0 max(18px, calc((100vw - var(--sidebar-width) - var(--chat-width)) / 2));
+      min-width: 0;
     }
     .top-left { min-width: 0; display: flex; align-items: center; gap: 10px; }
     .top-title { min-width: 0; }
     .top-title h2 { margin: 0; font-size: 16px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .top-sub { font-size: 12px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .top-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+    .top-actions { position: relative; display: flex; align-items: center; gap: 8px; flex: none; }
+    .top-more-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 18;
+      width: 184px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,253,248,.98);
+      box-shadow: var(--shadow-soft);
+      padding: 6px;
+    }
+    .top-more-menu button {
+      width: 100%;
+      justify-content: flex-start;
+      text-align: left;
+      background: transparent;
+      color: var(--text);
+      border: 0;
+      min-height: 36px;
+      border-radius: 12px;
+      font-weight: 650;
+    }
+    .top-more-menu button:hover { background: var(--surface-soft); }
     .mobile-only { display: none; }
-    .chat-pane { min-height: 0; overflow: auto; background: #fff; }
+    .chat-pane { min-height: 0; overflow: auto; background: transparent; }
     .empty-state {
       min-height: 100%;
       display: grid;
       align-content: center;
       justify-items: center;
-      padding: 42px 22px;
+      padding: 42px 22px 190px;
     }
-    .empty-state h1 { margin: 0 0 18px; font-size: clamp(26px, 4vw, 38px); letter-spacing: 0; }
+    .hero-surface {
+      background:
+        linear-gradient(180deg, rgba(255,253,248,.56), rgba(255,253,248,0)),
+        radial-gradient(circle at 50% 38%, rgba(47, 111, 88, .08), transparent 30%);
+    }
+    .empty-state h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 42px); letter-spacing: 0; }
+    .empty-kicker {
+      margin: 0 0 22px;
+      color: var(--muted);
+      line-height: 1.6;
+      text-align: center;
+      max-width: 680px;
+    }
     .prompt-grid {
       width: min(760px, 100%);
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
+      gap: 12px;
     }
     .prompt-card {
       text-align: left;
-      background: #fff;
+      background: rgba(255,253,248,.80);
       color: var(--text);
       border: 1px solid var(--line);
-      min-height: 72px;
-      padding: 12px;
+      border-radius: 18px;
+      min-height: 78px;
+      padding: 14px;
       font-weight: 650;
+      box-shadow: 0 12px 30px rgba(74, 58, 38, .07);
     }
+    .prompt-card:hover { border-color: rgba(47,111,88,.32); transform: translateY(-2px); background: #fffdf8; }
     .prompt-card small { display: block; color: var(--muted); margin-top: 4px; line-height: 1.4; font-weight: 500; }
     .messages {
-      width: min(820px, 100%);
+      width: min(var(--chat-width), 100%);
       margin: 0 auto;
-      padding: 26px 18px 190px;
+      padding: 30px 24px 210px;
     }
     .message {
       display: grid;
       grid-template-columns: 34px minmax(0, 1fr);
       gap: 14px;
-      padding: 18px 0;
-      border-bottom: 1px solid #f2f2f2;
+      padding: 22px 0;
+      border-bottom: 0;
+      animation: messageIn .18s ease-out;
+    }
+    @keyframes messageIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .message:last-child { border-bottom: 0; }
-    .message.user .avatar { background: #111827; }
+    .message.user { grid-template-columns: minmax(0, 1fr) 34px; }
+    .message.user .avatar { background: #665a4c; grid-column: 2; grid-row: 1; }
+    .message.user .message-body { grid-column: 1; grid-row: 1; justify-self: end; max-width: min(680px, 100%); }
+    .message.user .message-role { text-align: right; }
+    .message.user .message-text {
+      background: #efe7da;
+      border: 1px solid rgba(38,35,31,.05);
+      border-radius: 20px 20px 6px 20px;
+      padding: 12px 14px;
+      box-shadow: 0 8px 20px rgba(74,58,38,.05);
+    }
     .message.assistant .avatar { background: var(--accent); }
     .message-body { min-width: 0; }
     .message-role { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
@@ -287,14 +439,51 @@
       white-space: pre-wrap;
       overflow-wrap: anywhere;
       line-height: 1.72;
-      font-size: 15px;
+      font-size: 15.5px;
+    }
+    .assistant-thinking {
+      display: grid;
+      gap: 12px;
+      margin-top: 4px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,253,248,.86);
+      box-shadow: 0 10px 24px rgba(74, 58, 38, .06);
+    }
+    .thinking-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 760;
+      color: #34423c;
+    }
+    .thinking-wave {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      width: 38px;
+      height: 18px;
+    }
+    .thinking-wave span {
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: var(--accent);
+      animation: thinkingPulse 1.05s ease-in-out infinite;
+    }
+    .thinking-wave span:nth-child(2) { animation-delay: .16s; }
+    .thinking-wave span:nth-child(3) { animation-delay: .32s; }
+    @keyframes thinkingPulse {
+      0%, 80%, 100% { transform: translateY(0); opacity: .35; }
+      40% { transform: translateY(-6px); opacity: 1; }
     }
     .message-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
       margin-top: 10px;
-      opacity: .75;
+      opacity: .45;
     }
     .message-actions button { min-height: 30px; font-size: 12px; padding: 5px 8px; }
     .message:hover .message-actions { opacity: 1; }
@@ -312,29 +501,61 @@
       border-radius: 999px;
       font-size: 12px;
       font-weight: 720;
-      background: #eef2ff;
-      color: #1d4ed8;
+      background: rgba(77,104,167,.10);
+      color: #415a93;
     }
-    .pill.green { background: #ecfdf5; color: #047857; }
-    .pill.gray { background: #f3f4f6; color: #4b5563; }
+    .pill.green { background: var(--accent-soft); color: var(--accent-hover); }
+    .pill.gray { background: rgba(38,35,31,.06); color: var(--muted); }
+    .mainline-toggle {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 4px 0;
+      min-height: 28px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .mainline-toggle:hover { color: var(--accent-hover); background: transparent; transform: none; }
+    .inline-mainline {
+      margin-top: 8px;
+      border-left: 2px solid rgba(47,111,88,.22);
+      padding-left: 12px;
+    }
+    .source-collapse {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,253,248,.78);
+      overflow: hidden;
+    }
+    .source-collapse summary {
+      cursor: pointer;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 760;
+      list-style: none;
+    }
+    .source-collapse summary::-webkit-details-marker { display: none; }
+    .source-collapse-body { padding: 0 12px 12px; display: grid; gap: 8px; }
     .composer-wrap {
       position: absolute;
       left: 0;
       right: 0;
       bottom: 0;
       z-index: 12;
-      background: linear-gradient(to top, #fff 72%, rgba(255,255,255,.86));
-      padding: 14px 18px 18px;
+      background: linear-gradient(to top, rgba(250,248,243,.98) 72%, rgba(250,248,243,0));
+      padding: 14px 18px 20px;
       pointer-events: none;
     }
     .composer {
-      width: min(820px, 100%);
+      width: min(var(--chat-width), 100%);
       margin: 0 auto;
       border: 1px solid var(--line);
-      border-radius: 12px;
-      background: #fff;
-      box-shadow: 0 8px 32px rgba(0,0,0,.08);
-      padding: 10px;
+      border-radius: 22px;
+      background: rgba(255,253,248,.94);
+      box-shadow: 0 16px 48px rgba(74,58,38,.13);
+      padding: 12px;
       pointer-events: auto;
     }
     .composer textarea {
@@ -352,7 +573,7 @@
       justify-content: space-between;
       gap: 10px;
       padding: 6px 4px 0;
-      border-top: 1px solid #f0f0f0;
+      border-top: 1px solid rgba(38,35,31,.06);
     }
     .composer-tools { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .kb-select { position: relative; }
@@ -363,46 +584,87 @@
       width: 280px;
       max-height: 320px;
       overflow: auto;
-      background: #fff;
+      background: #fffdf8;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: 10px;
       z-index: 10;
     }
-    .kb-popover .kb-chip { background: #ecfdf5; color: #047857; }
+    .kb-popover .kb-chip { background: var(--accent-soft); color: var(--accent-hover); }
     .check-line { display: flex; gap: 8px; align-items: center; min-height: 32px; font-size: 13px; }
     .check-line input { width: 16px; height: 16px; padding: 0; }
     .composer-hint { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .send-group { display: flex; gap: 8px; flex: none; }
-    .send-btn { background: var(--accent); min-width: 72px; }
+    .send-btn { background: var(--accent); min-width: 72px; border-radius: 999px; }
+    .send-btn:hover { background: var(--accent-hover); }
 
     .drawer {
       position: fixed;
       inset: 0 0 0 auto;
       width: min(var(--drawer-width), 100vw);
-      background: #fff;
+      background: var(--surface);
       border-left: 1px solid var(--line);
       box-shadow: var(--shadow);
       z-index: 30;
       display: grid;
-      grid-template-rows: 58px auto minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr);
       transform: translateX(100%);
       transition: transform .18s ease;
     }
     .drawer.open { transform: translateX(0); }
-    .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--line); }
-    .drawer-head h3 { margin: 0; font-size: 16px; }
-    .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
-    .tab { border-radius: 0; background: #fff; color: var(--muted); border-right: 1px solid var(--line); font-size: 13px; }
-    .tab.active { background: var(--panel); color: var(--text); }
-    .drawer-body { overflow: auto; padding: 14px; }
+    .drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px 18px 14px; border-bottom: 1px solid rgba(38,35,31,.06); }
+    .drawer-head h3 { margin: 0; font-size: 18px; }
+    .drawer-subtitle { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .tabs { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+    .tab { border-radius: 999px; background: transparent; color: var(--muted); border: 1px solid transparent; font-size: 13px; white-space: nowrap; }
+    .tab.active { background: var(--surface-soft); color: var(--text); border-color: var(--line); }
+    .drawer-body { overflow: auto; padding: 16px; }
     .source-card, .admin-card {
       border: 1px solid var(--line);
       border-radius: var(--radius);
       padding: 12px;
       margin-bottom: 10px;
-      background: #fff;
+      background: rgba(255,253,248,.88);
+      box-shadow: 0 8px 24px rgba(74,58,38,.05);
+    }
+    .mainline-card {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px 12px 12px 46px;
+      margin-bottom: 10px;
+      background: rgba(255,253,248,.88);
+    }
+    .mainline-card::before {
+      content: attr(data-step);
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--accent-soft);
+      color: var(--accent-hover);
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .mainline-stage { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .mainline-summary { margin-top: 8px; line-height: 1.55; font-size: 13px; }
+    .mainline-details { margin: 8px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.5; font-size: 12px; }
+    .debug-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #fff3eb;
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 760;
+      margin-bottom: 10px;
     }
     .source-card b { display: block; margin-bottom: 6px; font-size: 13px; }
     .source-card p { margin: 8px 0 0; color: var(--muted); line-height: 1.5; font-size: 13px; }
@@ -410,7 +672,7 @@
       margin: 0;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
-      background: #111827;
+      background: #26231f;
       color: #e5e7eb;
       border-radius: var(--radius);
       padding: 12px;
@@ -423,7 +685,41 @@
     .admin-actions { display: grid; gap: 8px; margin-top: 10px; }
     .admin-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .admin-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
-    .matrix { display: grid; gap: 4px; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; }
+    .admin-tabs {
+      display: flex;
+      gap: 6px;
+      margin: 0 0 14px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.54);
+      overflow-x: auto;
+    }
+    .admin-tab {
+      min-height: 34px;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      border: 0;
+      white-space: nowrap;
+    }
+    .admin-tab.active { background: #fff; color: var(--text); box-shadow: 0 5px 14px rgba(74,58,38,.06); }
+    .admin-panel { display: grid; gap: 12px; }
+    .user-card-list { display: grid; gap: 10px; }
+    .user-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,.65);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    .user-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .user-card-name { font-weight: 820; }
+    .user-card-controls { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }
+    .new-user-panel { border-style: dashed; }
+    .kb-manager-card { display: grid; gap: 8px; }
+    .matrix { display: grid; gap: 4px; max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; background: rgba(255,255,255,.48); }
     .check-group { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
     .check-group:last-child { border-bottom: 0; }
     .check-group .check-line { padding-left: 10px; min-height: 28px; }
@@ -462,8 +758,34 @@
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,.3);
+      background: rgba(38, 35, 31, .24);
+      backdrop-filter: blur(2px);
       z-index: 20;
+    }
+    .app.sidebar-collapsed {
+      grid-template-columns: 74px minmax(0, 1fr);
+    }
+    .app.sidebar-collapsed .sidebar { --sidebar-width: 74px; }
+    .app.sidebar-collapsed .side-search,
+    .app.sidebar-collapsed .side-group-title,
+    .app.sidebar-collapsed .chat-title,
+    .app.sidebar-collapsed .chat-action,
+    .app.sidebar-collapsed .side-kbs,
+    .app.sidebar-collapsed .user-meta {
+      display: none;
+    }
+    .app.sidebar-collapsed .new-chat {
+      text-align: center;
+      padding: 8px;
+    }
+    .app.sidebar-collapsed .chat-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      justify-items: center;
+    }
+    .app.sidebar-collapsed .chat-row::before {
+      content: "💬";
+      font-size: 16px;
     }
     @media (max-width: 920px) {
       .app { grid-template-columns: 1fr; }
@@ -478,41 +800,61 @@
       .sidebar.open { transform: translateX(0); }
       .mobile-only { display: inline-grid; }
       .prompt-grid { grid-template-columns: 1fr; }
+      .login-product-shell { grid-template-columns: 1fr; }
+      .login-story { display: none; }
+      .topbar { padding: 0 14px; }
     }
     @media (max-width: 620px) {
       .top-actions .secondary:not(.keep-mobile) { display: none; }
       .composer-row { align-items: stretch; flex-direction: column; }
       .send-group { justify-content: flex-end; }
       .admin-inline { grid-template-columns: 1fr; }
+      .user-card-controls { grid-template-columns: 1fr; }
+      .messages { padding-left: 14px; padding-right: 14px; }
     }
   </style>
 </head>
 <body>
   <section id="loginView" class="login-screen">
-    <div class="login-card">
-      <div class="login-brand">
-        <div class="brand-dot">AI</div>
-        <h1>Enterprise Chat</h1>
+    <div class="login-product-shell">
+      <div class="login-story">
+        <div>
+          <h2>面向企业知识库和工具调用的现代 AI 工作台</h2>
+          <p>把 Agentic RAG、Tool Calling、权限感知知识库和可读主线日志放进同一个克制、清晰的对话体验。</p>
+        </div>
+        <div class="login-feature-grid">
+          <span class="login-feature">Agentic RAG</span>
+          <span class="login-feature">Tool Calling</span>
+          <span class="login-feature">Permission-aware KB</span>
+        </div>
       </div>
-      <label for="loginUser">账号</label>
-      <input id="loginUser" value="admin" autocomplete="username" />
-      <label for="loginPassword">密码</label>
-      <input id="loginPassword" value="admin123" type="password" autocomplete="current-password" />
-      <button id="loginBtn" class="primary">登录</button>
-      <div class="demo-grid">
-        <button class="secondary demo-account" data-user="admin" data-pass="admin123">admin</button>
-        <button class="secondary demo-account" data-user="finance" data-pass="finance123">finance</button>
-        <button class="secondary demo-account" data-user="employee" data-pass="employee123">employee</button>
-        <button class="secondary demo-account" data-user="guest" data-pass="guest123">guest</button>
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="brand-dot">AI</div>
+          <h1>Enterprise Chat</h1>
+        </div>
+        <p class="login-subtitle">企业知识库与工具 Agent 演示系统</p>
+        <label for="loginUser">账号</label>
+        <input id="loginUser" value="admin" autocomplete="username" />
+        <label for="loginPassword">密码</label>
+        <input id="loginPassword" value="admin123" type="password" autocomplete="current-password" />
+        <button id="loginBtn" class="primary">登录</button>
+        <div class="demo-grid">
+          <button class="secondary demo-account" data-user="admin" data-pass="admin123">admin</button>
+          <button class="secondary demo-account" data-user="finance" data-pass="finance123">finance</button>
+          <button class="secondary demo-account" data-user="employee" data-pass="employee123">employee</button>
+          <button class="secondary demo-account" data-user="guest" data-pass="guest123">guest</button>
+        </div>
+        <p id="loginStatus" class="status"></p>
       </div>
-      <p id="loginStatus" class="status"></p>
     </div>
   </section>
 
-  <section id="appView" class="app hidden">
+  <section id="appView" class="app app-shell hidden">
     <aside id="sidebar" class="sidebar">
       <div class="side-top">
         <button id="newChatBtn" class="new-chat">+ 新对话</button>
+        <button id="collapseSidebarBtn" class="secondary">收起侧边栏</button>
         <input id="sessionSearch" class="side-search" placeholder="搜索对话" />
       </div>
       <div id="sessionList" class="side-scroll"></div>
@@ -542,22 +884,26 @@
           </div>
         </div>
         <div class="top-actions">
-          <button id="adminBtn" class="secondary">权限管理</button>
-          <button id="retryBtn" class="secondary">重新生成</button>
-          <button id="exportBtn" class="secondary">导出</button>
-          <button id="detailsBtn" class="secondary keep-mobile">详情</button>
-          <button id="clearChatBtn" class="secondary">清空</button>
+          <button id="moreBtn" class="secondary keep-mobile">更多</button>
+          <div id="moreMenu" class="top-more-menu hidden">
+            <button id="adminBtn" data-menu-action="admin">权限管理</button>
+            <button id="retryBtn" data-menu-action="regenerate">重新生成</button>
+            <button id="exportBtn" data-menu-action="export">导出</button>
+            <button id="detailsBtn" data-menu-action="details">查看详情</button>
+            <button id="clearChatBtn" data-menu-action="clear">清空会话</button>
+          </div>
         </div>
       </header>
 
       <section id="chatPane" class="chat-pane">
-        <div id="emptyState" class="empty-state">
+        <div id="emptyState" class="empty-state hero-surface">
           <h1 id="emptyTitle">有什么可以帮忙？</h1>
+          <p class="empty-kicker">像 GPT 或 Claude 一样连续对话，同时把企业 Agent 的规划、时间解析、工具执行和证据判断清楚展示出来。</p>
           <div class="prompt-grid">
-            <button class="prompt-card" data-prompt="报销的时限是多少？">查询制度<small>从你有权限的知识库中检索答案</small></button>
-            <button class="prompt-card" data-prompt="差旅报销需要哪些材料？">准备材料<small>列出办理事项和引用来源</small></button>
-            <button class="prompt-card" data-prompt="发票抬头错误怎么办？">排查问题<small>结合财务 FAQ 给出处理步骤</small></button>
-            <button class="prompt-card" data-prompt="这笔住宿超标能不能报销？">合规判断<small>需要判断时会走受控工具</small></button>
+            <button class="prompt-card" data-prompt="我明天有会议吗？如果有，出差报销回来要注意什么？">混合任务<small>日历查询 + 制度检索 + 证据判断</small></button>
+            <button class="prompt-card" data-prompt="查一下产品部上周考勤异常，再结合考勤制度说明常见处理方式。">考勤分析<small>工具结果与知识库制度一起回答</small></button>
+            <button class="prompt-card" data-prompt="删除下周所有团建之前，先告诉我为什么不能直接 event_id=all。">安全解释<small>展示写操作门禁和拒绝原因</small></button>
+            <button class="prompt-card" data-prompt="明天是几月几号、星期几？">时间解析<small>由 TimeResolver 解析相对日期</small></button>
           </div>
         </div>
         <div id="messages" class="messages hidden"></div>
@@ -585,27 +931,36 @@
   </section>
 
   <div id="drawerOverlay" class="overlay hidden"></div>
-  <aside id="drawer" class="drawer">
+  <aside id="drawer" class="drawer permission-drawer">
     <div class="drawer-head">
-      <h3 id="drawerTitle">详情</h3>
+      <div>
+        <h3 id="drawerTitle">详情</h3>
+        <div id="drawerSubtitle" class="drawer-subtitle">主线日志、来源、工具调用和调试信息默认收纳在这里。</div>
+      </div>
       <button id="closeDrawerBtn" class="secondary icon">×</button>
     </div>
     <div class="tabs">
-      <button class="tab active" data-tab="sources">来源</button>
+      <button class="tab active" data-tab="mainline">主线</button>
+      <button class="tab" data-tab="sources">来源</button>
       <button class="tab" data-tab="trace">Trace</button>
       <button class="tab" data-tab="tools">工具</button>
+      <button class="tab" data-tab="raw">原始 JSON</button>
       <button class="tab" data-tab="admin">管理</button>
     </div>
     <div class="drawer-body">
-      <section id="tab-sources">
+      <section id="tab-mainline">
+        <div id="mainlineBox"></div>
+      </section>
+      <section id="tab-sources" class="hidden">
         <div id="answerSummary" class="source-card">
           <b>当前回答</b>
           <div class="muted">暂无 trace</div>
         </div>
         <div id="sourcesBox"></div>
       </section>
-      <section id="tab-trace" class="hidden"><pre id="traceBox">{}</pre></section>
+      <section id="tab-trace" class="hidden"><span class="debug-pill">Debug trace：包含节点耗时和调试字段</span><pre id="traceBox">{}</pre></section>
       <section id="tab-tools" class="hidden"><pre id="toolsBox">[]</pre></section>
+      <section id="tab-raw" class="hidden"><pre id="rawBox">{}</pre></section>
       <section id="tab-admin" class="hidden"><div id="adminBox"></div></section>
     </div>
   </aside>
@@ -619,13 +974,26 @@ const state = {
   me: null,
   sessions: [],
   activeSessionId: '',
-  activeTab: 'sources',
+  activeTab: 'mainline',
   drawerOpen: false,
   sidebarOpen: false,
+  sidebarCollapsed: false,
   aborter: null,
+  liveMainline: [],
+  activeStage: '',
   lastPrompt: '',
-  admin: { users: [], roles: [], tools: [], kbs: [], activeKbId: '' },
+  admin: { users: [], roles: [], tools: [], kbs: [], activeKbId: '', activeTab: 'users' },
 };
+
+const MAINLINE_STAGES = [
+  { stage: 'runtime_context', title: '正在理解问题', summary: '识别用户、权限、知识库和当前时间。' },
+  { stage: 'plan_with_llm', title: '生成执行计划', summary: '拆分工具、RAG 和回答任务。' },
+  { stage: 'resolve_plan_time', title: '解析时间信息', summary: '把相对时间转换成确定日期。' },
+  { stage: 'validate_plan', title: '校验执行计划', summary: '检查权限、工具 schema 和写操作安全。' },
+  { stage: 'react_execute', title: '执行任务', summary: '按计划调用工具、检索知识库并收集观察。' },
+  { stage: 'answer_with_llm', title: '生成最终回答', summary: '基于结构化事实综合回答。' },
+  { stage: 'update_memory', title: '更新记忆', summary: '保存本轮可复用上下文。' },
+];
 
 const uid = () => `web-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 const safeCss = (value) => (window.CSS && CSS.escape ? CSS.escape(value) : String(value).replace(/"/g, '\\"'));
@@ -640,6 +1008,128 @@ function escapeHtml(value) {
 }
 function renderJson(id, value) {
   $(id).textContent = JSON.stringify(value ?? {}, null, 2);
+}
+function shortTraceId(traceId = '') {
+  const value = String(traceId || '');
+  if (!value) return '';
+  const tail = value.split('_').pop() || value;
+  return `trace_${tail.slice(0, 4)}...${tail.slice(-4)}`;
+}
+function stageIndex(stage) {
+  return MAINLINE_STAGES.findIndex(item => item.stage === stage);
+}
+function resetLiveProgress() {
+  state.liveMainline = MAINLINE_STAGES.map((item, index) => ({
+    step: index + 1,
+    stage: item.stage,
+    title: item.title,
+    summary: index === 0 ? '正在理解问题，准备构建运行上下文。' : item.summary,
+    status: index === 0 ? 'active' : 'pending',
+    details: [],
+  }));
+  state.activeStage = MAINLINE_STAGES[0].stage;
+  updateThinkingDom();
+}
+function updateLiveProgress(stage, summary = '') {
+  const normalizedStage = normalizeStreamStage(stage, summary);
+  const current = stageIndex(normalizedStage);
+  if (current < 0) return;
+  if (!state.liveMainline.length) resetLiveProgress();
+  state.activeStage = normalizedStage;
+  state.liveMainline = state.liveMainline.map((item, index) => ({
+    ...item,
+    status: index < current ? 'done' : index === current ? 'active' : item.status === 'done' ? 'done' : 'pending',
+    summary: index === current && summary ? summary : item.summary,
+  }));
+  updateThinkingDom();
+}
+function normalizeStreamStage(stage = '', message = '') {
+  const text = `${stage} ${message}`.toLowerCase();
+  if (text.includes('runtime') || text.includes('context') || text.includes('理解')) return 'runtime_context';
+  if (text.includes('plan') || text.includes('规划') || text.includes('计划')) return 'plan_with_llm';
+  if (text.includes('time') || text.includes('时间')) return 'resolve_plan_time';
+  if (text.includes('valid') || text.includes('校验')) return 'validate_plan';
+  if (text.includes('react') || text.includes('tool') || text.includes('rag') || text.includes('执行') || text.includes('检索')) return 'react_execute';
+  if (text.includes('answer') || text.includes('生成')) return 'answer_with_llm';
+  if (text.includes('memory') || text.includes('记忆')) return 'update_memory';
+  return state.activeStage || 'runtime_context';
+}
+function mainlineForDisplay(final = null) {
+  return final?.mainline_log || state.liveMainline || [];
+}
+function renderMainlineLog(log = []) {
+  if (!Array.isArray(log) || !log.length) {
+    return '<div class="source-card muted">暂无主线日志。发送问题后，这里会用中文展示 Agent 从理解问题到生成回答的关键阶段。</div>';
+  }
+  return log.map((item, index) => `
+    <div class="mainline-card" data-step="${escapeHtml(item.step || index + 1)}">
+      <b>${escapeHtml(item.title || item.stage || '-')}</b>
+      <div class="mainline-stage">${escapeHtml(item.stage || '')}</div>
+      <div class="mainline-summary">${escapeHtml(item.summary || '')}</div>
+      ${(item.details || []).length ? `<ul class="mainline-details">${(item.details || []).slice(0, 6).map(detail => `<li>${escapeHtml(detail)}</li>`).join('')}</ul>` : ''}
+    </div>
+  `).join('');
+}
+function countRagSearches(final = {}) {
+  const toolCalls = final.tool_calls || [];
+  const fromTools = toolCalls.filter(call => String(call.tool || call.tool_name || '').includes('search')).length;
+  const fromTrace = JSON.stringify(final.retrieval_trace || {}).match(/executed_queries|retrieval_query|search_knowledge_base/g)?.length || 0;
+  return Math.max(fromTools, Math.min(fromTrace, 9));
+}
+function renderExecutionSummary(final = {}) {
+  const steps = Array.isArray(final.mainline_log) ? final.mainline_log.length : 0;
+  const toolCount = Array.isArray(final.tool_calls) ? final.tool_calls.length : 0;
+  const sourceCount = Array.isArray(final.sources) ? final.sources.length : 0;
+  const ragCount = countRagSearches(final);
+  const evidence = sourceCount ? '证据充分' : (ragCount ? '证据不足' : '无需证据');
+  return `已完成 ${steps || 0} 步 · 检索 ${ragCount} 次 · 调用工具 ${toolCount} 次 · ${evidence}`;
+}
+function renderInlineMainline(final = {}) {
+  const log = final.mainline_log || [];
+  if (!log.length) return '';
+  return `
+    <details class="inline-mainline">
+      <summary class="mainline-toggle">${escapeHtml(renderExecutionSummary(final))}</summary>
+      ${renderMainlineLog(log)}
+    </details>
+  `;
+}
+function renderSourceCollapse(final = {}) {
+  const sources = final.sources || [];
+  if (!sources.length) return '';
+  return `
+    <details class="source-collapse">
+      <summary>引用来源 · ${sources.length} 个</summary>
+      <div class="source-collapse-body">
+        ${sources.map((source, index) => `
+          <div class="source-card">
+            <b>来源 ${index + 1}：${escapeHtml(source.source || '-')}</b>
+            <div class="muted">章节：${escapeHtml(source.title_path || '未标注')}</div>
+            <div class="muted">知识库：${escapeHtml(source.kb_id || '-')}</div>
+          </div>
+        `).join('')}
+      </div>
+    </details>
+  `;
+}
+function thinkingStatusText() {
+  const active = state.liveMainline.find(item => item.status === 'active') || state.liveMainline.find(item => item.stage === state.activeStage);
+  return active?.title || MAINLINE_STAGES[stageIndex(state.activeStage)]?.title || '正在理解问题';
+}
+function updateThinkingDom() {
+  document.querySelectorAll('.thinkingText').forEach(item => {
+    item.textContent = thinkingStatusText();
+  });
+}
+function renderThinking() {
+  return `
+    <div class="assistant-thinking">
+      <div class="thinking-head">
+        <span class="thinking-wave"><span></span><span></span><span></span></span>
+        <span class="thinkingText">${escapeHtml(thinkingStatusText())}</span>
+      </div>
+    </div>
+  `;
 }
 function toast(message) {
   $('toast').textContent = message;
@@ -793,7 +1283,9 @@ function renderKbPopover() {
 }
 function renderSidebarKbs() {
   const kbs = accessibleKbs();
-  $('sideKbList').innerHTML = kbs.map(kb => `<span class="kb-chip" title="${escapeHtml(kb.name)}">${escapeHtml(kb.kb_id)}</span>`).join('') || '<span class="muted">暂无权限</span>';
+  const visible = kbs.slice(0, 3);
+  const extra = kbs.length > visible.length ? `<span class="kb-chip">+${kbs.length - visible.length}</span>` : '';
+  $('sideKbList').innerHTML = visible.map(kb => `<span class="kb-chip" title="${escapeHtml(kb.name)}">${escapeHtml(kb.kb_id)}</span>`).join('') + extra || '<span class="muted">暂无权限</span>';
 }
 function renderMessages() {
   const session = ensureSession();
@@ -801,13 +1293,18 @@ function renderMessages() {
   $('emptyState').classList.toggle('hidden', hasMessages);
   $('messages').classList.toggle('hidden', !hasMessages);
   if (!hasMessages) return;
+  const pane = $('chatPane');
+  const shouldStick = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 180 || state.aborter;
   $('messages').innerHTML = session.messages.map((msg, index) => `
-    <article class="message ${escapeHtml(msg.role)}">
+    <article class="message ${escapeHtml(msg.role)}" data-message-index="${index}">
       <div class="avatar">${msg.role === 'user' ? '我' : 'AI'}</div>
       <div class="message-body">
         <div class="message-role">${msg.role === 'user' ? '你' : 'Enterprise Chat'}</div>
         <div class="message-text">${escapeHtml(msg.content || '')}</div>
+        ${msg.pending && !msg.content ? renderThinking() : ''}
         ${msg.final ? renderAnswerMeta(msg.final) : ''}
+        ${msg.final ? renderInlineMainline(msg.final) : ''}
+        ${msg.final ? renderSourceCollapse(msg.final) : ''}
         <div class="message-actions">
           <button class="secondary" data-copy-message="${index}">复制</button>
           ${msg.role === 'assistant' ? `<button class="secondary" data-open-final="${index}">查看详情</button>` : `<button class="secondary" data-edit-message="${index}">重新提问</button>`}
@@ -815,16 +1312,36 @@ function renderMessages() {
       </div>
     </article>
   `).join('');
-  $('chatPane').scrollTop = $('chatPane').scrollHeight;
+  if (shouldStick) pane.scrollTop = pane.scrollHeight;
+}
+function updateAssistantMessageDom(assistant) {
+  const session = activeSession();
+  const index = session?.messages.indexOf(assistant) ?? -1;
+  if (index < 0) {
+    renderMessages();
+    return;
+  }
+  const pane = $('chatPane');
+  const shouldStick = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 180 || state.aborter;
+  const article = document.querySelector(`[data-message-index="${index}"]`);
+  if (!article) {
+    renderMessages();
+    return;
+  }
+  const text = article.querySelector('.message-text');
+  if (text) text.textContent = assistant.content || '';
+  article.querySelector('.assistant-thinking')?.remove();
+  if (shouldStick) pane.scrollTop = pane.scrollHeight;
 }
 function renderAnswerMeta(final) {
   return `<div class="answer-meta">${renderMetaPills(final)}</div>`;
 }
 function renderMetaPills(final) {
-  const kbs = (final.used_kbs || []).map(kb => `<span class="pill green">${escapeHtml(kb)}</span>`).join('');
-  const trace = final.trace_id ? `<span class="pill gray">${escapeHtml(final.trace_id)}</span>` : '';
-  const route = final.route ? `<span class="pill">${escapeHtml(final.route)}</span>` : '';
-  return `${route}${kbs}${trace}`;
+  const route = final.route ? `<span class="pill">${escapeHtml(String(final.route).toUpperCase())}</span>` : '';
+  const sources = Array.isArray(final.sources) && final.sources.length ? `<span class="pill green">已引用 ${final.sources.length} 个来源</span>` : '';
+  const tools = Array.isArray(final.tool_calls) && final.tool_calls.length ? `<span class="pill gray">调用 ${final.tool_calls.length} 个工具</span>` : '';
+  const trace = final.trace_id ? `<span class="pill gray" title="${escapeHtml(final.trace_id)}">${escapeHtml(shortTraceId(final.trace_id))}</span>` : '';
+  return `${route}${sources || tools}${sources ? tools : trace}`;
 }
 
 function newChat() {
@@ -887,18 +1404,19 @@ async function sendChat(queryOverride = '') {
     return;
   }
   session.messages.push({ role: 'user', content: query, createdAt: Date.now() });
-  const assistant = { role: 'assistant', content: '', createdAt: Date.now() };
+  const assistant = { role: 'assistant', content: '', createdAt: Date.now(), pending: true };
   session.messages.push(assistant);
   if (!session.title || session.title === '新对话') session.title = query.slice(0, 36);
   session.updatedAt = Date.now();
   state.lastPrompt = query;
   $('queryInput').value = '';
+  state.aborter = new AbortController();
+  resetLiveProgress();
   saveLocalState();
   renderAll();
-  setRunStatus('正在检索与生成...');
+  setRunStatus('正在理解问题...');
   $('sendBtn').disabled = true;
   $('stopBtn').classList.remove('hidden');
-  state.aborter = new AbortController();
   try {
     const res = await fetch('/chat/stream', {
       method: 'POST',
@@ -921,6 +1439,7 @@ async function sendChat(queryOverride = '') {
     setRunStatus(err.name === 'AbortError' ? '已停止' : '请求失败', err.name === 'AbortError' ? '' : 'error');
   } finally {
     state.aborter = null;
+    assistant.pending = false;
     $('sendBtn').disabled = false;
     $('stopBtn').classList.add('hidden');
     saveLocalState();
@@ -945,14 +1464,19 @@ function handleStreamLine(line, assistant) {
   if (!line.trim()) return;
   const event = JSON.parse(line);
   if (event.event === 'token') {
+    assistant.pending = false;
     assistant.content += event.content || '';
-    renderMessages();
+    updateAssistantMessageDom(assistant);
     setRunStatus('生成中...');
   } else if (event.event === 'status') {
+    updateLiveProgress(event.stage || '', event.message || event.stage || '');
     setRunStatus(event.message || event.stage || '');
   } else if (event.event === 'final') {
+    updateLiveProgress('update_memory', '主链路已完成，正在整理最终结果。');
+    assistant.pending = false;
     assistant.content = event.answer || assistant.content;
     assistant.final = event;
+    state.liveMainline = event.mainline_log || state.liveMainline;
     const session = activeSession();
     if (session) {
       session.lastFinal = event;
@@ -961,6 +1485,7 @@ function handleStreamLine(line, assistant) {
     renderDetails(event);
     setRunStatus(`完成 · ${event.latency_ms || 0}ms`, 'ok');
   } else if (event.event === 'error') {
+    assistant.pending = false;
     assistant.content = event.error || '请求失败';
     setRunStatus('请求失败', 'error');
   }
@@ -1011,15 +1536,24 @@ function exportCurrentChat() {
 function renderDetails(final) {
   if (!final) {
     $('answerSummary').innerHTML = '<b>当前回答</b><div class="muted">暂无 trace</div>';
+    $('mainlineBox').innerHTML = renderMainlineLog([]);
     $('sourcesBox').innerHTML = '';
     renderJson('traceBox', {});
     renderJson('toolsBox', []);
+    renderJson('rawBox', {});
     return;
   }
   $('answerSummary').innerHTML = `
     <b>当前回答</b>
-    <div class="muted mono">${escapeHtml(final.trace_id || '-')}</div>
+    <div class="muted mono">${escapeHtml(shortTraceId(final.trace_id) || '-')}</div>
     <div class="answer-meta">${renderMetaPills(final)}</div>
+  `;
+  $('mainlineBox').innerHTML = `
+    <div class="source-card">
+      <b>主线日志</b>
+      <div class="muted">默认展示面向人阅读的关键阶段；完整 trace 仍保留在 Debug 展开项。</div>
+    </div>
+    ${renderMainlineLog(final.mainline_log || [])}
   `;
   $('sourcesBox').innerHTML = (final.sources || []).map(source => `
     <div class="source-card">
@@ -1028,8 +1562,9 @@ function renderDetails(final) {
       <p>${escapeHtml(source.preview || '')}</p>
     </div>
   `).join('') || '<div class="source-card muted">暂无引用来源</div>';
-  renderJson('traceBox', { node_trace: final.node_trace, retrieval_trace: final.retrieval_trace, audit_events: final.audit_events });
+  $('traceBox').textContent = JSON.stringify({ node_trace: final.node_trace, retrieval_trace: final.retrieval_trace, audit_events: final.audit_events }, null, 2);
   renderJson('toolsBox', final.tool_calls || []);
+  renderJson('rawBox', final);
 }
 function openDrawer(tab = state.activeTab) {
   state.drawerOpen = true;
@@ -1045,8 +1580,11 @@ function closeDrawer() {
 function selectTab(tab) {
   state.activeTab = tab;
   document.querySelectorAll('.tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
-  ['sources', 'trace', 'tools', 'admin'].forEach(name => $('tab-' + name).classList.toggle('hidden', name !== tab));
-  $('drawerTitle').textContent = tab === 'admin' ? '权限管理' : '回答详情';
+  ['mainline', 'sources', 'trace', 'tools', 'raw', 'admin'].forEach(name => $('tab-' + name).classList.toggle('hidden', name !== tab));
+  $('drawerTitle').textContent = tab === 'admin' ? '权限管理' : tab === 'mainline' ? '主线日志' : '回答详情';
+  $('drawerSubtitle').textContent = tab === 'admin'
+    ? '管理用户角色、知识库导入和索引状态'
+    : '主线日志默认面向阅读；Trace、工具和原始 JSON 保留给开发调试。';
   if (tab === 'admin' && state.me?.role === 'admin') loadAdmin();
 }
 
@@ -1080,75 +1618,129 @@ function renderAdminRestricted() {
 function renderAdmin() {
   const roles = state.admin.roles.map(item => item.role);
   $('adminBox').innerHTML = `
-    <div class="admin-card">
-      <b>用户管理</b>
-      <table>
-        <thead><tr><th>账号</th><th>角色</th><th>启用</th><th></th></tr></thead>
-        <tbody>${state.admin.users.map(user => `
-          <tr>
-            <td>${escapeHtml(user.username)}</td>
-            <td><select data-user-role="${escapeHtml(user.username)}">${roles.map(role => `<option ${role === user.role ? 'selected' : ''}>${escapeHtml(role)}</option>`).join('')}</select></td>
-            <td><input type="checkbox" data-user-enabled="${escapeHtml(user.username)}" ${user.enabled ? 'checked' : ''}></td>
-            <td><button class="secondary" data-save-user="${escapeHtml(user.username)}">保存</button></td>
-          </tr>
-        `).join('')}</tbody>
-      </table>
-      <div class="admin-actions">
-        <div class="admin-inline">
-          <input id="newUsername" placeholder="新账号">
-          <input id="newPassword" placeholder="密码" type="password">
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-admin-tab="users">用户</button>
+      <button class="admin-tab" data-admin-tab="kbs">知识库</button>
+      <button class="admin-tab" data-admin-tab="trace">Trace</button>
+      <button class="admin-tab" data-admin-tab="tools">工具</button>
+      <button class="admin-tab" data-admin-tab="system">系统</button>
+    </div>
+
+    <section id="adminPanel-users" class="admin-panel">
+      <div class="admin-card">
+        <b>用户</b>
+        <div class="muted" style="font-size:12px;margin-top:6px">以卡片方式管理账号角色和启用状态，避免表格挤满主界面。</div>
+      </div>
+      <div class="user-card-list">
+        ${state.admin.users.map(user => `
+          <div class="user-card">
+            <div class="user-card-head">
+              <div>
+                <div class="user-card-name">${escapeHtml(user.username)}</div>
+                <span class="role-pill">${escapeHtml(user.role)}</span>
+              </div>
+              <span class="pill ${user.enabled ? 'green' : 'gray'}">${user.enabled ? '已启用' : '已停用'}</span>
+            </div>
+            <div class="user-card-controls">
+              <select data-user-role="${escapeHtml(user.username)}">${roles.map(role => `<option ${role === user.role ? 'selected' : ''}>${escapeHtml(role)}</option>`).join('')}</select>
+              <label class="check-line" style="margin:0">
+                <input type="checkbox" data-user-enabled="${escapeHtml(user.username)}" ${user.enabled ? 'checked' : ''}>
+                <span>启用</span>
+              </label>
+              <button class="secondary" data-save-user="${escapeHtml(user.username)}">保存</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <details class="admin-card new-user-panel">
+        <summary><b>新建用户</b></summary>
+        <div class="admin-actions">
+          <div class="admin-inline">
+            <input id="newUsername" placeholder="账号">
+            <input id="newPassword" placeholder="密码" type="password">
+          </div>
+          <div class="admin-inline">
+            <select id="newUserRole">${roles.map(role => `<option>${escapeHtml(role)}</option>`).join('')}</select>
+            <button id="createUserBtn" class="secondary">新建用户</button>
+          </div>
         </div>
+      </details>
+    </section>
+
+    <section id="adminPanel-kbs" class="admin-panel hidden">
+      <div class="admin-card kb-manager-card">
+        <b>知识库</b>
+        <div class="muted" style="font-size:12px">仅 admin 可导入、删除文档；修改后需要重建索引才会影响检索结果。</div>
+        <label>知识库</label>
+        <select id="kbManagerSelect">${state.admin.kbs.map(kb => `<option value="${escapeHtml(kb.kb_id)}" ${kb.kb_id === state.admin.activeKbId ? 'selected' : ''}>${escapeHtml(kb.kb_id)} · ${escapeHtml(kb.name)}（${Number(kb.file_count || 0)} 个文件）</option>`).join('')}</select>
+        <label>导入 Markdown / 文本文档</label>
         <div class="admin-inline">
-          <select id="newUserRole">${roles.map(role => `<option>${escapeHtml(role)}</option>`).join('')}</select>
-          <button id="createUserBtn" class="secondary">新建用户</button>
+          <input id="kbImportName" placeholder="文件名，例如 policy_update.md">
+          <input id="kbImportFile" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain">
         </div>
+        <label>内容</label>
+        <textarea id="kbImportContent" class="kb-import-content" placeholder="# 文档标题&#10;&#10;把需要导入知识库的内容粘贴到这里"></textarea>
+        <div class="admin-toolbar">
+          <label class="check-line" style="margin:0">
+            <input id="kbOverwrite" type="checkbox">
+            <span>覆盖同名文件</span>
+          </label>
+          <button id="kbSaveDocBtn" class="secondary">导入文档</button>
+          <button id="kbReindexBtn" class="secondary">增量重建索引</button>
+          <button id="kbResetReindexBtn" class="danger">全量重建索引</button>
+        </div>
+        <div id="kbDocumentList" class="kb-doc-list"></div>
       </div>
-    </div>
-    <div class="admin-card">
-      <b>知识库管理</b>
-      <div class="muted" style="font-size:12px;margin-top:6px">仅 admin 可导入、删除文档；修改后需要重建索引才会影响检索结果。</div>
-      <label>知识库</label>
-      <select id="kbManagerSelect">${state.admin.kbs.map(kb => `<option value="${escapeHtml(kb.kb_id)}" ${kb.kb_id === state.admin.activeKbId ? 'selected' : ''}>${escapeHtml(kb.kb_id)} · ${escapeHtml(kb.name)}（${Number(kb.file_count || 0)} 个文件）</option>`).join('')}</select>
-      <label>导入 Markdown / 文本文档</label>
-      <div class="admin-inline">
-        <input id="kbImportName" placeholder="文件名，例如 policy_update.md">
-        <input id="kbImportFile" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain">
+    </section>
+
+    <section id="adminPanel-trace" class="admin-panel hidden">
+      <div class="admin-card">
+        <b>Trace</b>
+        <p class="muted">主线日志默认展示在详情面板；完整 debug trace 保留在 Trace 和原始 JSON tab 中。</p>
       </div>
-      <label>内容</label>
-      <textarea id="kbImportContent" class="kb-import-content" placeholder="# 文档标题&#10;&#10;把需要导入知识库的内容粘贴到这里"></textarea>
-      <div class="admin-toolbar">
-        <label class="check-line" style="margin:0">
-          <input id="kbOverwrite" type="checkbox">
-          <span>覆盖同名文件</span>
-        </label>
-        <button id="kbSaveDocBtn" class="secondary">导入文档</button>
-        <button id="kbReindexBtn" class="secondary">增量重建索引</button>
-        <button id="kbResetReindexBtn" class="danger">全量重建索引</button>
+    </section>
+
+    <section id="adminPanel-tools" class="admin-panel hidden">
+      <div class="admin-card">
+        <b>工具</b>
+        <div id="adminToolsList" class="matrix">${state.admin.tools.map(tool => `<div class="source-card"><b>${escapeHtml(tool.name)}</b><div class="muted">${escapeHtml(Object.keys(tool.actions || {}).join(', ') || '默认动作')}</div></div>`).join('') || '<div class="muted">暂无工具配置</div>'}</div>
       </div>
-      <div id="kbDocumentList" class="kb-doc-list"></div>
-    </div>
-    <div class="admin-card">
-      <b>角色权限</b>
-      <label>角色</label>
-      <select id="roleEditor">${roles.map(role => `<option>${escapeHtml(role)}</option>`).join('')}</select>
-      <label>知识库</label>
-      <div id="roleKbMatrix" class="matrix"></div>
-      <label>工具</label>
-      <div id="roleToolMatrix" class="matrix"></div>
-      <button id="saveRoleBtn" class="secondary" style="margin-top:10px">保存角色权限</button>
-    </div>
+    </section>
+
+    <section id="adminPanel-system" class="admin-panel hidden">
+      <div class="admin-card">
+        <b>角色权限</b>
+        <label>角色</label>
+        <select id="roleEditor">${roles.map(role => `<option>${escapeHtml(role)}</option>`).join('')}</select>
+        <label>知识库</label>
+        <div id="roleKbMatrix" class="matrix"></div>
+        <label>工具</label>
+        <div id="roleToolMatrix" class="matrix"></div>
+        <button id="saveRoleBtn" class="secondary" style="margin-top:10px">保存角色权限</button>
+      </div>
+    </section>
   `;
-  $('roleEditor').addEventListener('change', renderRoleEditor);
-  $('saveRoleBtn').addEventListener('click', saveRolePolicy);
-  $('createUserBtn').addEventListener('click', createUser);
-  $('kbManagerSelect').addEventListener('change', renderKbManager);
-  $('kbImportFile').addEventListener('change', loadKbImportFile);
-  $('kbSaveDocBtn').addEventListener('click', saveKbDocument);
-  $('kbReindexBtn').addEventListener('click', () => reindexKnowledgeBase(false));
-  $('kbResetReindexBtn').addEventListener('click', () => reindexKnowledgeBase(true));
+  document.querySelectorAll('[data-admin-tab]').forEach(btn => btn.addEventListener('click', () => selectAdminTab(btn.dataset.adminTab)));
+  $('roleEditor')?.addEventListener('change', renderRoleEditor);
+  $('saveRoleBtn')?.addEventListener('click', saveRolePolicy);
+  $('createUserBtn')?.addEventListener('click', createUser);
+  $('kbManagerSelect')?.addEventListener('change', renderKbManager);
+  $('kbImportFile')?.addEventListener('change', loadKbImportFile);
+  $('kbSaveDocBtn')?.addEventListener('click', saveKbDocument);
+  $('kbReindexBtn')?.addEventListener('click', () => reindexKnowledgeBase(false));
+  $('kbResetReindexBtn')?.addEventListener('click', () => reindexKnowledgeBase(true));
   document.querySelectorAll('[data-save-user]').forEach(btn => btn.addEventListener('click', () => saveUser(btn.dataset.saveUser)));
+  selectAdminTab(state.admin.activeTab || 'users');
   renderKbManager();
   renderRoleEditor();
+}
+function selectAdminTab(tab) {
+  state.admin.activeTab = tab || 'users';
+  document.querySelectorAll('[data-admin-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.adminTab === state.admin.activeTab));
+  ['users', 'kbs', 'trace', 'tools', 'system'].forEach(name => {
+    const panel = $('adminPanel-' + name);
+    if (panel) panel.classList.toggle('hidden', name !== state.admin.activeTab);
+  });
 }
 function currentManagedKb() {
   const kbId = $('kbManagerSelect')?.value || state.admin.activeKbId || state.admin.kbs[0]?.kb_id || '';
@@ -1338,6 +1930,16 @@ function closeMobileSidebar() {
   $('sidebar').classList.remove('open');
   if (!state.drawerOpen) $('drawerOverlay').classList.add('hidden');
 }
+function toggleSidebarCollapsed() {
+  state.sidebarCollapsed = !state.sidebarCollapsed;
+  $('appView').classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
+  $('collapseSidebarBtn').textContent = state.sidebarCollapsed ? '展开' : '收起侧边栏';
+}
+function toggleMoreMenu(force = null) {
+  const menu = $('moreMenu');
+  const shouldOpen = force === null ? menu.classList.contains('hidden') : Boolean(force);
+  menu.classList.toggle('hidden', !shouldOpen);
+}
 
 document.addEventListener('click', (event) => {
   const session = event.target.closest('[data-session]');
@@ -1346,6 +1948,7 @@ document.addEventListener('click', (event) => {
   const copy = event.target.closest('[data-copy-message]');
   const openFinal = event.target.closest('[data-open-final]');
   const edit = event.target.closest('[data-edit-message]');
+  if (!event.target.closest('#moreMenu') && !event.target.closest('#moreBtn')) toggleMoreMenu(false);
   if (session) switchSession(session.dataset.session);
   if (rename) renameSession(rename.dataset.rename);
   if (del) deleteSession(del.dataset.delete);
@@ -1357,7 +1960,7 @@ document.addEventListener('click', (event) => {
     const msg = activeSession()?.messages[Number(openFinal.dataset.openFinal)];
     if (msg?.final) {
       renderDetails(msg.final);
-      openDrawer('sources');
+      openDrawer('mainline');
     }
   }
   if (edit) {
@@ -1379,17 +1982,19 @@ document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', (
 $('loginBtn').addEventListener('click', login);
 $('logoutBtn').addEventListener('click', logout);
 $('newChatBtn').addEventListener('click', newChat);
+$('collapseSidebarBtn').addEventListener('click', toggleSidebarCollapsed);
 $('sessionSearch').addEventListener('input', renderSessions);
 $('sendBtn').addEventListener('click', () => sendChat());
 $('stopBtn').addEventListener('click', stopChat);
 $('clearChatBtn').addEventListener('click', clearChat);
-$('detailsBtn').addEventListener('click', () => openDrawer('sources'));
+$('detailsBtn').addEventListener('click', () => openDrawer('mainline'));
 $('adminBtn').addEventListener('click', () => openDrawer('admin'));
 $('retryBtn').addEventListener('click', regenerate);
 $('exportBtn').addEventListener('click', exportCurrentChat);
 $('closeDrawerBtn').addEventListener('click', closeDrawer);
 $('drawerOverlay').addEventListener('click', () => { closeDrawer(); closeMobileSidebar(); });
 $('openSidebarBtn').addEventListener('click', openMobileSidebar);
+$('moreBtn').addEventListener('click', (event) => { event.stopPropagation(); toggleMoreMenu(); });
 $('kbBtn').addEventListener('click', () => $('kbPopover').classList.toggle('hidden'));
 $('queryInput').addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.shiftKey) {
@@ -1405,6 +2010,11 @@ window.addEventListener('keydown', (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'n') {
     event.preventDefault();
     newChat();
+  }
+  if (event.key === 'Escape') {
+    toggleMoreMenu(false);
+    closeDrawer();
+    closeMobileSidebar();
   }
 });
 

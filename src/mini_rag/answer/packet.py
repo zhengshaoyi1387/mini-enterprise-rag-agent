@@ -188,10 +188,15 @@ def compact_task_results(results: list[dict[str, Any]] | None, *, datetime_conte
                 item["结果"] = _truncate(json.dumps(result.get("tool_result"), ensure_ascii=False, default=str), 900)
         else:
             sources = compact_sources([s for s in (result.get("sources") or []) if isinstance(s, dict)])
+            related_sources = compact_sources([s for s in (result.get("related_sources") or []) if isinstance(s, dict)])
             if sources:
                 item["证据"] = sources
-            elif str(result.get("status") or "").lower() in {"empty", "no_evidence"}:
-                item["证据情况"] = "当前可访问知识库未找到明确支持证据。"
+            elif str(result.get("status") or "").lower() in {"empty", "no_evidence", "insufficient_evidence"}:
+                if related_sources:
+                    item["证据情况"] = "当前可访问知识库未找到完整明确依据，但检索到以下相关内容；只能作为相关参考，不能直接当作完整结论。"
+                    item["相关内容"] = related_sources
+                else:
+                    item["证据情况"] = "当前可访问知识库未找到明确支持证据。"
         compact.append({k: v for k, v in item.items() if v not in (None, "", [], {})})
     return compact
 
@@ -237,10 +242,10 @@ def build_answer_packet(state: dict[str, Any]) -> AnswerPacket:
         execution_status = "need_clarification"
     elif any(str(item.get("status") or "") in {"error", "failed", "blocked"} for item in task_results):
         execution_status = "partial"
-    elif rag_empty and non_rag_results:
-        execution_status = "partial"
-    elif rag_empty and rag_results and len(rag_empty) == len(rag_results):
+    elif rag_empty and rag_results and len(rag_empty) == len(rag_results) and not non_rag_results:
         execution_status = "insufficient_evidence"
+    elif rag_empty and rag_results:
+        execution_status = "partial"
     packet_results = list(compact_results)
     if resolved_time_facts:
         packet_results.insert(0, {"类型": "resolved_time_facts", "时间事实": resolved_time_facts})

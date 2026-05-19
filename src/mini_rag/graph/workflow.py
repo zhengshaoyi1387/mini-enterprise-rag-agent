@@ -74,10 +74,21 @@ class AgenticRAGWorkflow:
             kb_ids=kb_ids,
             override_now=override_now,
         )
-        state = self._run_until_generate(state)
+        yield {"event": "status", "stage": "runtime_context", "message": "正在理解问题"}
+        state = self.nodes.build_runtime_context(state)
+        yield {"event": "status", "stage": "plan_with_llm", "message": "正在生成执行计划"}
+        state = self.nodes.plan_with_llm(state)
+        yield {"event": "status", "stage": "resolve_plan_time", "message": "正在解析时间信息"}
+        state = self.nodes.resolve_plan_time(state)
+        yield {"event": "status", "stage": "validate_plan", "message": "正在校验执行计划"}
+        state = self.nodes.validate_plan(state)
+        yield {"event": "status", "stage": "react_execute", "message": "正在执行任务"}
+        state = self.nodes.react_execute(state)
+        yield {"event": "status", "stage": "answer_with_llm", "message": "正在生成最终回答"}
         for token in self.nodes.stream_generate_answer(state):
             if token:
                 yield {"event": "token", "content": token}
+        yield {"event": "status", "stage": "update_memory", "message": "正在更新记忆"}
         state = self.nodes.update_memory(state)
         trace = self.nodes.build_trace(state)
         yield {

@@ -132,10 +132,7 @@ def test_mixed_flow_accepts_finance_reimbursement_supporting_source(tmp_path: Pa
             '{"task_id":"rag","kind":"rag","objective":"介绍公司的报销制度","rag_query":"公司报销制度"},'
             '{"task_id":"att","kind":"tool","objective":"查询上周出勤情况","tool_name":"query_attendance_summary","action":"query","time_expression":"上周","tool_input":{"department":"all","include_records":false}}'
             '],"answer_style":"concise"}',
-            '{"next_action":"call_tool","task_id":"cal","tool_name":"manage_company_calendar"}',
-            '{"next_action":"search_rag","task_id":"rag","rag_query":"公司报销制度"}',
             '{"answerable":true,"sufficiency":"high","supporting_source_ids":["finance-reimbursement-1"],"missing_evidence":[],"reason":"证据覆盖报销制度概要"}',
-            '{"next_action":"call_tool","task_id":"att","tool_name":"query_attendance_summary"}',
             "会议：已查询；报销制度：需真实发票和审批单；出勤情况：已查询。",
         ]
     )

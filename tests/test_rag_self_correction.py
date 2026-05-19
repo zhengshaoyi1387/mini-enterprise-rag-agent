@@ -101,7 +101,6 @@ def test_reimbursement_rag_task_uses_llm_judge_then_retries_once(tmp_path: Path)
             '{"overall_intent":"rag","requires_tools":false,"requires_rag":true,'
             '"tasks":[{"task_id":"rag","kind":"rag","objective":"介绍公司的报销制度","rag_query":"公司报销制度"}],'
             '"answer_style":"concise"}',
-            '{"next_action":"search_rag","task_id":"rag","rag_query":"公司报销制度"}',
             '{"answerable":false,"sufficiency":"low","supporting_source_ids":[],"missing_evidence":["报销制度依据"],"reason":"候选证据不覆盖原问题"}',
             '{"should_retry":true,"reason":"在同一问题范围内补齐报销制度依据",'
             '"retrieval_query":"报销 费用报销 发票 支付凭证 审批流程 报销单 FIN-EXP-2026",'
@@ -221,14 +220,11 @@ def test_mixed_rag_retry_success_makes_answer_packet_success(tmp_path: Path) -> 
             '{"task_id":"rag","kind":"rag","objective":"介绍公司的报销制度","rag_query":"公司报销制度"},'
             '{"task_id":"att","kind":"tool","objective":"查询上周出勤情况","tool_name":"query_attendance_summary","action":"query","time_expression":"上周","tool_input":{"department":"all","include_records":false}}'
             '],"answer_style":"concise"}',
-            '{"next_action":"call_tool","task_id":"cal","tool_name":"manage_company_calendar"}',
-            '{"next_action":"search_rag","task_id":"rag","rag_query":"公司报销制度"}',
             '{"answerable":false,"sufficiency":"low","supporting_source_ids":[],"missing_evidence":["报销制度依据"],"reason":"候选证据不足"}',
             '{"should_retry":true,"reason":"需要同主题补检索",'
             '"retrieval_query":"报销 费用报销 发票 支付凭证 审批流程 报销单 FIN-EXP-2026",'
             '"target_kbs":["finance"],"query_scope":"same_topic","expected_evidence":["报销材料"]}',
             '{"answerable":true,"sufficiency":"high","supporting_source_ids":["finance-reimbursement-1"],"missing_evidence":[],"reason":"证据充分"}',
-            '{"next_action":"call_tool","task_id":"att","tool_name":"query_attendance_summary"}',
             "会议、报销制度和出勤情况均已汇总。",
         ]
     )
@@ -246,3 +242,30 @@ def test_mixed_rag_retry_success_makes_answer_packet_success(tmp_path: Path) -> 
     assert [result["kind"] for result in state["task_results"]] == ["tool", "rag", "tool"]
     assert next(result for result in state["task_results"] if result["kind"] == "rag")["status"] == "ok"
     assert state["answer_packet"]["status"] == "success"
+
+
+def test_evidence_judge_clears_supporting_ids_when_not_answerable() -> None:
+    from mini_rag.capabilities.rag.evidence_judge import judge_rag_evidence_with_llm
+
+    llm = QueueLLM([
+        '{"answerable":false,"sufficiency":"low","supporting_source_ids":["it-1"],'
+        '"missing_evidence":["完整 VPN 安全要求"],"reason":"只有相关片段"}'
+    ])
+    decision = judge_rag_evidence_with_llm(
+        original_question="VPN 远程访问有什么安全要求？",
+        rag_task_objective="查询 VPN 远程访问安全要求",
+        candidate_sources=[
+            {
+                "chunk_id": "it-1",
+                "source": "it.md",
+                "title_path": "VPN 基线",
+                "preview": "VPN 访问异常连续失败 5 次会触发账号保护。",
+            }
+        ],
+        llm=llm,
+        task_question="VPN 远程访问有什么安全要求？",
+    )
+
+    assert decision.answerable is False
+    assert decision.supporting_source_ids == ()
+    assert decision.related_source_ids == ("it-1",)

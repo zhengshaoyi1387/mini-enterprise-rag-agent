@@ -107,8 +107,9 @@ class ToolRegistry:
     def format_tool_contracts_for_prompt(self, role: str | None = None, role_policies: RolePolicyMap | None = None) -> str:
         """Return compact permission-aware contracts for the planner.
 
-        This is intentionally not the full JSON Schema. It is the current role's
-        capability catalog: tools/actions not visible here should not be planned.
+        The planner only needs tool/action names, important field names, and
+        safety semantics. Full schema validation is handled later by validators
+        and adapters, so this deliberately avoids sending verbose schema values.
         """
         role = normalize_role(role)
         contracts: list[dict[str, Any]] = []
@@ -118,11 +119,12 @@ class ToolRegistry:
                 continue
             actions: dict[str, Any] = {}
             if "*" in allowed:
-                actions["*"] = tool.action_contracts.get("*") or self._compact_schema(tool.input_schema)
+                contract = tool.action_contracts.get("*") or self._compact_schema(tool.input_schema)
+                actions["*"] = self._compact_action_contract(contract)
             else:
                 for action in sorted(allowed):
                     if action in tool.action_contracts:
-                        actions[action] = tool.action_contracts[action]
+                        actions[action] = self._compact_action_contract(tool.action_contracts[action])
             if not actions:
                 continue
             contracts.append(
@@ -194,6 +196,20 @@ class ToolRegistry:
                 }
             )
         return json.dumps(contracts, ensure_ascii=False, separators=(",", ":"))
+
+    @staticmethod
+    def _compact_action_contract(contract: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(contract, dict):
+            return {}
+        input_spec = contract.get("in") if isinstance(contract.get("in"), dict) else {}
+        fields = sorted(str(key) for key in input_spec.keys()) if isinstance(input_spec, dict) else []
+        output: dict[str, Any] = {}
+        if fields:
+            output["fields"] = fields
+        semantics = str(contract.get("semantics") or "").strip()
+        if semantics:
+            output["semantics"] = semantics
+        return output or contract
 
     @staticmethod
     def _compact_schema(schema: dict[str, Any]) -> dict[str, Any]:

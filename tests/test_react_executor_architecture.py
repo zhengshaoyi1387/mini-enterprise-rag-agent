@@ -157,3 +157,226 @@ def test_react_executor_returns_success_when_fifth_task_completes() -> None:
     assert result.status == "success"
     assert len(result.steps) == 5
     assert result.finish_reason == "all tasks completed"
+
+
+def test_react_executor_skips_next_action_for_valid_simple_tool_task() -> None:
+    executor = ReActExecutor(max_steps=3)
+    state = {
+        "question": "查询明天会议",
+        "execution_plan": {
+            "tasks": [
+                {
+                    "task_id": "t1",
+                    "kind": "tool",
+                    "tool": "manage_company_calendar",
+                    "action": "query",
+                    "tool_input": {"action": "query", "start_date": "2026-05-20", "end_date": "2026-05-20"},
+                }
+            ]
+        },
+        "plan_validation": {
+            "validation_status": "valid",
+            "executable_tasks": [
+                {
+                    "task_id": "t1",
+                    "kind": "tool",
+                    "tool": "manage_company_calendar",
+                    "action": "query",
+                    "tool_input": {"action": "query", "start_date": "2026-05-20", "end_date": "2026-05-20"},
+                }
+            ],
+        },
+        "completed_tasks": [],
+        "observations": [],
+    }
+
+    def fail_next_action(*_args):
+        raise AssertionError("simple executable task should not call react_execute.next_action LLM")
+
+    result = executor.run(
+        state,
+        next_action=fail_next_action,
+        call_tool=lambda task, action: {
+            "status": "success",
+            "summary": f"called {action['next_action']} for {task['task_id']}",
+            "raw_result": {"events": []},
+        },
+        search_rag=lambda *_args: {"status": "success"},
+    )
+
+    assert result.status == "success"
+    assert result.steps[0]["action"] == "call_tool"
+    assert result.steps[0]["next_action_source"] == "deterministic"
+    assert result.steps[0]["next_action_ms"] == 0
+
+
+def test_react_executor_batches_independent_validated_rag_tasks() -> None:
+    executor = ReActExecutor(max_steps=5)
+    tasks = [
+        {"task_id": "t1", "kind": "rag", "query": "制度 A", "rag_query": "制度 A", "tool_input": {}},
+        {"task_id": "t2", "kind": "rag", "query": "制度 B", "rag_query": "制度 B", "tool_input": {}},
+        {"task_id": "t3", "kind": "rag", "query": "制度 C", "rag_query": "制度 C", "tool_input": {}},
+    ]
+    state = {
+        "question": "三个独立制度问题",
+        "execution_plan": {"tasks": tasks},
+        "plan_validation": {"validation_status": "valid", "executable_tasks": tasks},
+        "completed_tasks": [],
+        "observations": [],
+    }
+
+    def fail_next_action(*_args):
+        raise AssertionError("independent validated rag tasks should not call next_action LLM")
+
+    seen_batches: list[list[str]] = []
+
+    def search_rag(task, action):
+        batch = action.get("_batch_tasks") or []
+        seen_batches.append([item["task_id"] for item in batch])
+        return {
+            "status": "success",
+            "batch_results": [
+                {
+                    "task_id": item["task_id"],
+                    "status": "success",
+                    "summary": f"ok {item['task_id']}",
+                    "raw_result": {"sources": []},
+                    "facts": [],
+                }
+                for item in batch
+            ],
+        }
+
+    result = executor.run(
+        state,
+        next_action=fail_next_action,
+        call_tool=lambda *_args: {"status": "success"},
+        search_rag=search_rag,
+    )
+
+    assert result.status == "success"
+    assert seen_batches == [["t1", "t2", "t3"]]
+    assert [step["task_id"] for step in result.steps] == ["t1", "t2", "t3"]
+    assert all(step["next_action_source"] == "deterministic" for step in result.steps)
+    assert state["completed_tasks"] == ["t1", "t2", "t3"]
+
+
+def test_react_executor_does_not_batch_dependent_rag_tasks() -> None:
+    executor = ReActExecutor(max_steps=5)
+    tasks = [
+        {"task_id": "t1", "kind": "rag", "query": "先查 A", "rag_query": "先查 A", "tool_input": {}},
+        {"task_id": "t2", "kind": "rag", "query": "再查 B", "rag_query": "再查 B", "depends_on": ["t1"], "tool_input": {}},
+    ]
+    state = {
+        "question": "有依赖的 RAG",
+        "execution_plan": {"tasks": tasks},
+        "plan_validation": {"validation_status": "valid", "executable_tasks": tasks},
+        "completed_tasks": [],
+        "observations": [],
+    }
+    actions_seen: list[str] = []
+
+    next_action_calls = {"count": 0}
+
+    def next_action(_state, _step, remaining):
+        next_action_calls["count"] += 1
+        return {"next_action": "search_rag", "task_id": remaining[0]["task_id"], "rag_query": remaining[0]["query"]}
+
+    result = executor.run(
+        state,
+        next_action=next_action,
+        call_tool=lambda *_args: {"status": "success"},
+        search_rag=lambda task, action: actions_seen.append(task["task_id"]) or {"status": "success", "summary": "ok", "raw_result": {}},
+    )
+
+    assert result.status == "success"
+    assert actions_seen == ["t1", "t2"]
+    assert len(result.steps) == 2
+    assert next_action_calls["count"] == 1
+    assert result.steps[0]["next_action_source"] == "deterministic"
+    assert result.steps[1]["next_action_source"] == "llm"
+
+
+def test_batched_rag_callback_keeps_each_task_query_isolated(tmp_path) -> None:
+    nodes = AgenticRAGNodes(make_settings(tmp_path), llm=NoopLLM())
+    state = create_initial_state("多个独立 RAG 问题", role="admin", override_now="2026-05-20T09:30:00+08:00")
+    state["used_kbs"] = ["finance", "hr", "it", "product", "public"]
+    state["task_results"] = []
+    tasks = [
+        {
+            "task_id": "t1",
+            "kind": "rag",
+            "objective": "查询考勤制度文档编号",
+            "query": "考勤与休假管理制度的文档编号",
+            "rag_query": "考勤与休假管理制度的文档编号",
+            "tool_input": {},
+        },
+        {
+            "task_id": "t2",
+            "kind": "rag",
+            "objective": "查询8000元以上报销注意事项",
+            "query": "8000元以上报销 注意事项",
+            "rag_query": "8000元以上报销 注意事项",
+            "tool_input": {},
+        },
+        {
+            "task_id": "t3",
+            "kind": "rag",
+            "objective": "查询VPN远程访问安全要求",
+            "query": "VPN远程访问 安全要求",
+            "rag_query": "VPN远程访问 安全要求",
+            "tool_input": {},
+        },
+    ]
+
+    captured_pending: list[list[dict]] = []
+
+    class FakeRAGService:
+        def retrieve(self, current_state):
+            pending = [dict(item) for item in current_state.get("pending_search_tasks") or []]
+            captured_pending.append(pending)
+            for item in pending:
+                query = item["query"]
+                task_id = item["task_id"]
+                current_state.setdefault("task_results", []).append(
+                    {
+                        "task_id": task_id,
+                        "kind": "rag",
+                        "objective": item.get("objective") or query,
+                        "status": "ok",
+                        "query": query,
+                        "executed_queries": [query],
+                        "sources": [{"chunk_id": f"{task_id}-source", "preview": query}],
+                        "candidate_sources": [{"chunk_id": f"{task_id}-candidate", "preview": query}],
+                        "evidence_summary": f"evidence for {task_id}: {query}",
+                    }
+                )
+            return current_state
+
+    nodes.rag_service = FakeRAGService()  # type: ignore[assignment]
+    callback = nodes._make_rag_callback(state)
+    result = callback(
+        tasks[0],
+        {
+            "next_action": "search_rag",
+            "task_id": "t1",
+            # The batch action naturally carries the first query. This must not override t2/t3.
+            "rag_query": "考勤与休假管理制度的文档编号",
+            "_batch_tasks": [dict(item) for item in tasks],
+            "_next_action_source": "deterministic",
+            "_next_action_ms": 0.0,
+        },
+    )
+
+    assert result["status"] == "success"
+    assert [[item["task_id"], item["query"]] for item in captured_pending[0]] == [
+        ["t1", "考勤与休假管理制度的文档编号"],
+        ["t2", "8000元以上报销 注意事项"],
+        ["t3", "VPN远程访问 安全要求"],
+    ]
+    assert [item["query"] for item in state["task_results"]] == [
+        "考勤与休假管理制度的文档编号",
+        "8000元以上报销 注意事项",
+        "VPN远程访问 安全要求",
+    ]
+    assert [item["task_id"] for item in result["batch_results"]] == ["t1", "t2", "t3"]

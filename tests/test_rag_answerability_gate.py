@@ -81,3 +81,61 @@ def test_answerability_gate_does_not_count_candidate_sources() -> None:
 def test_answer_has_sources_for_rag_requires_real_sources() -> None:
     assert answer_has_sources_for_rag({"route": "rag", "final_answer": "答案 来源：x", "sources": []}) is False
     assert answer_has_sources_for_rag({"route": "rag", "final_answer": "答案 来源：x", "sources": [{"source": "x"}]}) is True
+
+
+def test_answerability_gate_allows_partial_mixed_rag_results() -> None:
+    state = {
+        "route": "rag",
+        "task_results": [
+            {
+                "task_id": "t1",
+                "kind": "rag",
+                "status": "ok",
+                "sources": [{"source": "hr.md", "chunk_id": "hr-1"}],
+                "evidence_judgments": [{"answerable": True, "supporting_source_ids": ["hr-1"]}],
+            },
+            {
+                "task_id": "t2",
+                "kind": "rag",
+                "status": "empty",
+                "sources": [],
+                "candidate_sources": [{"source": "finance.md"}],
+                "evidence_judgments": [{"answerable": False, "reason": "没有明确酒店费用报销资格"}],
+                "unsupported_reason": "未检索到足以支持该子目标的证据",
+            },
+        ],
+        "sources": [{"source": "hr.md", "chunk_id": "hr-1"}],
+    }
+
+    report = RagAnswerabilityGate().evaluate(state)
+
+    assert report.answerable is True
+    assert report.status == "partial_evidence"
+    assert report.mode == "partial"
+    assert report.supported_task_ids == ("t1",)
+    assert report.unsupported_task_ids == ("t2",)
+
+
+def test_answerability_gate_allows_related_only_rag_without_full_support() -> None:
+    state = {
+        "route": "rag",
+        "task_results": [
+            {
+                "task_id": "vpn",
+                "kind": "rag",
+                "status": "empty",
+                "sources": [],
+                "related_sources": [{"source": "it.md", "preview": "VPN 连续失败 5 次会触发账号保护。"}],
+                "evidence_judgments": [{"answerable": False, "related_source_ids": ["it-1"]}],
+                "unsupported_reason": "未找到完整明确依据，但检索到相关内容",
+            }
+        ],
+        "sources": [],
+    }
+
+    report = RagAnswerabilityGate().evaluate(state)
+
+    assert report.answerable is True
+    assert report.status == "related_evidence"
+    assert report.mode == "partial"
+    assert report.related_task_ids == ("vpn",)

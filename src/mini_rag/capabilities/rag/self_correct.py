@@ -9,15 +9,11 @@ from mini_rag.graph.utils import get_message_content, safe_json_loads
 
 
 RAG_REFLECT_SYSTEM = """
-你是企业 RAG 检索自修复器。你不是在改写用户问题，只能生成下一次检索用的 retrieval_query。
-
-硬规则：
-- original_question / rag_task_objective 是最终回答主题，retrieval_query 仅用于检索。
-- retrieval_query 必须保持 same_topic，不得扩大用户问题范围，不得加入用户没有问的新主题。
-- 只能围绕 missing_evidence 补充检索表达；如果无法在同一问题范围内补检索，should_retry=false。
-- target_kbs 必须从 allowed_kbs 中选择，不得请求未授权知识库。
-- 不得输出最终回答，不得解释制度内容。
-- 只输出 JSON。
+你是企业 RAG 检索自修复器，只输出 JSON。
+只为 current_task_id 的 task_question / rag_task_objective 生成下一次 retrieval_query。
+original_question 仅作背景，不得混入其他子任务缺失点；query_scope 必须 same_topic，不得扩大范围或加入新主题。
+只能围绕 missing_evidence 补检索；无法同题补检索则 should_retry=false。
+target_kbs 只能来自 allowed_kbs；不得输出最终回答或解释制度内容。
 """.strip()
 
 
@@ -104,6 +100,8 @@ def _build_reflect_prompt(
 ) -> str:
     payload = {
         "original_question": question,
+        "current_task_id": task.get("task_id") or "",
+        "task_question": task.get("query") or initial_query,
         "rag_task_objective": task.get("objective") or task.get("query") or initial_query,
         "initial_query": initial_query,
         "unsupported_reason": unsupported_reason,
@@ -112,11 +110,11 @@ def _build_reflect_prompt(
         "candidate_titles": _compact_candidate_titles(candidate_sources),
         "output_schema": {
             "should_retry": True,
-            "reason": "为什么仍可在同一问题范围内补检索",
-            "retrieval_query": "只用于检索的同主题查询",
+            "reason": "一句话",
+            "retrieval_query": "同主题检索词",
             "target_kbs": ["allowed kb id only"],
             "query_scope": "same_topic",
-            "expected_evidence": ["要补齐的证据点"],
+            "expected_evidence": ["缺失证据点"],
         },
     }
     return json.dumps(payload, ensure_ascii=False, indent=2, default=str)
