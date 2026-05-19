@@ -240,14 +240,25 @@ def retrieval_options(mode: str) -> tuple[str, bool]:
 
 
 def run_rag_case(case: dict[str, Any], settings: Settings, args: argparse.Namespace, runner_cache: dict[str, Any]) -> dict[str, Any]:
-    from mini_rag.rag.chain import RAGQuestionAnswerer
+    from mini_rag.agent.agent import EnterpriseKnowledgeAgent
 
-    qa = runner_cache.get("rag")
+    qa = runner_cache.get("agent")
     if qa is None:
-        qa = RAGQuestionAnswerer(settings)
-        runner_cache["rag"] = qa
+        qa = EnterpriseKnowledgeAgent(settings)
+        runner_cache["agent"] = qa
     retrieval_mode, enable_rerank = retrieval_options(args.mode)
-    return qa.ask(str(case.get("question") or ""), retrieval_mode=retrieval_mode, enable_rerank=enable_rerank)
+    case_id = str(case.get("id") or case.get("case_id") or uuid4().hex)
+    return qa.ask(
+        str(case.get("question") or ""),
+        session_id=str(case.get("session_id") or f"eval_rag_{case_id}_{uuid4().hex[:8]}"),
+        retrieval_mode=retrieval_mode,
+        enable_rerank=enable_rerank,
+        user_id=str(case.get("user_id") or "eval_user"),
+        role=str(case.get("role") or args.role or "employee"),
+        trace_id=str(case.get("trace_id") or f"eval_trace_{uuid4().hex}"),
+        kb_ids=case.get("kb_ids"),
+        override_now=os.environ.get("AGENT_EVAL_FIXED_NOW"),
+    )
 
 
 def run_agent_case(case: dict[str, Any], settings: Settings, args: argparse.Namespace, runner_cache: dict[str, Any]) -> dict[str, Any]:

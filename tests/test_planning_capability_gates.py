@@ -40,7 +40,7 @@ def test_capability_gate_refuses_disallowed_calendar_write_before_execution() ->
     assert gated["normalization_reason"] == "task action not visible"
 
 
-def test_capability_gate_clarifies_calendar_create_missing_required_slots() -> None:
+def test_capability_gate_clarifies_calendar_create_missing_required_fields() -> None:
     payload = {"route": "tool", "selected_tool": "manage_company_calendar", "selected_action": "create"}
     tasks = [
         {
@@ -64,4 +64,4 @@ def test_capability_gate_clarifies_calendar_create_missing_required_slots() -> N
     assert gated["intent"] == "need_clarification"
     assert gated["missing_required_slots"] == ["date,time"]
     assert gated["validation_status"] == "needs_clarification"
-    assert gated["validation_issues"][0]["code"] == "calendar_create_missing_required_slots"
+    assert gated["validation_issues"][0]["code"] == "calendar_create_missing_required_fields"

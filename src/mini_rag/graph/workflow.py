@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from mini_rag.config import Settings
-from mini_rag.graph.nodes import AgenticRAGNodes, create_initial_state
+from mini_rag.orchestration.agentic_nodes import AgenticRAGNodes
+from mini_rag.orchestration.state_factory import create_initial_state
 from mini_rag.graph.state import AgentState
 
 
@@ -84,6 +85,8 @@ class AgenticRAGWorkflow:
             "answer": state.get("final_answer", ""),
             "route": state.get("route", ""),
             "sources": state.get("sources", []),
+            "mainline_log": state.get("mainline_log", []),
+            "mainline_log_text": state.get("mainline_log_text", ""),
             "trace": trace,
         }
 

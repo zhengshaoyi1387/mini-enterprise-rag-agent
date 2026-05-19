@@ -10,13 +10,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from mini_rag.agent.agent import EnterpriseKnowledgeAgent
 from mini_rag.config import get_settings
 from mini_rag.observability.trace import save_trace
-from mini_rag.rag.chain import RAGQuestionAnswerer
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="向企业知识库提问")
     parser.add_argument("question", help="你的问题")
-    parser.add_argument("--no-agent", action="store_true", help="不使用 Agent，直接使用普通 RAG Chain")
     parser.add_argument("--session-id", default=None, help="多轮会话 ID")
     parser.add_argument("--retrieval-mode", default=None, help="检索模式：hybrid 或 vector")
     parser.add_argument("--no-rerank", action="store_true", help="关闭 Qwen rerank")
@@ -24,21 +22,13 @@ def main() -> None:
 
     settings = get_settings()
 
-    if args.no_agent:
-        qa = RAGQuestionAnswerer(settings)
-        result = qa.ask(
-            args.question,
-            retrieval_mode=args.retrieval_mode,
-            enable_rerank=False if args.no_rerank else None,
-        )
-    else:
-        qa = EnterpriseKnowledgeAgent(settings)
-        result = qa.ask(
-            args.question,
-            session_id=args.session_id,
-            retrieval_mode=args.retrieval_mode,
-            enable_rerank=False if args.no_rerank else None,
-        )
+    qa = EnterpriseKnowledgeAgent(settings)
+    result = qa.ask(
+        args.question,
+        session_id=args.session_id,
+        retrieval_mode=args.retrieval_mode,
+        enable_rerank=False if args.no_rerank else None,
+    )
     trace_path = save_trace(settings, result["trace"])
 
     print("\n答案：")

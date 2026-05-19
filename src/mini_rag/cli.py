@@ -7,7 +7,6 @@ from mini_rag.agent.agent import EnterpriseKnowledgeAgent
 from mini_rag.config import get_settings
 from mini_rag.ingestion.build_index import build_index
 from mini_rag.observability.trace import save_trace
-from mini_rag.rag.chain import RAGQuestionAnswerer
 
 app = typer.Typer(help="Mini Enterprise RAG Agent 命令行工具")
 
@@ -26,7 +25,6 @@ def build_index_command(
 @app.command("ask")
 def ask_command(
     question: str = typer.Argument(..., help="你的问题"),
-    use_agent: bool = typer.Option(True, "--agent/--no-agent", help="是否使用 Agent 版本"),
     session_id: str | None = typer.Option(None, "--session-id", help="多轮会话 ID"),
     retrieval_mode: str | None = typer.Option(None, "--retrieval-mode", help="检索模式：hybrid 或 vector"),
     no_rerank: bool = typer.Option(False, "--no-rerank", help="关闭 Qwen rerank"),
@@ -34,17 +32,13 @@ def ask_command(
     """向企业知识库提问。"""
     settings = get_settings()
 
-    if use_agent:
-        qa = EnterpriseKnowledgeAgent(settings)
-        result = qa.ask(
-            question,
-            session_id=session_id,
-            retrieval_mode=retrieval_mode,
-            enable_rerank=False if no_rerank else None,
-        )
-    else:
-        qa = RAGQuestionAnswerer(settings)
-        result = qa.ask(question, retrieval_mode=retrieval_mode, enable_rerank=False if no_rerank else None)
+    qa = EnterpriseKnowledgeAgent(settings)
+    result = qa.ask(
+        question,
+        session_id=session_id,
+        retrieval_mode=retrieval_mode,
+        enable_rerank=False if no_rerank else None,
+    )
     trace_path = save_trace(settings, result["trace"])
 
     print("\n[bold green]答案：[/bold green]")

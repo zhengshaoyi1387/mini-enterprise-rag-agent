@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from mini_rag.ingestion.kb_config import infer_kb_id_from_source, list_knowledge_bases
 from mini_rag.security.permissions import assert_can_access_kbs, get_allowed_kbs
-from mini_rag.tools.daily_tools import build_default_tool_registry, select_daily_tool_by_rule
+from mini_rag.tools.daily_tools import build_default_tool_registry
 
 
 def test_kb_catalog_and_inference() -> None:
@@ -29,14 +29,10 @@ def test_daily_tool_registry_contains_real_business_tools_only() -> None:
     registry = build_default_tool_registry()
     names = {tool["name"] for tool in registry.list_tools()}
     assert names == {"search_knowledge_base", "get_current_datetime", "query_attendance_summary", "manage_company_calendar"}
-    assert select_daily_tool_by_rule("上周公司的出勤情况怎么样？") is None
-    assert select_daily_tool_by_rule("下周公司有哪些会议安排？") is None
-    assert select_daily_tool_by_rule("今天星期几？") is None
 
 
-def test_policy_lookup_questions_do_not_trigger_reimbursement_tool() -> None:
-    assert select_daily_tool_by_rule("报销的时限是多少") is None
-    assert select_daily_tool_by_rule("差旅报销需要哪些材料？") is None
-    assert select_daily_tool_by_rule("发票抬头有什么要求？") is None
-    assert select_daily_tool_by_rule("这笔住宿超标能不能报销？") is None
-    assert select_daily_tool_by_rule("帮我判断这张发票是否可以报销") is None
+def test_no_rule_based_daily_tool_selector_is_exported() -> None:
+    import mini_rag.tools.daily_tools as daily_tools
+
+    old_name = "select_" + "daily_" + "tool_" + "by_" + "rule"
+    assert not hasattr(daily_tools, old_name)

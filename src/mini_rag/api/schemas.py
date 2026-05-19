@@ -34,9 +34,16 @@ class ChatResponse(BaseModel):
     tool_calls: list[dict[str, Any]] = Field(default_factory=list)
     retrieval_trace: dict[str, Any] | None = None
     node_trace: list[dict[str, Any]] = Field(default_factory=list)
+    mainline_log: list[dict[str, Any]] = Field(default_factory=list)
+    mainline_log_text: str = ""
     audit_events: list[dict[str, Any]] = Field(default_factory=list)
     latency_ms: int = 0
     error: str | None = None
+
+
+class HealthResponse(BaseModel):
+    ok: bool
+    message: str
 
 
 class TraceStep(BaseModel):
@@ -58,6 +65,8 @@ class TraceResponse(BaseModel):
     used_kbs: list[str] = Field(default_factory=list)
     steps: list[TraceStep] = Field(default_factory=list)
     tool_events: list[dict[str, Any]] = Field(default_factory=list)
+    mainline_log: list[dict[str, Any]] = Field(default_factory=list)
+    mainline_log_text: str = ""
     sources: list[dict[str, Any]] = Field(default_factory=list)
     error: str | None = None
     raw_trace_path: str | None = None

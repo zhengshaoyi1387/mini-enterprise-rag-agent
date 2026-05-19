@@ -45,6 +45,8 @@ class EnterpriseKnowledgeGraphAgent:
             "answer": state.get("final_answer", ""),
             "route": state.get("route", ""),
             "sources": state.get("sources", []),
+            "mainline_log": state.get("mainline_log", []),
+            "mainline_log_text": state.get("mainline_log_text", ""),
             "trace": trace,
         }
 
@@ -76,7 +78,7 @@ class EnterpriseKnowledgeGraphAgent:
 def build_readable_steps(trace: dict) -> list[dict]:
     """把 trace 转成适合前端/文档展示的步骤列表。
 
-    这是一个兼容旧测试和旧展示层的小工具；新 trace 字段会原样留在 trace JSON 中。
+    这是面向前端/文档展示的小工具；完整 trace 字段会原样留在 trace JSON 中。
     """
     steps: list[dict] = []
     observations = trace.get("observations") or []
@@ -92,7 +94,7 @@ def build_readable_steps(trace: dict) -> list[dict]:
             "input": {},
             "output": {},
         }
-        if node in {"load_context", "manage_context"}:
+        if node in {"build_runtime_context", "manage_context"}:
             step["input"] = {"session_id": trace.get("session_id")}
             context_events = trace.get("context_events") or []
             event = next((event for event in context_events if event.get("node") == node), {})
@@ -104,7 +106,7 @@ def build_readable_steps(trace: dict) -> list[dict]:
                 "risk_level": trace.get("risk_level"),
                 "reason": trace.get("router_reason"),
             }
-        elif node in {"retrieve", "execute_tool"}:
+        elif node in {"react_execute", "execute_tool"}:
             step["input"] = {"tool_calls": trace.get("tool_calls", [])}
             step["output"] = {
                 "tool_name": tool_observation.get("tool_name"),
@@ -112,7 +114,7 @@ def build_readable_steps(trace: dict) -> list[dict]:
                 "result_count": retrieval_trace.get("result_count"),
                 "retrieved_sources": retrieval_trace.get("results") or trace.get("sources", []),
             }
-        elif node in {"generate_answer", "final"}:
+        elif node in {"answer_with_llm", "final"}:
             step["input"] = {"source_count": len(trace.get("sources") or [])}
             step["output"] = {"answer": trace.get("answer")}
         else:

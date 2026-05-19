@@ -39,7 +39,7 @@ class ConversationContext:
     - summary 是长期压缩记忆。
     - turns 是最近 N 轮完整问答。
 
-    LangGraph 的 load_context 节点会读取这个对象，再交给 LLM Context Manager。
+    LangGraph 的 build_runtime_context 节点会读取这个对象，再交给 Planner。
     """
 
     session_id: str | None

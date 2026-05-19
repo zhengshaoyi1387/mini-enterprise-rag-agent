@@ -31,6 +31,16 @@ class RecordingAgent:
             "tool_calls": [],
             "node_trace": [],
             "audit_events": [],
+            "mainline_log": [
+                {
+                    "step": 1,
+                    "stage": "runtime_context",
+                    "title": "构建运行上下文",
+                    "summary": "已识别用户身份、权限和当前时间。",
+                    "details": ["用户角色：employee"],
+                }
+            ],
+            "mainline_log_text": "1. 构建运行上下文：已识别用户身份、权限和当前时间。",
             "error": None,
         }
         return {"answer": trace["answer"], "route": "direct", "sources": [], "trace": trace}
@@ -49,6 +59,16 @@ class RecordingAgent:
             "tool_calls": [],
             "node_trace": [],
             "audit_events": [],
+            "mainline_log": [
+                {
+                    "step": 1,
+                    "stage": "runtime_context",
+                    "title": "构建运行上下文",
+                    "summary": "已识别用户身份、权限和当前时间。",
+                    "details": ["用户角色：employee"],
+                }
+            ],
+            "mainline_log_text": "1. 构建运行上下文：已识别用户身份、权限和当前时间。",
             "error": None,
         }
         yield {"event": "token", "content": "流式"}
@@ -115,6 +135,10 @@ def test_chat_ignores_spoofed_request_body_role(tmp_path, monkeypatch) -> None:
     assert agent.calls
     assert agent.calls[0]["role"] == "employee"
     assert agent.calls[0]["user_id"] == "employee"
+    payload = response.json()
+    assert payload["mainline_log"][0]["title"] == "构建运行上下文"
+    assert "构建运行上下文" in payload["mainline_log_text"]
+    assert "messages" not in payload["mainline_log_text"]
 
 
 def test_admin_can_update_role_kb_permissions(tmp_path, monkeypatch) -> None:

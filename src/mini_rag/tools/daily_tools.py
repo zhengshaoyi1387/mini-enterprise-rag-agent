@@ -119,14 +119,3 @@ def build_default_tool_registry() -> ToolRegistry:
 
     return registry
 
-
-def select_daily_tool_by_rule(_question: str) -> None:
-    """Deprecated compatibility shim.
-
-    Tool selection is now owned by the Planner and the permission-aware tool
-    contract catalog. Keeping this function returning ``None`` avoids breaking
-    older imports while ensuring no keyword/rule fast path can override the LLM
-    plan.
-    """
-
-    return None

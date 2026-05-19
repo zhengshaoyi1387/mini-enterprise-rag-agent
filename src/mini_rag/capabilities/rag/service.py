@@ -3,7 +3,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable
 
-from mini_rag.capabilities.rag.compiler import compile_search_tasks, normalize_query_key
+from mini_rag.capabilities.rag.compiler import normalize_query_key
 from mini_rag.capabilities.rag.evidence_judge import judge_rag_evidence_with_llm, select_sources_by_ids
 from mini_rag.capabilities.rag.formatter import (
     build_evidence_summary_from_sources,
@@ -39,24 +39,6 @@ class RAGRetrievalService:
         self._get_retriever = get_retriever
         self._get_role_policies = get_role_policies
         self.llm = llm
-
-    def plan_retrieval(self, state: dict[str, Any]) -> dict[str, Any]:
-        deduped = compile_search_tasks(
-            state,
-            top_k=int(self.settings.top_k),
-            candidate_k=int(self.settings.candidate_k),
-            max_tasks=max(1, int(getattr(self.settings, "agent_max_search_tasks", 3) or 3)),
-        )
-        state["search_tasks"] = deduped
-        state["pending_search_tasks"] = deduped
-        state.setdefault("observations", []).append(
-            {
-                "type": "retrieval_plan",
-                "search_tasks": [public_search_task(task) for task in deduped],
-                "reason": "deterministic_from_execution_plan_no_llm",
-            }
-        )
-        return state
 
     def retrieve(self, state: dict[str, Any]) -> dict[str, Any]:
         role = normalize_role(state.get("role"))

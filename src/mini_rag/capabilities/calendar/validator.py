@@ -81,7 +81,7 @@ def validate_calendar_tasks(tasks: list[dict[str, Any]]) -> ValidationResult:
             if missing:
                 issues.append(
                     ValidationIssue(
-                        code="calendar_create_missing_required_slots",
+                        code="calendar_create_missing_required_fields",
                         task_id=task_id,
                         field=",".join(missing),
                         layer="validator",

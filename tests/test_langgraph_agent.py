@@ -63,6 +63,7 @@ def test_langgraph_agent_rag_path_persists_context(tmp_path):
         '"topic":"智能客服平台","entities":[],"risk_level":"low","knowledge_requirement":{"requires_company_knowledge":true,"should_use_rag":true},"reason":"需要查知识库"}',
         '{"intent":"rag_fact","route":"rag","standalone_query":"智能客服平台有哪些模块？",'
         '"execution_plan":{"tasks":[{"task_id":"t1","kind":"rag","objective":"查询智能客服平台核心模块","query":"智能客服平台有哪些模块？"}],"strategy":"short"},"reason":"需要查知识库"}',
+        '{"answerable":true,"sufficiency":"medium","supporting_source_ids":["c1"],"missing_evidence":[],"reason":"当前证据足以回答概要问题"}',
         "智能客服平台包含在线会话和知识库。\n\n引用：manual.md / 手册 / c1",
     ])
     settings = make_settings(tmp_path)

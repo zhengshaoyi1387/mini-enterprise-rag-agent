@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import time
 from typing import Any
 
@@ -31,11 +30,21 @@ from mini_rag.graph.prompts import (
 from mini_rag.graph.state import AgentState
 from mini_rag.graph.utils import NodeTimer, coerce_list, get_message_content, safe_json_loads
 from mini_rag.memory.service import MemoryService
+from mini_rag.observability.mainline_log import (
+    append_mainline_step,
+    summarize_answer,
+    summarize_memory,
+    summarize_plan,
+    summarize_react_execution,
+    summarize_runtime_context,
+    summarize_time_resolution,
+    summarize_validation,
+)
 from mini_rag.observability.trace_builder import TraceBuilder
 from mini_rag.orchestration.react_executor import ReActExecutor, ReActExecutionResult, ReActGuardrailViolation
 from mini_rag.orchestration.state_factory import create_initial_state
 from mini_rag.orchestration.state_views import refresh_state_views
-from mini_rag.planning.context_policy import build_planning_context as build_context_packet
+from mini_rag.planning.context_policy import build_context_packet
 from mini_rag.planning.context_policy import extract_previous_tool_context, turn_to_history_item
 from mini_rag.planning.gates import apply_capability_gates
 from mini_rag.security.auth_store import SQLiteAuthStore
@@ -150,6 +159,8 @@ class AgenticRAGNodes:
             state.setdefault("observations", []).append(
                 {"type": "runtime_context", "role": role, "current_date": time_payload.get("current_date"), "allowed_kbs": allowed_kbs}
             )
+            summary, details = summarize_runtime_context(state)
+            append_mainline_step(state, stage="runtime_context", title="构建运行上下文", summary=summary, details=details)
             refresh_state_views(state)
         return state
 
@@ -190,6 +201,8 @@ class AgenticRAGNodes:
             state.setdefault("observations", []).append(
                 {"type": "plan_with_llm", "overall_intent": normalized.get("overall_intent"), "task_count": len(normalized["tasks"])}
             )
+            summary, details = summarize_plan(state)
+            append_mainline_step(state, stage="plan_with_llm", title="生成执行计划", summary=summary, details=details)
             refresh_state_views(state)
         return state
 
@@ -231,6 +244,8 @@ class AgenticRAGNodes:
             state["task_queue"] = list(expanded_tasks)
             state["resolved_time_facts"] = facts
             state.setdefault("observations", []).append({"type": "time_resolution", "facts": facts})
+            summary, details = summarize_time_resolution(state)
+            append_mainline_step(state, stage="resolve_plan_time", title="解析时间信息", summary=summary, details=details)
             refresh_state_views(state)
         return state
 
@@ -385,6 +400,8 @@ class AgenticRAGNodes:
                 }
                 state["final_answer"] = "你没有权限，也无权执行该操作。" if intent == "permission_required" else "需要补充或澄清信息后才能执行。"
             state.setdefault("observations", []).append({"type": "plan_validation", **state["plan_validation"]})
+            summary, details = summarize_validation(state)
+            append_mainline_step(state, stage="validate_plan", title="校验执行计划", summary=summary, details=details)
             refresh_state_views(state)
         return state
 
@@ -432,18 +449,16 @@ class AgenticRAGNodes:
                     "execution_status": result.status,
                 }
             )
+            summary, details = summarize_react_execution(state)
+            append_mainline_step(state, stage="react_execute", title="执行任务", summary=summary, details=details)
             refresh_state_views(state)
         return state
 
     def answer_with_llm(self, state: AgentState) -> AgentState:
         with NodeTimer(state, "answer_with_llm"):
             result = self.answer_service.generate(state)
-            refresh_state_views(result)
-            return result
-
-    def generate_answer(self, state: AgentState) -> AgentState:
-        with NodeTimer(state, "generate_answer"):
-            result = self.answer_service.generate(state)
+            summary, details = summarize_answer(result)
+            append_mainline_step(result, stage="answer_with_llm", title="生成最终回答", summary=summary, details=details)
             refresh_state_views(result)
             return result
 
@@ -461,23 +476,12 @@ class AgenticRAGNodes:
                 on_complete=lambda s: self._role_policy_snapshots.pop(str(s.get("workflow_run_id") or s.get("trace_id") or id(s)), None),
             )
             result = service.update_memory(state)
+            summary, details = summarize_memory(result)
+            append_mainline_step(result, stage="update_memory", title="更新记忆", summary=summary, details=details)
             refresh_state_views(result)
             return result
 
-    # Thin compatibility wrappers for tooling that still invokes pre-graph setup names.
-    def load_context(self, state: AgentState) -> AgentState:
-        return self.build_runtime_context(state)
-
-    def check_permission(self, state: AgentState) -> AgentState:
-        return state if state.get("runtime_context") else self.build_runtime_context(state)
-
-    def build_capability_catalog(self, state: AgentState) -> AgentState:
-        return state if state.get("runtime_context") else self.build_runtime_context(state)
-
-    def build_planning_context(self, state: AgentState) -> AgentState:
-        return state if state.get("runtime_context") else self.build_runtime_context(state)
-
-    def call_tool(self, state: AgentState) -> AgentState:
+    def _call_tool(self, state: AgentState) -> AgentState:
         return execute_selected_tool(
             state,
             tool_registry=self.tool_registry,
@@ -490,12 +494,6 @@ class AgenticRAGNodes:
             friendly_tool_validation_error=self._friendly_tool_validation_error,
             friendly_permission_answer=self._friendly_permission_answer,
         )
-
-    def plan_retrieval(self, state: AgentState) -> AgentState:
-        return self.rag_service.plan_retrieval(state)
-
-    def retrieve(self, state: AgentState) -> AgentState:
-        return self.rag_service.retrieve(state)
 
     def build_trace(self, state: AgentState) -> dict[str, Any]:
         return self.trace_builder.build_trace(state)
@@ -530,7 +528,7 @@ class AgenticRAGNodes:
             state["current_task"] = executable
             self._apply_execution_task_to_state(state, executable)
             before = len(state.get("task_results") or [])
-            self.call_tool(state)
+            self._call_tool(state)
             latest = self._latest_task_result(state, before)
             if latest.get("tool_name") == "manage_company_calendar" and latest.get("action") == "query" and latest.get("status") in {"ok", "success"}:
                 if self.calendar_task_resolver.resolve_updates(state) or self.calendar_task_resolver.resolve_deletes(state):
@@ -858,8 +856,7 @@ class AgenticRAGNodes:
 
     @staticmethod
     def _datetime_tool_callable() -> Any:
-        graph_nodes = sys.modules.get("mini_rag.graph.nodes")
-        return getattr(graph_nodes, "get_current_datetime", get_current_datetime)
+        return get_current_datetime
 
     @staticmethod
     def _verify_tool_result_consistency(tool_name: str, payload: dict[str, Any], result: dict[str, Any]) -> None:

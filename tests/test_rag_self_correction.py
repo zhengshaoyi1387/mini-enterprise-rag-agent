@@ -5,7 +5,8 @@ from pathlib import Path
 from mini_rag.answer.packet import build_answer_packet
 from mini_rag.capabilities.rag.self_correct import validate_retrieval_query
 from mini_rag.config import Settings
-from mini_rag.graph.nodes import AgenticRAGNodes, create_initial_state
+from mini_rag.orchestration.agentic_nodes import AgenticRAGNodes
+from mini_rag.orchestration.state_factory import create_initial_state
 
 
 class Message:

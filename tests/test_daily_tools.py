@@ -7,7 +7,7 @@ from pathlib import Path
 from mini_rag.security.permissions import TOOL_ACTION_PERMISSIONS, TOOL_PERMISSIONS, get_allowed_tool_actions
 from mini_rag.tools.attendance_tool import query_attendance_summary
 from mini_rag.tools.calendar_tool import manage_company_calendar
-from mini_rag.tools.daily_tools import build_default_tool_registry, select_daily_tool_by_rule
+from mini_rag.tools.daily_tools import build_default_tool_registry
 from mini_rag.tools.datetime_tool import get_current_datetime
 
 
@@ -299,9 +299,6 @@ def test_tool_registry_only_contains_real_daily_tools() -> None:
     names = {tool["name"] for tool in registry.list_tools()}
 
     assert names == {"search_knowledge_base", "get_current_datetime", "query_attendance_summary", "manage_company_calendar"}
-    assert select_daily_tool_by_rule("上周公司的出勤情况怎么样") is None
-    assert select_daily_tool_by_rule("下周公司有哪些安排") is None
-    assert select_daily_tool_by_rule("现在几点") is None
     assert not {
         "generate_weekly_report",
         "draft_email",

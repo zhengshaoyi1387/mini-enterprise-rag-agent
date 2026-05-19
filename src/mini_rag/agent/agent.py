@@ -29,8 +29,8 @@ class EnterpriseKnowledgeAgent:
     ) -> dict:
         """把 ask 调用转发给当前 runtime 的具体实现。
 
-        ``user_id``、``role``、``trace_id`` 是服务化接口新增的请求级元数据。
-        CLI/旧 /query 不传这些字段时会自动使用安全默认值，保持向后兼容。
+        ``user_id``、``role``、``trace_id`` 是服务化接口的请求级元数据。
+        CLI 不传这些字段时会自动使用安全默认值。
         """
         return self._impl.ask(
             question,

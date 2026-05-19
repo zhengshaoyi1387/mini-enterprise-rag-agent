@@ -3,9 +3,8 @@ from __future__ import annotations
 """FastAPI Gateway for Mini Enterprise RAG Agent.
 
 P0 engineering goals implemented here:
-- Keep legacy ``/query`` for compatibility.
-- Add production-style ``/chat`` with API-key authentication and role metadata.
-- Reuse heavy Agent/RAG objects instead of constructing them per request.
+- Expose the current Agentic mainline through ``/chat`` and ``/chat/stream``.
+- Reuse the heavy Agent object instead of constructing it per request.
 - Save trace_id-based raw traces and expose a readable ``/traces/{trace_id}`` API.
 """
 
@@ -25,6 +24,7 @@ from mini_rag.api.schemas import (
     ChatResponse,
     EvalRunRequest,
     EvalRunResponse,
+    HealthResponse,
     KnowledgeBaseDocumentImportRequest,
     KnowledgeBaseDocumentResponse,
     KnowledgeBaseListResponse,
@@ -44,10 +44,10 @@ from mini_rag.api.schemas import (
 from mini_rag.config import Settings, get_settings
 from mini_rag.ingestion.kb_admin import delete_kb_document, import_kb_document, list_kbs_with_documents
 from mini_rag.observability.trace import save_trace
+from mini_rag.observability.mainline_log import append_mainline_step
 from mini_rag.observability.audit_logger import read_recent_audit_events, write_audit_event
 from mini_rag.observability.request_logger import RequestLoggerMiddleware
 from mini_rag.observability.trace_store import build_readable_trace, extract_latest_retrieval_trace, load_trace
-from mini_rag.schemas import HealthResponse, QueryRequest, QueryResponse
 from mini_rag.security.auth_store import AuthUser, SQLiteAuthStore
 from mini_rag.security.permissions import (
     TOOL_PERMISSIONS,
@@ -85,7 +85,6 @@ def frontend_index():
 # because docs/tests may import the FastAPI app without model credentials. The
 # first real request creates each object once and later requests reuse it.
 _AGENT_INSTANCE: object | None = None
-_RAG_INSTANCE: object | None = None
 
 
 def get_agent() -> object:
@@ -105,17 +104,6 @@ def get_agent() -> object:
 
         _AGENT_INSTANCE = EnterpriseKnowledgeAgent(settings)
     return _AGENT_INSTANCE
-
-
-def get_rag_chain() -> object:
-    """Return a process-level plain RAG chain singleton for legacy /query."""
-
-    global _RAG_INSTANCE
-    if _RAG_INSTANCE is None:
-        from mini_rag.rag.chain import RAGQuestionAnswerer
-
-        _RAG_INSTANCE = RAGQuestionAnswerer(settings)
-    return _RAG_INSTANCE
 
 
 def get_auth_store() -> SQLiteAuthStore:
@@ -240,6 +228,13 @@ def chat(req: ChatRequest, user: AuthUser = Depends(require_current_user)) -> Ch
             "audit_events": [{"event": "safety_block", "decision": "blocked", "reason": "dangerous_keywords"}],
             "total_latency_ms": latency_ms,
         }
+        append_mainline_step(
+            trace,
+            stage="runtime_context",
+            title="安全预检",
+            summary="请求命中高风险安全策略，未进入 Agentic RAG 主链路。",
+            details=["处理结果：已拒绝"],
+        )
         save_trace(settings, trace)
         write_audit_event(settings, {"trace_id": trace_id, "user_id": user_id, "role": role, "event": "safety_block", "decision": "blocked", "reason": "dangerous_keywords"})
         return ChatResponse(
@@ -248,6 +243,8 @@ def chat(req: ChatRequest, user: AuthUser = Depends(require_current_user)) -> Ch
             route="reject",
             used_kbs=[],
             audit_events=trace.get("audit_events", []),
+            mainline_log=trace.get("mainline_log", []),
+            mainline_log_text=trace.get("mainline_log_text", ""),
             latency_ms=latency_ms,
             error=None,
         )
@@ -281,6 +278,8 @@ def chat(req: ChatRequest, user: AuthUser = Depends(require_current_user)) -> Ch
             tool_calls=trace.get("tool_calls", []),
             retrieval_trace=extract_latest_retrieval_trace(trace),
             node_trace=trace.get("node_trace", []),
+            mainline_log=result.get("mainline_log") or trace.get("mainline_log", []),
+            mainline_log_text=result.get("mainline_log_text") or trace.get("mainline_log_text", ""),
             audit_events=trace.get("audit_events", []),
             latency_ms=latency_ms,
             error=trace.get("error"),
@@ -306,9 +305,16 @@ def chat(req: ChatRequest, user: AuthUser = Depends(require_current_user)) -> Ch
             "audit_events": [{"event": "permission_block", "decision": "blocked", "reason": str(exc)}],
             "total_latency_ms": latency_ms,
         }
+        append_mainline_step(
+            trace,
+            stage="runtime_context",
+            title="权限预检",
+            summary="请求在 API 网关层被权限策略阻断。",
+            details=[f"原因：{exc}"],
+        )
         save_trace(settings, trace)
         write_audit_event(settings, {"trace_id": trace_id, "user_id": user_id, "role": role, "event": "permission_block", "decision": "blocked", "reason": str(exc)})
-        return ChatResponse(trace_id=trace_id, answer="", route="reject", used_kbs=[], audit_events=trace.get("audit_events", []), latency_ms=latency_ms, error=str(exc))
+        return ChatResponse(trace_id=trace_id, answer="", route="reject", used_kbs=[], mainline_log=trace.get("mainline_log", []), mainline_log_text=trace.get("mainline_log_text", ""), audit_events=trace.get("audit_events", []), latency_ms=latency_ms, error=str(exc))
     except Exception as exc:
         # Do not leak stack traces to callers. The trace_id lets us find the raw
         # internal trace/log during debugging.
@@ -331,9 +337,16 @@ def chat(req: ChatRequest, user: AuthUser = Depends(require_current_user)) -> Ch
             "audit_events": [{"event": "exception", "decision": "error", "reason": str(exc)}],
             "total_latency_ms": latency_ms,
         }
+        append_mainline_step(
+            trace,
+            stage="runtime_context",
+            title="异常处理",
+            summary="请求执行时出现异常，详细堆栈保留在 debug trace 或服务日志中。",
+            details=[f"错误：{exc}"],
+        )
         save_trace(settings, trace)
         write_audit_event(settings, {"trace_id": trace_id, "user_id": user_id, "role": role, "event": "exception", "decision": "error", "reason": str(exc)})
-        return ChatResponse(trace_id=trace_id, answer="", route=None, used_kbs=[], audit_events=trace.get("audit_events", []), latency_ms=latency_ms, error=str(exc))
+        return ChatResponse(trace_id=trace_id, answer="", route=None, used_kbs=[], mainline_log=trace.get("mainline_log", []), mainline_log_text=trace.get("mainline_log_text", ""), audit_events=trace.get("audit_events", []), latency_ms=latency_ms, error=str(exc))
 
 
 def ndjson_event(payload: dict[str, Any]) -> str:
@@ -374,10 +387,17 @@ def chat_stream(req: ChatRequest, user: AuthUser = Depends(require_current_user)
                     "audit_events": [{"event": "safety_block", "decision": "blocked", "reason": "dangerous_keywords"}],
                     "total_latency_ms": latency_ms,
                 }
+                append_mainline_step(
+                    trace,
+                    stage="runtime_context",
+                    title="安全预检",
+                    summary="请求命中高风险安全策略，未进入 Agentic RAG 主链路。",
+                    details=["处理结果：已拒绝"],
+                )
                 save_trace(settings, trace)
                 write_audit_event(settings, {"trace_id": trace_id, "user_id": user_id, "role": role, "event": "safety_block", "decision": "blocked", "reason": "dangerous_keywords"})
                 yield ndjson_event({"event": "token", "content": trace["answer"]})
-                yield ndjson_event({"event": "final", "trace_id": trace_id, "answer": trace["answer"], "route": "reject", "used_kbs": [], "sources": [], "tool_calls": [], "node_trace": [], "audit_events": trace["audit_events"], "latency_ms": latency_ms, "error": None})
+                yield ndjson_event({"event": "final", "trace_id": trace_id, "answer": trace["answer"], "route": "reject", "used_kbs": [], "sources": [], "tool_calls": [], "node_trace": [], "mainline_log": trace.get("mainline_log", []), "mainline_log_text": trace.get("mainline_log_text", ""), "audit_events": trace["audit_events"], "latency_ms": latency_ms, "error": None})
                 return
 
             final_payload: dict[str, Any] | None = None
@@ -416,6 +436,8 @@ def chat_stream(req: ChatRequest, user: AuthUser = Depends(require_current_user)
                         "tool_calls": trace.get("tool_calls", []),
                         "retrieval_trace": extract_latest_retrieval_trace(trace),
                         "node_trace": trace.get("node_trace", []),
+                        "mainline_log": event.get("mainline_log") or trace.get("mainline_log", []),
+                        "mainline_log_text": event.get("mainline_log_text") or trace.get("mainline_log_text", ""),
                         "audit_events": trace.get("audit_events", []),
                         "latency_ms": latency_ms,
                         "error": trace.get("error"),
@@ -449,59 +471,6 @@ def get_trace(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Trace not found: {trace_id}")
     trace, path = loaded
     return TraceResponse(**build_readable_trace(trace, raw_trace_path=str(path)))
-
-
-@app.post("/query", response_model=QueryResponse)
-def query(req: QueryRequest) -> QueryResponse:
-    """Legacy enterprise knowledge QA endpoint.
-
-    This endpoint remains unauthenticated for backward compatibility with the
-    original teaching scripts. New demos and interviews should use ``/chat``.
-    """
-
-    if req.use_agent:
-        result = get_agent().ask(
-            req.question,
-            session_id=req.session_id,
-            retrieval_mode=req.retrieval_mode,
-            enable_rerank=req.enable_rerank,
-            user_id="legacy-query",
-            role="user",
-        )
-        trace = result["trace"]
-        trace_path = save_trace(settings, trace)
-        return QueryResponse(
-            answer=result["answer"],
-            trace=trace,
-            sources=result.get("sources"),
-            retrieval_trace=extract_latest_retrieval_trace(trace),
-            tool_events=trace.get("tool_events", trace.get("observations", [])),
-            route=result.get("route") or trace.get("route"),
-            workflow_run_id=result.get("workflow_run_id"),
-            checkpoint_thread_id=result.get("checkpoint_thread_id"),
-            node_trace=trace.get("node_trace", []),
-            trace_path=str(trace_path) if trace_path else None,
-        )
-
-    result = get_rag_chain().ask(
-        req.question,
-        retrieval_mode=req.retrieval_mode,
-        enable_rerank=req.enable_rerank,
-    )
-    trace = result["trace"]
-    trace_path = save_trace(settings, trace)
-    return QueryResponse(
-        answer=result["answer"],
-        trace=trace,
-        sources=result.get("sources"),
-        retrieval_trace=trace.get("retrieval"),
-        tool_events=[],
-        route=None,
-        workflow_run_id=None,
-        checkpoint_thread_id=None,
-        node_trace=None,
-        trace_path=str(trace_path) if trace_path else None,
-    )
 
 
 @app.get("/admin/kbs", response_model=KnowledgeBaseListResponse)
@@ -576,9 +545,8 @@ def rebuild_kb_index(req: KnowledgeBaseReindexRequest, user: AuthUser = Depends(
         result = build_index(settings, reset=req.reset)
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
-    global _AGENT_INSTANCE, _RAG_INSTANCE
+    global _AGENT_INSTANCE
     _AGENT_INSTANCE = None
-    _RAG_INSTANCE = None
     write_audit_event(
         settings,
         {
@@ -680,3 +648,4 @@ def run_eval_endpoint(
         metrics={},
         error="Deprecated endpoint. Please run scripts/agent_eval_suite.py for rag/tool/e2e/all evaluation.",
     )
+    HealthResponse,

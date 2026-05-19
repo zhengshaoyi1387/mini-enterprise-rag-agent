@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from mini_rag.config import Settings
-from mini_rag.graph.nodes import AgenticRAGNodes, create_initial_state
+from mini_rag.orchestration.agentic_nodes import AgenticRAGNodes
+from mini_rag.orchestration.state_factory import create_initial_state
 
 
 class FakeMessage:
@@ -66,7 +67,7 @@ def test_calendar_tool_answer_goes_through_llm_with_compact_facts_and_omits_even
         }
     ]
 
-    state = nodes.generate_answer(state)
+    state = nodes.answer_with_llm(state)
 
     assert len(nodes.answer_llm.calls) == 1
     prompt = _last_user_prompt(nodes.answer_llm)
@@ -101,7 +102,7 @@ def test_attendance_tool_answer_goes_through_llm_with_records(tmp_path: Path) ->
         }
     ]
 
-    state = nodes.generate_answer(state)
+    state = nodes.answer_with_llm(state)
 
     assert len(nodes.answer_llm.calls) == 1
     prompt = _last_user_prompt(nodes.answer_llm)
@@ -134,7 +135,7 @@ def test_datetime_tool_answer_uses_returned_weekday_zh_only(tmp_path: Path) -> N
         }
     ]
 
-    state = nodes.generate_answer(state)
+    state = nodes.answer_with_llm(state)
 
     assert len(nodes.answer_llm.calls) == 1
     assert "星期日" in _last_user_prompt(nodes.answer_llm)
@@ -172,7 +173,7 @@ def test_datetime_relative_question_uses_requested_range_not_current_date(tmp_pa
         }
     ]
 
-    state = nodes.generate_answer(state)
+    state = nodes.answer_with_llm(state)
 
     assert len(nodes.answer_llm.calls) == 1
     assert "2026-05-18" in _last_user_prompt(nodes.answer_llm)
@@ -202,7 +203,7 @@ def test_datetime_week_range_answer_uses_compact_ranges(tmp_path: Path) -> None:
         }
     ]
 
-    state = nodes.generate_answer(state)
+    state = nodes.answer_with_llm(state)
 
     assert len(nodes.answer_llm.calls) == 1
     assert "2026-05-18" in _last_user_prompt(nodes.answer_llm)
@@ -234,7 +235,7 @@ def test_rag_without_supporting_evidence_refuses_with_locked_fact_after_llm(tmp_
         }
     ]
 
-    state = nodes.generate_answer(state)
+    state = nodes.answer_with_llm(state)
 
     assert len(nodes.answer_llm.calls) == 1
     assert "当前可访问知识库未找到明确依据" in state["final_answer"]
@@ -269,7 +270,7 @@ def test_answer_prompt_excludes_candidate_evidence_when_supporting_sources_empty
     state["evidence_brief"] = "候选正文：薪酬 FAQ，不应进入最终回答 prompt。"
     state["supporting_evidence_brief"] = ""
 
-    state = nodes.generate_answer(state)
+    state = nodes.answer_with_llm(state)
 
     prompt = _last_user_prompt(llm)
     assert "当前可访问知识库未找到明确支持证据" in prompt
@@ -311,7 +312,7 @@ def test_mixed_tool_answer_is_preserved_when_rag_evidence_is_insufficient(tmp_pa
         },
     ]
 
-    state = nodes.generate_answer(state)
+    state = nodes.answer_with_llm(state)
 
     assert len(nodes.answer_llm.calls) == 1
     assert "产品部 OKR 同步会" in state["final_answer"]
@@ -325,7 +326,7 @@ def test_event_id_all_safety_explanation_goes_through_llm_but_is_locked(tmp_path
     state["route"] = "rag"
     state["intent"] = "rag_fact"
 
-    state = nodes.generate_answer(state)
+    state = nodes.answer_with_llm(state)
 
     assert len(nodes.answer_llm.calls) == 1
     assert "event_id=all" in state["final_answer"]
@@ -348,7 +349,7 @@ def test_safety_explanation_does_not_gain_permission_denial_without_permission_e
         }
     ]
 
-    state = nodes.generate_answer(state)
+    state = nodes.answer_with_llm(state)
 
     assert "不能直接使用 event_id=all" in state["final_answer"]
     assert "不会执行删除" in state["final_answer"]

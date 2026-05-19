@@ -94,6 +94,8 @@ def create_initial_state(
         "sources": [],
         "evidence_brief": "",
         "observations": [],
+        "mainline_log": [],
+        "mainline_log_text": "",
         "tool_calls": [],
         "evidence_assessment": {},
         "completion_assessment": {},

@@ -57,7 +57,7 @@ def extract_previous_tool_context(turns: list[Any]) -> dict[str, Any]:
     return {}
 
 
-def build_planning_context(
+def build_context_packet(
     *,
     history: list[dict[str, Any]],
     previous_tool_context: dict[str, Any],

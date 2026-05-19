@@ -73,8 +73,6 @@ class Settings(BaseSettings):
     rerank_top_n: int = Field(default=3, alias="RERANK_TOP_N")
     rrf_k: int = Field(default=60, alias="RRF_K")
 
-    # 默认是否使用 Agent。设为 false 可以用普通 RAG Chain 调试。
-    use_agent: bool = Field(default=True, alias="USE_AGENT")
     session_max_turns: int = Field(default=6, alias="SESSION_MAX_TURNS")
     context_db_path: Path = Field(default=Path("storage/context.sqlite3"), alias="CONTEXT_DB_PATH")
     auth_db_path: Path = Field(default=Path("storage/auth.sqlite3"), alias="AUTH_DB_PATH")

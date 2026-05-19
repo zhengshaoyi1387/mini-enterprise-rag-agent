@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from mini_rag.planning.context_policy import build_planning_context, extract_previous_tool_context, turn_to_history_item
+from mini_rag.planning.context_policy import build_context_packet, extract_previous_tool_context, turn_to_history_item
 
 
 def test_extract_previous_tool_context_keeps_compact_safe_fields_only() -> None:
@@ -54,7 +54,7 @@ def test_extract_previous_tool_context_keeps_compact_safe_fields_only() -> None:
     ]
 
 
-def test_build_planning_context_compacts_history_and_tool_context() -> None:
+def test_build_context_packet_compacts_history_and_tool_context() -> None:
     history = [
         {
             "question": "上一轮查日程",
@@ -71,7 +71,7 @@ def test_build_planning_context_compacts_history_and_tool_context() -> None:
         "result_summary": "下周有 1 条日程",
     }
 
-    context = build_planning_context(history=history, previous_tool_context=previous_tool_context)
+    context = build_context_packet(history=history, previous_tool_context=previous_tool_context)
 
     assert context["last_turn"]["user"] == "上一轮查日程"
     assert "source:" not in context["last_turn"]["assistant_brief"]

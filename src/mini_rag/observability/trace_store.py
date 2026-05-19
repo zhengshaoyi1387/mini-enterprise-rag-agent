@@ -116,6 +116,8 @@ def build_readable_trace(trace: dict[str, Any], raw_trace_path: str | None = Non
         "used_kbs": trace.get("used_kbs", []),
         "steps": steps,
         "tool_events": trace.get("tool_events") or trace.get("observations", []),
+        "mainline_log": trace.get("mainline_log", []),
+        "mainline_log_text": trace.get("mainline_log_text", ""),
         "sources": trace.get("sources", []),
         "error": trace.get("error"),
         "raw_trace_path": raw_trace_path,

@@ -110,6 +110,8 @@ class TraceBuilder:
             "react_steps": state.get("react_steps", []),
             "answer_policy": state.get("answer_policy", {}),
             "node_trace": state.get("node_trace", []),
+            "mainline_log": state.get("mainline_log", []),
+            "mainline_log_text": state.get("mainline_log_text", ""),
             "llm_calls": state.get("llm_calls", []),
             "llm_trace_config": {
                 "io_enabled": bool(getattr(self.settings, "trace_llm_io", True)),
