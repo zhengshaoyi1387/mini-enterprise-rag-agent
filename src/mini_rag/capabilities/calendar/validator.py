@@ -26,6 +26,22 @@ def _has_query_source(tasks: list[dict[str, Any]], index: int) -> bool:
     return False
 
 
+def _depends_on_calendar_query(tasks: list[dict[str, Any]], task: dict[str, Any]) -> bool:
+    deps = {str(item).strip() for item in (task.get("depends_on") or []) if str(item).strip()}
+    if not deps:
+        return False
+    for candidate in tasks:
+        if str(candidate.get("kind") or "").lower() != "tool":
+            continue
+        if str(candidate.get("tool") or "") != "manage_company_calendar":
+            continue
+        if str(candidate.get("task_id") or candidate.get("id") or "").strip() not in deps:
+            continue
+        if _calendar_action(candidate) == "query":
+            return True
+    return False
+
+
 def _date_is_resolvable(task: dict[str, Any]) -> bool:
     time_requirement = normalize_time_requirement(task.get("time_requirement") if isinstance(task.get("time_requirement"), dict) else {})
     return bool(
@@ -94,7 +110,7 @@ def validate_calendar_tasks(tasks: list[dict[str, Any]]) -> ValidationResult:
         if action in {"update", "delete"}:
             event_id = payload.get("event_id")
             has_selector = any(isinstance(payload.get(key), dict) for key in ("selector", "event_selector", "target", "match"))
-            if is_unresolved_calendar_event_id(event_id) and not has_selector and not _has_query_source(tasks, index):
+            if is_unresolved_calendar_event_id(event_id) and not has_selector and not _has_query_source(tasks, index) and not _depends_on_calendar_query(tasks, task):
                 issues.append(
                     ValidationIssue(
                         code=f"calendar_{action}_missing_event_id",
@@ -181,7 +197,7 @@ def calendar_write_needs_clarification(
         tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
         if not is_unresolved_calendar_event_id(tool_input.get("event_id")):
             continue
-        if has_executable_calendar_query_source(tasks):
+        if has_executable_calendar_query_source(tasks) or _depends_on_calendar_query(tasks, task):
             continue
         return True
     return False

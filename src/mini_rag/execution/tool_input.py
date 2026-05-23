@@ -11,6 +11,8 @@ from mini_rag.tools.contracts import validate_tool_input
 FinalizeToolInput = Callable[[dict[str, Any], str, dict[str, Any], dict[str, Any] | None, str | None], dict[str, Any]]
 RunDatetimeTool = Callable[[dict[str, Any], str], dict[str, Any]]
 
+SQLITE_BACKED_TOOLS = {"manage_company_calendar", "query_attendance_summary"}
+
 
 def normalize_tool_payload_for_action_contract(tool_name: str, payload: dict[str, Any], selected_action: str | None = None) -> None:
     if tool_name == "query_attendance_summary":
@@ -95,7 +97,41 @@ def build_tool_payload(
         payload.update({"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role})
         return payload
 
-    runtime_extras = {key: payload[key] for key in ("file_path",) if key in payload}
+    if tool_name == "skill":
+        payload.setdefault("action", "run")
+        state_runtime = state.get("runtime_context") if isinstance(state.get("runtime_context"), dict) else {}
+        runtime_context = dict(state_runtime)
+        if isinstance(payload.get("runtime_context"), dict):
+            runtime_context.update(payload.get("runtime_context") or {})
+        runtime_context.setdefault("user_id", state.get("user_id"))
+        runtime_context.setdefault("role", role)
+        runtime_context.setdefault("permissions", state.get("permissions") if isinstance(state.get("permissions"), dict) else {})
+        runtime_context.setdefault("allowed_kbs", state.get("allowed_kbs") or [])
+        runtime_context.setdefault("time_context_result", state.get("time_context_result") or {})
+        payload["runtime_context"] = runtime_context
+        arguments = dict(payload.get("arguments") or {}) if isinstance(payload.get("arguments"), dict) else {}
+        current_task = state.get("current_task") if isinstance(state.get("current_task"), dict) else {}
+        resolved = current_task.get("resolved_time") if isinstance(current_task.get("resolved_time"), dict) else {}
+        items = [item for item in (resolved.get("items") or []) if isinstance(item, dict)]
+        if items:
+            start = str(items[0].get("start_date") or "").strip()
+            end = str(items[0].get("end_date") or start).strip()
+            if start:
+                arguments["start_date"] = start
+            if end:
+                arguments["end_date"] = end
+            payload["arguments"] = arguments
+        payload = validate_tool_input(tool_name, payload)
+        payload.update({"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role})
+        return payload
+
+    if tool_name in SQLITE_BACKED_TOOLS and not payload.get("db_path") and not payload.get("file_path"):
+        runtime_context = state.get("runtime_context") if isinstance(state.get("runtime_context"), dict) else {}
+        enterprise_db_path = runtime_context.get("enterprise_db_path") or state.get("enterprise_db_path")
+        if enterprise_db_path:
+            payload["db_path"] = str(enterprise_db_path)
+
+    runtime_extras = {key: payload[key] for key in ("file_path", "db_path") if key in payload}
     selected_action = str(state.get("selected_action") or "") or None
     normalize_tool_payload_for_action_contract(tool_name, payload, selected_action=selected_action)
     try:
@@ -103,9 +139,19 @@ def build_tool_payload(
     except ValidationError as exc:
         payload = finalize_tool_input(state, tool_name, payload, datetime_result, str(exc))
         normalize_tool_payload_for_action_contract(tool_name, payload, selected_action=selected_action)
-        runtime_extras.update({key: payload[key] for key in ("file_path",) if key in payload})
+        runtime_extras.update({key: payload[key] for key in ("file_path", "db_path") if key in payload})
         payload = validate_tool_input(tool_name, payload)
     payload = prune_tool_payload_for_action_contract(tool_name, payload)
     payload.update(runtime_extras)
     payload.update({"query": state.get("question", ""), "user_id": state.get("user_id"), "role": role})
     return payload
+
+
+def _is_iso_date(value: str) -> bool:
+    try:
+        from datetime import date
+
+        date.fromisoformat(value)
+        return True
+    except Exception:
+        return False

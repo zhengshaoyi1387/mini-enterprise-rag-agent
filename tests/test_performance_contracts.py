@@ -121,7 +121,7 @@ def test_independent_model_config_names_are_resolved(tmp_path: Path) -> None:
     assert model_name_for(settings, "control") == "control-base"
 
 
-def test_planner_and_judge_prompts_are_compact_enough_for_latency() -> None:
+def test_planner_and_judge_prompts_stay_bounded_without_overcompressing_protocol() -> None:
     user_prompt = build_evidence_judge_prompt(
         original_question="报销怎么申请？",
         rag_task_objective="说明报销申请方式",
@@ -137,7 +137,10 @@ def test_planner_and_judge_prompts_are_compact_enough_for_latency() -> None:
         attempt=1,
     )
 
-    assert len(PLAN_WITH_LLM_SYSTEM) < 760
+    assert len(PLAN_WITH_LLM_SYSTEM) < 1800
+    assert "tool_name" in PLAN_WITH_LLM_SYSTEM
+    assert "不能只写 name" in PLAN_WITH_LLM_SYSTEM
+    assert "pending_update" in PLAN_WITH_LLM_SYSTEM
     assert len(RAG_EVIDENCE_JUDGE_SYSTEM) < 750
     assert len(user_prompt) < 1600
 
@@ -198,9 +201,10 @@ def test_plan_prompt_uses_compact_runtime_and_does_not_request_resolved_dates() 
 
     assert "tool_actions" not in prompt
     assert "ranges" not in prompt
-    assert "start_date" not in PLAN_WITH_LLM_SYSTEM
-    assert "end_date" not in PLAN_WITH_LLM_SYSTEM
-    assert "单行压缩 JSON" in PLAN_WITH_LLM_SYSTEM
+    assert "start_date" not in prompt
+    assert "end_date" not in prompt
+    assert "tool_input 禁止 start_date/end_date/date" in PLAN_WITH_LLM_SYSTEM
+    assert "只输出 JSON" in PLAN_WITH_LLM_SYSTEM
     assert len(prompt) < 700
 
 

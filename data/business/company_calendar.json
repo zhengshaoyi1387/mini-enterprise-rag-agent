@@ -134,7 +134,7 @@
     "title": "客户项目同步",
     "type": "meeting",
     "department": "销售部",
-    "time": "09:00-09:30",
+    "time": "09:00-19:30",
     "location": "会议室 B",
     "description": "固定 ID，用于更新为客户复盘会",
     "weekday_zh": "星期五"

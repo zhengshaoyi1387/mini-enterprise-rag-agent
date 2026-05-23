@@ -1,0 +1,17 @@
+[
+  {
+    "name": "reimbursement_materials_gap",
+    "input": {
+      "question": "出差酒店费用可以报销吗？流程是什么？",
+      "evidence_items": [
+        {
+          "source_id": "finance_001",
+          "title": "差旅报销制度",
+          "content": "报销材料包括行程单、发票、支付凭证。"
+        }
+      ],
+      "required_slots": ["是否可报销", "所需材料", "审批流程"]
+    },
+    "expected_contains": ["partial_slots", "missing_slots", "overall"]
+  }
+]

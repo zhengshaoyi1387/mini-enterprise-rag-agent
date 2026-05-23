@@ -170,6 +170,34 @@ def compact_task_results(results: list[dict[str, Any]] | None, *, datetime_conte
                 datetime_facts = _compact_datetime_result(result, datetime_context=datetime_context)
                 if datetime_facts:
                     item["datetime_facts"] = datetime_facts
+            if result.get("tool_name") == "skill":
+                skill_payload = result.get("skill_result") if isinstance(result.get("skill_result"), dict) else {}
+                skill_result = skill_payload.get("result") if isinstance(skill_payload.get("result"), dict) else {}
+                item["skill_name"] = result.get("skill_name") or skill_payload.get("skill_name")
+                if item["skill_name"] == "attendance_insight" and skill_result:
+                    item["考勤分析"] = {
+                        key: skill_result.get(key)
+                        for key in (
+                            "period",
+                            "group_by",
+                            "total_records",
+                            "total_abnormal_records",
+                            "overview",
+                            "items",
+                            "rankings",
+                            "patterns",
+                            "risk_flags",
+                            "suggested_followups",
+                            "limitations",
+                        )
+                        if skill_result.get(key) not in (None, "", [], {})
+                    }
+                elif skill_result:
+                    item["skill_result"] = {
+                        key: skill_result.get(key)
+                        for key in list(skill_result)[:6]
+                        if skill_result.get(key) not in (None, "", [], {})
+                    }
             has_structured_payload = any(
                 key in item
                 for key in (
@@ -180,6 +208,8 @@ def compact_task_results(results: list[dict[str, Any]] | None, *, datetime_conte
                     "attendance_by_employee",
                     "attendance_records",
                     "datetime_facts",
+                    "考勤分析",
+                    "skill_result",
                 )
             )
             if result.get("result_summary"):
@@ -197,8 +227,72 @@ def compact_task_results(results: list[dict[str, Any]] | None, *, datetime_conte
                     item["相关内容"] = related_sources
                 else:
                     item["证据情况"] = "当前可访问知识库未找到明确支持证据。"
+            gap = result.get("policy_gap_check") if isinstance(result.get("policy_gap_check"), dict) else {}
+            if gap and gap.get("ok"):
+                item["证据缺口分析"] = {
+                    "covered_slots": gap.get("covered_slots") or [],
+                    "partial_slots": gap.get("partial_slots") or [],
+                    "missing_slots": gap.get("missing_slots") or [],
+                    "overall": gap.get("overall"),
+                    "limitations": gap.get("limitations") or [],
+                }
         compact.append({k: v for k, v in item.items() if v not in (None, "", [], {})})
     return compact
+
+
+def _calendar_write_tasks(state: dict[str, Any]) -> list[dict[str, Any]]:
+    plan = state.get("execution_plan") if isinstance(state.get("execution_plan"), dict) else {}
+    tasks = [task for task in (plan.get("tasks") or []) if isinstance(task, dict)]
+    validation = state.get("plan_validation") if isinstance(state.get("plan_validation"), dict) else {}
+    for key in ("blocked_tasks", "clarification_tasks"):
+        tasks.extend([task for task in (validation.get(key) or []) if isinstance(task, dict)])
+    writes: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for task in tasks:
+        if str(task.get("kind") or "").lower() != "tool":
+            continue
+        if str(task.get("tool") or task.get("tool_name") or "") != "manage_company_calendar":
+            continue
+        action = str(task.get("action") or (task.get("tool_input") or {}).get("action") or "").lower()
+        if action in {"create", "update", "delete"}:
+            task_id = str(task.get("task_id") or id(task))
+            if task_id not in seen:
+                writes.append(task)
+                seen.add(task_id)
+    return writes
+
+
+def _successful_calendar_write_results(state: dict[str, Any]) -> list[dict[str, Any]]:
+    expected_status = {"create": "created", "update": "updated", "delete": "deleted"}
+    successful: list[dict[str, Any]] = []
+    for result in state.get("task_results") or []:
+        if not isinstance(result, dict):
+            continue
+        if result.get("tool_name") != "manage_company_calendar":
+            continue
+        action = str(result.get("action") or "").lower()
+        if action not in expected_status:
+            continue
+        tool_result = result.get("tool_result") if isinstance(result.get("tool_result"), dict) else {}
+        if str(tool_result.get("status") or "").lower() == expected_status[action]:
+            successful.append(result)
+    return successful
+
+
+def _calendar_write_result_tasks(state: dict[str, Any]) -> list[dict[str, Any]]:
+    writes: list[dict[str, Any]] = []
+    for result in state.get("task_results") or []:
+        if not isinstance(result, dict):
+            continue
+        if result.get("tool_name") != "manage_company_calendar":
+            continue
+        if str(result.get("action") or "").lower() in {"create", "update", "delete"}:
+            writes.append(result)
+    return writes
+
+
+def _false_success_text(text: str) -> bool:
+    return any(token in str(text or "") for token in ("已成功", "已更新", "已删除", "已创建", "已更改", "已将", "已完成", "更新成功", "删除成功", "创建成功"))
 
 
 def build_answer_packet(state: dict[str, Any]) -> AnswerPacket:
@@ -210,8 +304,12 @@ def build_answer_packet(state: dict[str, Any]) -> AnswerPacket:
     )
     sources = compact_sources([item for item in (state.get("sources") or state.get("supporting_sources") or []) if isinstance(item, dict)])
     messages: list[str] = []
+    write_tasks = _calendar_write_tasks(state)
+    write_result_tasks = _calendar_write_result_tasks(state)
+    successful_writes = _successful_calendar_write_results(state)
+    write_not_executed = bool((write_tasks or write_result_tasks) and not successful_writes)
     final_answer = str(state.get("final_answer") or "").strip()
-    if final_answer:
+    if final_answer and not (write_not_executed and _false_success_text(final_answer)):
         messages.append(final_answer)
     resolved_time_facts = state.get("resolved_time_facts") if isinstance(state.get("resolved_time_facts"), list) else []
     safety_events = [
@@ -230,6 +328,8 @@ def build_answer_packet(state: dict[str, Any]) -> AnswerPacket:
         if isinstance(item, dict) and ("permission" in str(item.get("event") or "") or item.get("decision") == "blocked")
     ]
     task_results = [item for item in (state.get("task_results") or []) if isinstance(item, dict)]
+    completion_check = state.get("completion_check") if isinstance(state.get("completion_check"), dict) else {}
+    completion_status = str(completion_check.get("status") or "").lower()
     rag_results = [item for item in task_results if str(item.get("kind") or "").lower() == "rag"]
     rag_empty = [
         item for item in rag_results if str(item.get("status") or "").lower() in {"empty", "no_evidence", "insufficient_evidence"}
@@ -238,8 +338,12 @@ def build_answer_packet(state: dict[str, Any]) -> AnswerPacket:
     execution_status = "success"
     if state.get("error") or route == "reject":
         execution_status = "blocked"
+    elif completion_status in {"needs_clarification", "need_clarification"}:
+        execution_status = "need_clarification"
     elif state.get("intent") in {"need_clarification", "clarification_required"}:
         execution_status = "need_clarification"
+    elif write_not_executed:
+        execution_status = "partial"
     elif any(str(item.get("status") or "") in {"error", "failed", "blocked"} for item in task_results):
         execution_status = "partial"
     elif rag_empty and rag_results and len(rag_empty) == len(rag_results) and not non_rag_results:
@@ -253,6 +357,31 @@ def build_answer_packet(state: dict[str, Any]) -> AnswerPacket:
         packet_results.append({"类型": "safety_events", "安全事件": safety_events[:8]})
     if permission_events:
         packet_results.append({"类型": "permission_events", "权限事件": permission_events[:8]})
+    if write_not_executed:
+        packet_results.append(
+            {
+                "类型": "write_not_executed",
+                "状态": "failed_or_not_executed",
+                "说明": "未执行成功的日历写操作；只能说明具体失败、未找到或需澄清原因，不能声称已完成创建、更新或删除。",
+                "write_tasks": [
+                    {
+                        "task_id": task.get("task_id"),
+                        "action": task.get("action") or (task.get("tool_input") or {}).get("action"),
+                    }
+                    for task in write_tasks[:5]
+                ]
+                or [
+                    {
+                        "task_id": task.get("task_id"),
+                        "action": task.get("action"),
+                        "status": task.get("status"),
+                    }
+                    for task in write_result_tasks[:5]
+                ],
+            }
+        )
+    if completion_check:
+        packet_results.append({"类型": "completion_check", **completion_check})
     packet_results.append({"类型": "execution_status", "状态": execution_status})
     return AnswerPacket(
         route=route if route in {"direct", "rag", "tool", "reject"} else "direct",

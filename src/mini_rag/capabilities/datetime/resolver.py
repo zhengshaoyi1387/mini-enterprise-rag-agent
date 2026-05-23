@@ -187,10 +187,10 @@ _RELATIVE_RANGE_PATTERNS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 )
 
 _WEEK_PREFIX_KEYS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("next_next_week", ("下下周", "再下一周")),
-    ("next_week", ("下周",)),
+    ("next_next_week", ("下下周", "再下一周", "再下个", "再下一个")),
+    ("next_week", ("下周", "下个", "下一个", "下一")),
     ("last_week", ("上周",)),
-    ("this_week", ("本周", "这周")),
+    ("this_week", ("本周", "这周", "这个", "这一个")),
 )
 
 

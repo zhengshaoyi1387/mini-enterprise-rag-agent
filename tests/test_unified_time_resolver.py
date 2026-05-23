@@ -12,6 +12,10 @@ def late_monday_context():
     return build_time_context(timezone="Asia/Shanghai", override_now="2026-05-18T23:47:00+08:00")
 
 
+def saturday_context():
+    return build_time_context(timezone="Asia/Shanghai", override_now="2026-05-23T03:00:00+08:00")
+
+
 def test_resolve_single_relative_days_with_weekday() -> None:
     ctx = fixed_context()
 
@@ -112,6 +116,19 @@ def test_resolve_weekday_expression_from_week_range() -> None:
     assert result["items"][0]["label"] == "下周三"
     assert result["items"][0]["start_date"] == "2026-05-27"
     assert result["items"][0]["weekday_zh"] == "星期三"
+
+
+def test_resolve_next_weekday_variants_before_bare_weekday() -> None:
+    ctx = saturday_context()
+
+    assert resolve_time_expression("星期日", ctx)["items"][0]["start_date"] == "2026-05-24"
+    assert resolve_time_expression("这个星期日", ctx)["items"][0]["start_date"] == "2026-05-24"
+    assert resolve_time_expression("本周日", ctx)["items"][0]["start_date"] == "2026-05-24"
+    assert resolve_time_expression("下周日", ctx)["items"][0]["start_date"] == "2026-05-31"
+    assert resolve_time_expression("下个星期日", ctx)["items"][0]["start_date"] == "2026-05-31"
+    assert resolve_time_expression("下一个星期日", ctx)["items"][0]["start_date"] == "2026-05-31"
+    assert resolve_time_expression("下下周日", ctx)["items"][0]["start_date"] == "2026-06-07"
+    assert resolve_time_expression("再下个星期日", ctx)["items"][0]["start_date"] == "2026-06-07"
 
 
 def test_resolve_multi_time_expression_keeps_all_items() -> None:

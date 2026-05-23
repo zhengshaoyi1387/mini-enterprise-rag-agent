@@ -5,6 +5,19 @@ from typing import Any
 
 
 CALENDAR_UPDATE_FIELDS = ("title", "type", "date", "time", "department", "location", "description")
+GENERIC_CALENDAR_TITLE_SELECTORS = {"会议", "公司会议", "日程", "公司日程", "安排", "活动", "事件"}
+
+
+def _clean_calendar_selector(selector: dict[str, Any]) -> dict[str, Any]:
+    cleaned = dict(selector or {})
+    title = str(cleaned.get("title") or "").strip()
+    if title in GENERIC_CALENDAR_TITLE_SELECTORS:
+        cleaned.pop("title", None)
+    title_contains = str(cleaned.get("title_contains") or cleaned.get("title_keyword") or "").strip()
+    if title_contains in GENERIC_CALENDAR_TITLE_SELECTORS:
+        cleaned.pop("title_contains", None)
+        cleaned.pop("title_keyword", None)
+    return cleaned
 
 
 def coerce_list(value: Any) -> list[Any]:
@@ -36,7 +49,7 @@ def is_calendar_delete_task(task: dict[str, Any]) -> bool:
     if str(task.get("kind") or "").lower() != "tool":
         return False
     tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
-    tool_name = str(task.get("tool") or "").strip()
+    tool_name = str(task.get("tool") or task.get("tool_name") or "").strip()
     action = str(task.get("action") or tool_input.get("action") or "").strip().lower()
     return tool_name == "manage_company_calendar" and action == "delete"
 
@@ -45,7 +58,7 @@ def is_calendar_update_task(task: dict[str, Any]) -> bool:
     if str(task.get("kind") or "").lower() != "tool":
         return False
     tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
-    tool_name = str(task.get("tool") or "").strip()
+    tool_name = str(task.get("tool") or task.get("tool_name") or "").strip()
     action = str(task.get("action") or tool_input.get("action") or "").strip().lower()
     return tool_name == "manage_company_calendar" and action == "update"
 
@@ -68,16 +81,78 @@ def is_unresolved_calendar_event_id(value: Any) -> bool:
     return not bool(re.fullmatch(r"EVT-\d{8}-\d{4}", text))
 
 
+def inherit_calendar_event_ids_from_previous_context(state: dict[str, Any], tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    previous = state.get("previous_tool_context") if isinstance(state.get("previous_tool_context"), dict) else {}
+    if not previous:
+        return tasks
+    if previous.get("domain") != "calendar" and previous.get("tool_name") != "manage_company_calendar":
+        return tasks
+    if any(
+        isinstance(task, dict)
+        and str(task.get("kind") or "").lower() == "tool"
+        and str(task.get("tool") or task.get("tool_name") or "") == "manage_company_calendar"
+        and str(task.get("action") or (task.get("tool_input") or {}).get("action") or "").lower() == "query"
+        for task in tasks
+    ):
+        return tasks
+    inherited_event_id = _previous_context_single_event_id(previous)
+    if not inherited_event_id:
+        return tasks
+    changed = False
+    output: list[dict[str, Any]] = []
+    for task in tasks:
+        candidate = dict(task)
+        tool = str(candidate.get("tool") or candidate.get("tool_name") or "")
+        tool_input = dict(candidate.get("tool_input") or {}) if isinstance(candidate.get("tool_input"), dict) else {}
+        action = str(candidate.get("action") or tool_input.get("action") or "").lower()
+        if (
+            candidate.get("kind") == "tool"
+            and tool == "manage_company_calendar"
+            and action == "update"
+            and is_unresolved_calendar_event_id(tool_input.get("event_id"))
+        ):
+            tool_input["event_id"] = inherited_event_id
+            tool_input["_inherited_event_id_from_previous_context"] = True
+            candidate["tool_input"] = tool_input
+            changed = True
+        output.append(candidate)
+    if changed:
+        state.setdefault("observations", []).append(
+            {
+                "type": "calendar_previous_context_event_id_inherited",
+                "event_id": inherited_event_id,
+                "task_ids": [task.get("task_id") for task in output if isinstance(task, dict)],
+            }
+        )
+    return output if changed else tasks
+
+
+def _previous_context_single_event_id(previous: dict[str, Any]) -> str:
+    tool_input = previous.get("tool_input") if isinstance(previous.get("tool_input"), dict) else {}
+    candidate = tool_input.get("event_id")
+    if not is_unresolved_calendar_event_id(candidate):
+        return str(candidate).strip()
+    event = previous.get("event") if isinstance(previous.get("event"), dict) else {}
+    candidate = event.get("event_id")
+    if not is_unresolved_calendar_event_id(candidate):
+        return str(candidate).strip()
+    events = [item for item in (previous.get("events") or []) if isinstance(item, dict)]
+    if len(events) == 1 and not is_unresolved_calendar_event_id(events[0].get("event_id")):
+        return str(events[0].get("event_id")).strip()
+    return ""
+
+
 def flatten_calendar_update_fields(payload: dict[str, Any]) -> None:
     action = str(payload.get("action") or "").strip().lower()
     if action != "update":
         return
-    fields = payload.pop("fields", None)
-    if not isinstance(fields, dict):
-        return
-    for field in CALENDAR_UPDATE_FIELDS:
-        if field in fields and field not in payload:
-            payload[field] = fields[field]
+    for key in ("pending_update", "fields"):
+        fields = payload.pop(key, None)
+        if not isinstance(fields, dict):
+            continue
+        for field in CALENDAR_UPDATE_FIELDS:
+            if field in fields and field not in payload:
+                payload[field] = fields[field]
 
 
 def calendar_update_selector(payload: dict[str, Any]) -> dict[str, Any]:
@@ -89,7 +164,7 @@ def calendar_update_selector(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def sanitize_unresolved_event_selector(selector: dict[str, Any]) -> dict[str, Any]:
-    cleaned = dict(selector or {})
+    cleaned = _clean_calendar_selector(dict(selector or {}))
     for key in ("event_id", "event_ids"):
         if key in cleaned and is_unresolved_calendar_event_id(cleaned.get(key)):
             cleaned.pop(key, None)
@@ -127,6 +202,8 @@ def event_matches_selector(event: dict[str, Any], selector: dict[str, Any]) -> b
         actual_key = "type" if key == "event_type" else key
         actual = str(event.get(actual_key) or "").strip()
         expected_text = str(expected).strip()
+        if actual_key == "title" and expected_text in GENERIC_CALENDAR_TITLE_SELECTORS:
+            continue
         if actual != expected_text:
             return False
     title_contains = str(selector.get("title_contains") or selector.get("title_keyword") or "").strip()
@@ -276,7 +353,11 @@ class CalendarTaskResolver:
             return task
         tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
         if not is_unresolved_calendar_event_id(tool_input.get("event_id")):
-            return task
+            resolved = dict(task)
+            resolved_input = dict(tool_input)
+            flatten_calendar_update_fields(resolved_input)
+            resolved["tool_input"] = resolved_input
+            return resolved
 
         original_queue = [dict(item) for item in (state.get("task_queue") or []) if isinstance(item, dict)]
         original_task_id = str(task.get("task_id") or "")
@@ -349,16 +430,23 @@ class CalendarTaskResolver:
                 new_queue.append(task)
                 continue
 
-            selector = calendar_update_selector(tool_input)
-            inferred_selector = infer_selector_from_task_text(task)
-            if not selector:
-                selector = inferred_selector
+            # If the dependency query already narrowed the target to a single event,
+            # trust that observation and inject its event_id. Do not re-filter it
+            # with weak planner selectors such as title="公司会议"; that phrase is
+            # an event type cue, not the real meeting title.
+            if len(source_events) == 1 and not is_unresolved_calendar_event_id(source_events[0].get("event_id")):
+                candidates, selected_is_safe = [source_events[0]], True
             else:
-                for key, value in inferred_selector.items():
-                    selector.setdefault(key, value)
-            selector = sanitize_unresolved_event_selector(selector)
-            enrich_selector_from_source_range(selector, source_result)
-            candidates, selected_is_safe = select_calendar_events(source_events, selector)
+                selector = calendar_update_selector(tool_input)
+                inferred_selector = infer_selector_from_task_text(task)
+                if not selector:
+                    selector = inferred_selector
+                else:
+                    for key, value in inferred_selector.items():
+                        selector.setdefault(key, value)
+                selector = sanitize_unresolved_event_selector(selector)
+                enrich_selector_from_source_range(selector, source_result)
+                candidates, selected_is_safe = select_calendar_events(source_events, selector)
             if not candidates:
                 append_calendar_resolution_result(
                     state,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from typing import Any
 
@@ -11,7 +12,10 @@ from mini_rag.answer import build_current_tool_context as build_tool_context
 from mini_rag.answer import format_tool_result
 from mini_rag.answer.service import AnswerService
 from mini_rag.answer.templates import friendly_permission_answer, friendly_tool_error, friendly_tool_validation_error
-from mini_rag.capabilities.calendar.resolver import CalendarTaskResolver, is_unresolved_calendar_event_id
+from mini_rag.capabilities.calendar.resolver import (
+    CalendarTaskResolver,
+    inherit_calendar_event_ids_from_previous_context,
+)
 from mini_rag.capabilities.datetime.resolver import resolve_time_expression
 from mini_rag.capabilities.datetime.service import build_time_context, datetime_payload_from_time_context, default_datetime_payload
 from mini_rag.capabilities.rag.service import RAGRetrievalService
@@ -41,6 +45,7 @@ from mini_rag.observability.mainline_log import (
     summarize_validation,
 )
 from mini_rag.observability.trace_builder import TraceBuilder
+from mini_rag.orchestration.completion import check_goal_completion, normalize_goal_contract, resolve_goal_contract_time
 from mini_rag.orchestration.react_executor import ReActExecutor, ReActExecutionResult, ReActGuardrailViolation
 from mini_rag.orchestration.state_factory import create_initial_state
 from mini_rag.orchestration.state_views import refresh_state_views
@@ -49,6 +54,9 @@ from mini_rag.planning.context_policy import extract_previous_tool_context, turn
 from mini_rag.planning.gates import apply_capability_gates
 from mini_rag.security.auth_store import SQLiteAuthStore
 from mini_rag.security.permissions import assert_can_access_kbs, assert_tool_action_permission, normalize_role
+from mini_rag.skills.executor import permission_tokens_from_runtime_context
+from mini_rag.skills.registry import SkillRegistry
+from mini_rag.skills.schemas import validate_json_schema
 from mini_rag.tools.daily_tools import build_default_tool_registry
 from mini_rag.tools.datetime_tool import get_current_datetime
 
@@ -87,6 +95,7 @@ class AgenticRAGNodes:
         self.llm = self.answer_llm
         self.retriever: Any | None = retriever
         self.tool_registry = build_default_tool_registry()
+        self.skill_registry = SkillRegistry()
         self.capability_registry = default_capability_registry()
         self.auth_store = SQLiteAuthStore(settings.auth_db_path)
         self._role_policy_snapshots: dict[str, Any] = {}
@@ -147,11 +156,16 @@ class AgenticRAGNodes:
             state["available_tool_contracts"] = tool_contracts
             state["available_tool_summary"] = tool_summary
             state["available_capabilities"] = [contract.name for contract in visible_capabilities]
-            state["capability_catalog"] = {"capabilities": state["available_capabilities"], "tool_summary": tool_summary}
+            skill_cards = [card.to_dict() for card in self.skill_registry.list_skill_cards()]
+            state["skill_cards"] = skill_cards
+            planner_catalog = self._planner_capability_catalog(tool_contracts, skill_cards)
+            state["planner_capability_catalog"] = planner_catalog
+            state["capability_catalog"] = {"capabilities": state["available_capabilities"], "tool_summary": tool_summary, "skill_cards": skill_cards}
             state["permissions"] = {"role": role, "allowed_kbs": allowed_kbs, "tool_actions": self._role_allowed_actions_for_answer(state)}
             state["planning_context"] = build_context_packet(
                 history=state.get("history") or [],
                 previous_tool_context=state.get("previous_tool_context") or {},
+                question=str(state.get("question") or ""),
             )
 
             ctx = build_time_context(
@@ -169,6 +183,7 @@ class AgenticRAGNodes:
                 "allowed_kbs": allowed_kbs,
                 "requested_kbs": state.get("requested_kbs") or [],
                 "time_context_result": time_payload,
+                "enterprise_db_path": str(self.settings.enterprise_db_path),
                 "capability_catalog": state["capability_catalog"],
                 "session_id": state.get("session_id"),
                 "workflow_run_id": state.get("workflow_run_id"),
@@ -207,7 +222,7 @@ class AgenticRAGNodes:
                     question=question,
                     role=normalize_role(state.get("role")),
                     planning_context=state.get("planning_context") or {},
-                    capability_catalog=str(state.get("available_tool_contracts") or "[]"),
+                    capability_catalog=str(state.get("planner_capability_catalog") or state.get("available_tool_contracts") or "[]"),
                     permissions=state.get("permissions") or {},
                     time_context=state.get("time_context_result") or {},
                 ),
@@ -237,7 +252,12 @@ class AgenticRAGNodes:
             plan = dict(state.get("execution_plan") or {})
             expanded_tasks: list[dict[str, Any]] = []
             facts: list[dict[str, Any]] = []
+            expanded_aliases: dict[str, list[str]] = {}
             for task in [dict(item) for item in plan.get("tasks") or [] if isinstance(item, dict)]:
+                if str(task.get("kind") or "").lower() == "tool":
+                    task = self._strip_untrusted_planner_date_fields(task)
+                    if str(task.get("tool") or task.get("tool_name") or "") == "manage_company_calendar":
+                        task = self._normalize_calendar_task_contract(task, question=str(state.get("question") or ""))
                 expression = str(task.get("time_expression") or "").strip()
                 if not expression:
                     expanded_tasks.append(task)
@@ -245,24 +265,22 @@ class AgenticRAGNodes:
                 resolved = resolve_time_expression(
                     expression,
                     time_context,
-                    reference_text=" ".join(
-                        str(value or "")
-                        for value in (
-                            task.get("objective"),
-                            task.get("query"),
-                            task.get("rag_query"),
-                            task.get("action"),
-                            (task.get("tool_input") or {}).get("action") if isinstance(task.get("tool_input"), dict) else "",
-                            (task.get("tool_input") or {}).get("time") if isinstance(task.get("tool_input"), dict) else "",
-                        )
-                    ),
+                    reference_text=self._time_reference_text_for_task(task, expression),
                 )
+                resolved = self._select_resolved_items_for_explicit_expression(task, resolved, expression)
                 task["resolved_time"] = resolved
                 facts.append({"task_id": task.get("task_id"), "time_expression": expression, "kind": resolved.get("kind"), "items": resolved.get("items") or [], "resolved_time": resolved})
-                expanded_tasks.extend(self._expand_task_by_resolved_time(task))
+                expanded = self._expand_task_by_resolved_time(task)
+                original_task_id = str(task.get("task_id") or "").strip()
+                if original_task_id and len(expanded) > 1:
+                    expanded_aliases[original_task_id] = [str(item.get("task_id") or "").strip() for item in expanded if str(item.get("task_id") or "").strip()]
+                expanded_tasks.extend(expanded)
+            if expanded_aliases:
+                expanded_tasks = self._rewrite_depends_on_after_time_expansion(expanded_tasks, expanded_aliases)
             plan["tasks"] = expanded_tasks
             state["execution_plan"] = plan
             state["task_queue"] = list(expanded_tasks)
+            state["goal_contract"] = resolve_goal_contract_time(normalize_goal_contract(state.get("goal_contract"), plan=plan), time_context)
             state["resolved_time_facts"] = facts
             state.setdefault("observations", []).append({"type": "time_resolution", "facts": facts})
             summary, details = summarize_time_resolution(state)
@@ -285,8 +303,11 @@ class AgenticRAGNodes:
             role = normalize_role(state.get("role"))
             role_policies = self._get_role_policies(state)
             tasks = [dict(item) for item in (state.get("execution_plan") or {}).get("tasks") or [] if isinstance(item, dict)]
-            if self._calendar_write_requires_explicit_target_clarification(state, tasks):
-                return self._block_plan(state, "ambiguous calendar target without prior context", intent="need_clarification")
+            tasks = inherit_calendar_event_ids_from_previous_context(state, tasks)
+            if tasks != (state.get("execution_plan") or {}).get("tasks"):
+                state["execution_plan"] = {"tasks": tasks, "strategy": (state.get("execution_plan") or {}).get("strategy", "")}
+                state["task_queue"] = list(tasks)
+                self._prime_first_task_fields(state, tasks)
 
             executable_tasks: list[dict[str, Any]] = []
             blocked_tasks: list[dict[str, Any]] = []
@@ -326,6 +347,15 @@ class AgenticRAGNodes:
                         }
                     )
                     continue
+                if tool == "skill":
+                    issue = self._validate_skill_task(state, task, role)
+                    if issue is not None:
+                        validation_issues.append(issue)
+                        if issue.get("code") == "permission_denied":
+                            blocked_tasks.append({**task, "_validation_issue": issue})
+                        else:
+                            clarification_tasks.append({**task, "_validation_issue": issue})
+                        continue
                 for field in ("date", "start_date", "end_date"):
                     value = str((task.get("tool_input") or {}).get(field) or "").strip()
                     if value and not self._is_iso_date(value):
@@ -472,8 +502,31 @@ class AgenticRAGNodes:
             )
             summary, details = summarize_react_execution(state)
             append_mainline_step(state, stage="react_execute", title="执行任务", summary=summary, details=details)
+            self._update_goal_completion_check(state)
             refresh_state_views(state)
         return state
+
+    @staticmethod
+    def _update_goal_completion_check(state: dict[str, Any]) -> None:
+        plan = state.get("execution_plan") if isinstance(state.get("execution_plan"), dict) else {}
+        goal = normalize_goal_contract(state.get("goal_contract"), plan=plan)
+        if not goal:
+            return
+        goal = resolve_goal_contract_time(goal, state.get("time_context_result") if isinstance(state.get("time_context_result"), dict) else {})
+        state["goal_contract"] = goal
+        check = check_goal_completion(state, goal).to_dict()
+        state["completion_check"] = {key: value for key, value in check.items() if key != "safe_next_action"}
+        state.setdefault("completion_checks", []).append(state["completion_check"])
+        completion = state.setdefault("completion_assessment", {})
+        completion["status"] = state["completion_check"].get("status")
+        completion["goal_type"] = state["completion_check"].get("goal_type")
+        completion["reason"] = state["completion_check"].get("reason")
+        if state["completion_check"].get("status") in {"failed", "needs_clarification", "incomplete", "partial"}:
+            completion["ready_to_answer"] = True
+            if state["completion_check"].get("status") == "needs_clarification":
+                completion["execution_status"] = "need_clarification"
+            elif state["completion_check"].get("status") == "failed":
+                completion["execution_status"] = "partial"
 
     def answer_with_llm(self, state: AgentState) -> AgentState:
         with NodeTimer(state, "answer_with_llm"):
@@ -530,7 +583,17 @@ class AgenticRAGNodes:
             if action_input:
                 merged = dict(executable.get("tool_input") or {})
                 for key, value in action_input.items():
+                    if key in {"date", "start_date", "end_date", "arguments"}:
+                        continue
                     merged.setdefault(key, value)
+                if isinstance(action_input.get("arguments"), dict):
+                    arguments = dict(merged.get("arguments") or {}) if isinstance(merged.get("arguments"), dict) else {}
+                    for key, value in (action_input.get("arguments") or {}).items():
+                        if key in {"date", "start_date", "end_date"}:
+                            continue
+                        arguments.setdefault(key, value)
+                    if arguments:
+                        merged["arguments"] = arguments
                 executable["tool_input"] = merged
             if (
                 str(executable.get("tool") or executable.get("tool_name") or "") == "manage_company_calendar"
@@ -555,8 +618,19 @@ class AgenticRAGNodes:
             self._call_tool(state)
             latest = self._latest_task_result(state, before)
             if latest.get("tool_name") == "manage_company_calendar" and latest.get("action") == "query" and latest.get("status") in {"ok", "success"}:
+                before_resolution = len(state.get("task_results") or [])
                 if self.calendar_task_resolver.resolve_updates(state) or self.calendar_task_resolver.resolve_deletes(state):
                     self._sync_execution_plan_from_queue(state)
+                    resolution = self._latest_task_result(state, before_resolution)
+                    if resolution and resolution.get("tool_name") == "manage_company_calendar":
+                        resolution_status = str(resolution.get("status") or "")
+                        if resolution_status in {"needs_clarification", "need_clarification", "skipped"}:
+                            return {
+                                "status": "need_clarification" if resolution_status in {"needs_clarification", "need_clarification"} else "skipped",
+                                "summary": str(resolution.get("result_summary") or ""),
+                                "raw_result": resolution.get("tool_result") if isinstance(resolution.get("tool_result"), dict) else {},
+                                "facts": resolution.get("facts") or [],
+                            }
             status = str(latest.get("status") or ("error" if state.get("error") else "success"))
             return {
                 "status": "success" if status in {"ok", "success"} else status,
@@ -656,7 +730,9 @@ class AgenticRAGNodes:
             if not isinstance(raw_task, dict):
                 continue
             kind = str(raw_task.get("kind") or "").strip().lower()
-            raw_tool_value = str(raw_task.get("tool_name") or raw_task.get("tool") or "").strip()
+            if kind in {"tool_call", "tool_calling", "function_call"}:
+                kind = "tool"
+            raw_tool_value = str(raw_task.get("tool_name") or raw_task.get("tool") or raw_task.get("name") or raw_task.get("function") or raw_task.get("tool_call_name") or "").strip()
             tool = None if raw_tool_value.lower() in {"", "null", "none"} else raw_tool_value
             if not kind:
                 kind = "tool" if tool else "rag" if raw_task.get("rag_query") or raw_task.get("query") else "answer"
@@ -674,7 +750,7 @@ class AgenticRAGNodes:
                 "tool": tool,
                 "tool_name": tool,
                 "action": action,
-                "time_expression": str(raw_task.get("time_expression") or "").strip(),
+                "time_expression": AgenticRAGNodes._canonical_time_expression(raw_task, tool_input, question),
                 "tool_input": dict(tool_input),
                 "query": str(raw_task.get("rag_query") or raw_task.get("query") or raw_task.get("objective") or "").strip(),
                 "rag_query": str(raw_task.get("rag_query") or raw_task.get("query") or "").strip() or None,
@@ -682,6 +758,15 @@ class AgenticRAGNodes:
             }
             if kind == "tool" and tool == "manage_company_calendar" and action and not task["tool_input"].get("action"):
                 task["tool_input"]["action"] = action
+            if kind == "tool":
+                task = AgenticRAGNodes._strip_untrusted_planner_date_fields(task)
+            if kind == "tool" and tool == "manage_company_calendar":
+                task = AgenticRAGNodes._normalize_calendar_task_contract(task, question=question)
+            if kind == "tool" and tool == "manage_company_calendar" and str(action or "").lower() == "query_then_update":
+                tasks.extend(AgenticRAGNodes._expand_calendar_query_then_update_task(task, question=question))
+                continue
+            if kind == "tool" and tool == "manage_company_calendar" and str(action or "").lower() == "update":
+                task = AgenticRAGNodes._normalize_calendar_pending_update_task(task, question=question)
             if kind == "tool" and tool == "query_attendance_summary":
                 task["action"] = "query" if action in {None, "", "*"} else action
             if kind == "rag" and not task["query"]:
@@ -693,10 +778,311 @@ class AgenticRAGNodes:
                 tasks = [{"task_id": "t1", "kind": "rag", "objective": question, "query": question, "rag_query": question, "tool_input": {}}]
             elif overall_raw in {"smalltalk", "direct", "datetime"} and not requires_tools:
                 tasks = []
+        tasks = AgenticRAGNodes._rewrite_generic_depends_on_aliases(tasks)
         has_tool = any(task.get("kind") == "tool" for task in tasks)
         has_rag = any(task.get("kind") == "rag" for task in tasks)
         overall = str(payload.get("overall_intent") or ("mixed" if has_tool and has_rag else "calendar" if has_tool else "rag" if has_rag else "direct"))
-        return {"overall_intent": overall, "requires_tools": has_tool, "requires_rag": has_rag, "tasks": tasks, "execution_plan": {"tasks": tasks, "strategy": str(payload.get("answer_style") or "concise")}, "answer_style": str(payload.get("answer_style") or "concise")}
+        goal_contract = payload.get("goal_contract") if isinstance(payload.get("goal_contract"), dict) else {}
+        if goal_contract:
+            goal_contract = dict(goal_contract)
+            expected = goal_contract.get("expected_result") if isinstance(goal_contract.get("expected_result"), dict) else {}
+            if expected:
+                expected = dict(expected)
+                if "time" in expected:
+                    expected["time"] = AgenticRAGNodes._normalize_calendar_time_value(expected.get("time"))
+                goal_contract["expected_result"] = expected
+        if not goal_contract:
+            goal_contract = AgenticRAGNodes._derive_goal_contract_from_tasks(tasks)
+        return {
+            "overall_intent": overall,
+            "requires_tools": has_tool,
+            "requires_rag": has_rag,
+            "tasks": tasks,
+            "execution_plan": {"tasks": tasks, "strategy": str(payload.get("answer_style") or "concise")},
+            "answer_style": str(payload.get("answer_style") or "concise"),
+            "goal_contract": goal_contract,
+        }
+
+    @staticmethod
+    def _normalize_planner_time_expression(value: Any, question: str) -> str:
+        expression = str(value or "").strip()
+        if not expression:
+            return ""
+        if AgenticRAGNodes._is_iso_date(expression) and expression not in str(question or ""):
+            return ""
+        return expression
+
+    @staticmethod
+    def _canonical_time_expression(raw_task: dict[str, Any], tool_input: dict[str, Any], question: str) -> str:
+        """Return the single structured time expression for a task.
+
+        Contract: downstream TimeResolver consumes only task.time_expression.
+        Planner may put the same user time phrase in several schema locations;
+        normalizer collapses them here instead of letting later nodes scan all
+        fields and accidentally create duplicate query tasks.
+        """
+        candidates = [raw_task.get("time_expression"), raw_task.get("date_expression")]
+        if isinstance(tool_input, dict):
+            candidates.append(tool_input.get("date_expression"))
+            pending = tool_input.get("pending_update") if isinstance(tool_input.get("pending_update"), dict) else {}
+            candidates.append(pending.get("date_expression"))
+        for value in candidates:
+            expression = AgenticRAGNodes._normalize_planner_time_expression(value, question)
+            if expression:
+                return expression
+        return ""
+
+    @staticmethod
+    def _normalize_calendar_task_contract(task: dict[str, Any], *, question: str = "") -> dict[str, Any]:
+        """Apply the calendar task contract after plan normalization.
+
+        - time_expression is the only time input consumed by TimeResolver.
+        - top-level tool_input.date_expression is planner syntax, not a tool arg.
+        - update target fields stay under target/selector; expected changes stay
+          as flat update fields or pending_update.
+        """
+        output = dict(task)
+        tool_input = dict(output.get("tool_input") or {})
+        expression = str(output.get("time_expression") or "").strip()
+        if not expression:
+            expression = AgenticRAGNodes._normalize_planner_time_expression(tool_input.get("date_expression"), question)
+            if expression:
+                output["time_expression"] = expression
+        tool_input.pop("date_expression", None)
+        if isinstance(tool_input.get("target"), dict):
+            target = dict(tool_input.get("target") or {})
+            # target.date_expression is only for locating the source event.
+            target.pop("date_expression", None)
+            tool_input["target"] = target
+        if "time" in tool_input:
+            tool_input["time"] = AgenticRAGNodes._normalize_calendar_time_value(tool_input.get("time"))
+        pending = tool_input.get("pending_update") if isinstance(tool_input.get("pending_update"), dict) else None
+        if pending is not None:
+            cleaned_pending = AgenticRAGNodes._clean_calendar_pending_update(pending, question=question)
+            pending_date = str(cleaned_pending.pop("date_expression", "") or "").strip()
+            if pending_date and not output.get("time_expression"):
+                output["time_expression"] = pending_date
+            if cleaned_pending:
+                tool_input["pending_update"] = cleaned_pending
+            else:
+                tool_input.pop("pending_update", None)
+        output["tool_input"] = tool_input
+        return output
+
+    @staticmethod
+    def _normalize_calendar_time_value(value: Any) -> Any:
+        text = str(value or "").strip()
+        if not text:
+            return value
+        if re.fullmatch(r"\d{1,2}:\d{2}(-\d{1,2}:\d{2})?", text):
+            return text
+        digit_map = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
+
+        def parse_hour(raw: str, meridiem: str) -> int | None:
+            raw = raw.strip()
+            if raw.isdigit():
+                hour = int(raw)
+            elif raw == "十":
+                hour = 10
+            elif raw.startswith("十") and len(raw) == 2:
+                hour = 10 + int(digit_map.get(raw[1], -100))
+            elif raw.endswith("十") and len(raw) == 2:
+                hour = int(digit_map.get(raw[0], -100)) * 10
+            elif len(raw) == 2 and raw[1] in digit_map and raw[0] in digit_map:
+                hour = int(digit_map[raw[0]]) * 10 + int(digit_map[raw[1]])
+            else:
+                hour = digit_map.get(raw)
+            if hour is None or hour < 0:
+                return None
+            if meridiem in {"晚上", "晚", "下午"} and hour < 12:
+                hour += 12
+            if meridiem in {"凌晨"} and hour == 12:
+                hour = 0
+            return hour
+
+        pattern = re.compile(
+            r"(?P<m1>上午|早上|下午|晚上|晚|凌晨)?(?P<h1>\d{1,2}|[零〇一二两三四五六七八九十]{1,3})点"
+            r"(?P<half1>半)?"
+            r"(?:到|至|-)"
+            r"(?P<m2>上午|早上|下午|晚上|晚|凌晨)?(?P<h2>\d{1,2}|[零〇一二两三四五六七八九十]{1,3})点"
+            r"(?P<half2>半)?"
+        )
+        m = pattern.search(text)
+        if m:
+            m1 = m.group("m1") or m.group("m2") or ""
+            m2 = m.group("m2") or m1
+            h1 = parse_hour(m.group("h1"), m1)
+            h2 = parse_hour(m.group("h2"), m2)
+            if h1 is not None and h2 is not None:
+                start_min = 30 if m.group("half1") else 0
+                end_min = 30 if m.group("half2") else 0
+                return f"{h1:02d}:{start_min:02d}-{h2:02d}:{end_min:02d}"
+        single = re.search(r"(上午|早上|下午|晚上|晚|凌晨)?(\d{1,2}|[零〇一二两三四五六七八九十]{1,3})点(半)?", text)
+        if single:
+            hour = parse_hour(single.group(2), single.group(1) or "")
+            if hour is not None:
+                minute = 30 if single.group(3) else 0
+                return f"{hour:02d}:{minute:02d}"
+        return value
+
+    @staticmethod
+    def _derive_goal_contract_from_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
+        for task in tasks:
+            if not isinstance(task, dict):
+                continue
+            if str(task.get("kind") or "").lower() != "tool":
+                continue
+            if str(task.get("tool") or task.get("tool_name") or "") != "manage_company_calendar":
+                continue
+            tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
+            action = str(task.get("action") or tool_input.get("action") or "").lower()
+            if action != "update":
+                continue
+            expected: dict[str, Any] = {}
+            pending = tool_input.get("pending_update") if isinstance(tool_input.get("pending_update"), dict) else {}
+            source = pending or tool_input
+            for key in ("time", "location", "description", "type"):
+                value = source.get(key)
+                if value not in (None, "", [], {}):
+                    expected[key] = AgenticRAGNodes._normalize_calendar_time_value(value) if key == "time" else value
+            title_value = source.get("title")
+            text = f"{task.get('objective') or ''}\n{task.get('query') or ''}"
+            if title_value not in (None, "", [], {}) and any(token in text for token in ("标题", "名称", "命名")):
+                expected["title"] = title_value
+            date_value = pending.get("date_expression") or tool_input.get("date_expression") or tool_input.get("date")
+            if date_value not in (None, "", [], {}) and not any(field in expected for field in ("time", "location", "title", "description", "type")):
+                expected["date_expression"] = date_value
+            if expected:
+                return {"goal_type": "calendar_update", "expected_result": expected}
+        return {}
+
+    @staticmethod
+    def _clean_calendar_pending_update(value: Any, *, question: str = "") -> dict[str, Any]:
+        if not isinstance(value, dict):
+            return {}
+        allowed = {"time", "location", "title", "date_expression", "description", "type"}
+        cleaned: dict[str, Any] = {}
+        for key, val in value.items():
+            if key not in allowed or val in (None, "", [], {}):
+                continue
+            if key == "date_expression":
+                normalized = AgenticRAGNodes._normalize_planner_time_expression(val, question)
+                if normalized:
+                    cleaned[key] = normalized
+                continue
+            cleaned[key] = AgenticRAGNodes._normalize_calendar_time_value(val) if key == "time" else val
+        return cleaned
+
+    @staticmethod
+    def _normalize_calendar_pending_update_task(task: dict[str, Any], *, question: str = "") -> dict[str, Any]:
+        output = dict(task)
+        tool_input = dict(output.get("tool_input") or {})
+        if "time" in tool_input:
+            tool_input["time"] = AgenticRAGNodes._normalize_calendar_time_value(tool_input.get("time"))
+        pending = AgenticRAGNodes._clean_calendar_pending_update(tool_input.get("pending_update"), question=question)
+        if pending:
+            date_expression = str(pending.pop("date_expression", "") or "").strip()
+            if date_expression and not output.get("time_expression"):
+                output["time_expression"] = date_expression
+            tool_input["pending_update"] = pending
+        elif "pending_update" in tool_input:
+            tool_input.pop("pending_update", None)
+        output["tool_input"] = tool_input
+        return output
+
+    @staticmethod
+    def _expand_calendar_query_then_update_task(task: dict[str, Any], *, question: str = "") -> list[dict[str, Any]]:
+        base_id = str(task.get("task_id") or "calendar_write")
+        tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
+        target = tool_input.get("target") if isinstance(tool_input.get("target"), dict) else {}
+        query_input = {
+            key: value
+            for key, value in dict(target).items()
+            if value not in (None, "", [], {})
+        }
+        for key in ("event_type", "department", "query_scope", "selector", "event_selector", "target", "match"):
+            value = tool_input.get(key)
+            if key == "target" and isinstance(value, dict):
+                continue
+            if value not in (None, "", [], {}) and key not in query_input:
+                query_input[key] = value
+        query_input["action"] = "query"
+        pending = AgenticRAGNodes._clean_calendar_pending_update(tool_input.get("pending_update"), question=question)
+        date_expression = str(pending.pop("date_expression", "") or "").strip()
+        query_task = {
+            "task_id": base_id,
+            "kind": "tool",
+            "objective": task.get("objective") or "查询要更新的公司日程",
+            "tool": "manage_company_calendar",
+            "tool_name": "manage_company_calendar",
+            "action": "query",
+            "time_expression": task.get("time_expression") or "",
+            "tool_input": query_input,
+            "depends_on": list(task.get("depends_on") or []),
+        }
+        update_input: dict[str, Any] = {"action": "update"}
+        if pending:
+            update_input["pending_update"] = pending
+        update_task: dict[str, Any] = {
+            "task_id": f"{base_id}_update",
+            "kind": "tool",
+            "objective": "更新查询到的公司日程",
+            "tool": "manage_company_calendar",
+            "tool_name": "manage_company_calendar",
+            "action": "update",
+            "tool_input": update_input,
+            "depends_on": [base_id],
+        }
+        if date_expression:
+            update_task["time_expression"] = date_expression
+        return [
+            {key: value for key, value in query_task.items() if value not in (None, "", [], {}) or key in {"task_id", "kind", "tool_input"}},
+            {key: value for key, value in update_task.items() if value not in (None, "", [], {}) or key in {"task_id", "kind", "tool_input"}},
+        ]
+
+    @staticmethod
+    def _strip_untrusted_planner_date_fields(task: dict[str, Any]) -> dict[str, Any]:
+        """Remove planner-generated dates before deterministic time resolution.
+
+        The planner may still guess concrete dates despite prompt instructions.
+        Canonical dates must come only from resolve_plan_time, so planner-origin
+        date fields are stripped even when they look like valid YYYY-MM-DD values.
+        """
+        if str(task.get("kind") or "").lower() != "tool":
+            return task
+        output = dict(task)
+        tool_input = dict(output.get("tool_input") or {})
+        removed: dict[str, Any] = {}
+        for date_key in ("date", "start_date", "end_date"):
+            if date_key in tool_input:
+                removed[date_key] = tool_input.pop(date_key)
+        if isinstance(tool_input.get("arguments"), dict):
+            arguments = dict(tool_input.get("arguments") or {})
+            for date_key in ("date", "start_date", "end_date"):
+                if date_key in arguments:
+                    removed[f"arguments.{date_key}"] = arguments.pop(date_key)
+            tool_input["arguments"] = arguments
+        output["tool_input"] = tool_input
+        if removed:
+            output["_removed_planner_date_fields"] = removed
+        return output
+
+    @staticmethod
+    def _rewrite_generic_depends_on_aliases(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        query_ids = [str(task.get("task_id") or "").strip() for task in tasks if isinstance(task, dict) and str(task.get("action") or (task.get("tool_input") or {}).get("action") or "").lower() == "query"]
+        if not query_ids:
+            return tasks
+        output: list[dict[str, Any]] = []
+        for task in tasks:
+            if not isinstance(task, dict):
+                continue
+            deps = [str(dep).strip() for dep in (task.get("depends_on") or []) if str(dep).strip()]
+            rewritten = [query_ids[0] if dep in {"query", "calendar_query", "previous_query"} else dep for dep in deps]
+            if rewritten != deps:
+                task = dict(task)
+                task["depends_on"] = rewritten
+            output.append(task)
+        return output
 
     def _apply_runtime_plan_to_state(self, state: AgentState, payload: dict[str, Any]) -> None:
         tasks = list((payload.get("execution_plan") or {}).get("tasks") or [])
@@ -706,9 +1092,38 @@ class AgenticRAGNodes:
         state["route"] = "rag" if has_rag else "tool" if has_tool else "direct"  # type: ignore[assignment]
         state["standalone_query"] = str(state.get("question") or "")
         state["execution_plan"] = {"tasks": tasks, "strategy": str(payload.get("answer_style") or "concise")}
+        state["goal_contract"] = normalize_goal_contract(payload.get("goal_contract"), plan=state["execution_plan"])
         state["task_queue"] = list(tasks)
         self._prime_first_task_fields(state, tasks)
         state["knowledge_requirement"] = {"requires_company_knowledge": has_rag or has_tool, "should_use_rag": has_rag}
+
+    @staticmethod
+    def _planner_capability_catalog(tool_contracts: str, skill_cards: list[dict[str, Any]]) -> str:
+        try:
+            tools = json.loads(tool_contracts or "[]")
+        except json.JSONDecodeError:
+            tools = []
+        payload = {
+            "tools": tools if isinstance(tools, list) else [],
+            "skill_cards": [
+                {
+                    key: card.get(key)
+                    for key in (
+                        "name",
+                        "description",
+                        "intent_tags",
+                        "trigger_examples",
+                        "not_for",
+                        "required_permissions",
+                        "input_schema_summary",
+                    )
+                    if isinstance(card, dict) and card.get(key) not in (None, "", [], {})
+                }
+                for card in skill_cards
+                if isinstance(card, dict)
+            ],
+        }
+        return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str)
 
     def _prime_first_task_fields(self, state: AgentState, tasks: list[dict[str, Any]]) -> None:
         first_tool = next((task for task in tasks if isinstance(task, dict) and task.get("kind") == "tool"), {})
@@ -719,7 +1134,110 @@ class AgenticRAGNodes:
         state["tool_input"] = dict(first_tool.get("tool_input") or {}) if first_tool else {}
 
     @staticmethod
-    def _apply_resolved_time_to_task(task: dict[str, Any], item: dict[str, Any]) -> dict[str, Any]:
+    def _time_reference_text_for_task(task: dict[str, Any], expression: str) -> str:
+        """TimeResolver sees one canonical expression per task.
+
+        For create tasks we add a tiny mode hint so weekday-only expressions
+        such as “星期一晚上九点” resolve to the next valid future occurrence
+        when today's occurrence has already passed.
+        """
+        text = str(expression or "").strip()
+        tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
+        action = str(task.get("action") or tool_input.get("action") or "").lower()
+        if action == "create":
+            return f"{text} 创建".strip()
+        return text
+
+    @staticmethod
+    def _select_resolved_items_for_explicit_expression(task: dict[str, Any], resolved: dict[str, Any], expression: str) -> dict[str, Any]:
+        """Normalize resolver output under the one-time-expression contract.
+
+        If a resolver returns the same date range under multiple labels, collapse
+        it to one item. Distinct ranges are kept because they represent a real
+        multi-date user request and should be expressed as separate tasks by the
+        planner whenever possible.
+        """
+        del task, expression
+        if not isinstance(resolved, dict):
+            return resolved
+        items = [dict(item) for item in (resolved.get("items") or []) if isinstance(item, dict)]
+        if len(items) <= 1:
+            return resolved
+        deduped: list[dict[str, Any]] = []
+        seen: set[tuple[str, str]] = set()
+        for item in items:
+            start = str(item.get("start_date") or item.get("date") or "").strip()
+            end = str(item.get("end_date") or start).strip()
+            key = (start, end)
+            if not start or key in seen:
+                continue
+            seen.add(key)
+            deduped.append(item)
+        if len(deduped) == len(items):
+            return resolved
+        output = dict(resolved)
+        output["items"] = deduped
+        if len(deduped) == 1:
+            output["kind"] = "range" if deduped[0].get("start_date") != deduped[0].get("end_date") else "date"
+        else:
+            output["kind"] = "multi"
+        return output
+
+    @staticmethod
+    def _task_dates_for_dependency_matching(task: dict[str, Any]) -> set[tuple[str, str]]:
+        dates: set[tuple[str, str]] = set()
+        tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
+        start = str(tool_input.get("start_date") or tool_input.get("date") or "").strip()
+        end = str(tool_input.get("end_date") or start or "").strip()
+        if start:
+            dates.add((start, end or start))
+        resolved = task.get("resolved_time") if isinstance(task.get("resolved_time"), dict) else {}
+        for item in resolved.get("items") or []:
+            if not isinstance(item, dict):
+                continue
+            item_start = str(item.get("start_date") or item.get("date") or "").strip()
+            item_end = str(item.get("end_date") or item_start or "").strip()
+            if item_start:
+                dates.add((item_start, item_end or item_start))
+        return dates
+
+    @staticmethod
+    def _rewrite_depends_on_after_time_expansion(tasks: list[dict[str, Any]], aliases: dict[str, list[str]]) -> list[dict[str, Any]]:
+        if not aliases:
+            return tasks
+        by_id = {str(task.get("task_id") or "").strip(): task for task in tasks if isinstance(task, dict)}
+        output: list[dict[str, Any]] = []
+        for task in tasks:
+            if not isinstance(task, dict):
+                continue
+            deps = [str(dep).strip() for dep in (task.get("depends_on") or []) if str(dep).strip()]
+            if not deps:
+                output.append(task)
+                continue
+            wanted_dates = AgenticRAGNodes._task_dates_for_dependency_matching(task)
+            rewritten: list[str] = []
+            for dep in deps:
+                candidates = aliases.get(dep)
+                if not candidates:
+                    rewritten.append(dep)
+                    continue
+                matched = []
+                if wanted_dates:
+                    for candidate_id in candidates:
+                        candidate = by_id.get(candidate_id) or {}
+                        if AgenticRAGNodes._task_dates_for_dependency_matching(candidate) & wanted_dates:
+                            matched.append(candidate_id)
+                rewritten.extend(matched or candidates)
+            deduped: list[str] = []
+            for dep in rewritten:
+                if dep and dep not in deduped:
+                    deduped.append(dep)
+            updated = dict(task)
+            updated["depends_on"] = deduped
+            output.append(updated)
+        return output
+
+    def _apply_resolved_time_to_task(self, task: dict[str, Any], item: dict[str, Any]) -> dict[str, Any]:
         output = dict(task)
         output["resolved_time"] = {"kind": "range" if item.get("start_date") != item.get("end_date") else "date", "items": [dict(item)]}
         tool = str(output.get("tool") or output.get("tool_name") or "")
@@ -731,12 +1249,22 @@ class AgenticRAGNodes:
             tool_input.pop("date", None)
             tool_input["start_date"] = start
             tool_input["end_date"] = end
+            output["_program_resolved_date_fields"] = ["start_date", "end_date"]
             if tool == "manage_company_calendar":
                 tool_input.setdefault("query_scope", "all_events" if str(tool_input.get("event_type") or "all") == "all" else "type_filtered")
                 tool_input.setdefault("department", "all")
         elif tool == "manage_company_calendar" and action in {"create", "update"}:
             if action == "create" or start == end:
                 tool_input["date"] = start
+                output["_program_resolved_date_fields"] = ["date"]
+        elif tool == "skill" and action == "run":
+            arguments = dict(tool_input.get("arguments") or {}) if isinstance(tool_input.get("arguments"), dict) else {}
+            if start:
+                arguments["start_date"] = start
+            if end:
+                arguments["end_date"] = end
+            tool_input["arguments"] = arguments
+            output["_program_resolved_date_fields"] = ["arguments.start_date", "arguments.end_date"]
         output["tool_input"] = tool_input
         return output
 
@@ -780,7 +1308,8 @@ class AgenticRAGNodes:
         action = str(state.get("selected_action") or task.get("action") or (state.get("tool_input") or {}).get("action") or "*")
         status = "error" if result.get("error") or state.get("error") else "ok"
         state.setdefault("task_results", []).append(
-            {
+            self._enrich_tool_task_result(
+                {
                 "task_id": task_id,
                 "kind": "tool",
                 "objective": task.get("objective") or tool_name,
@@ -792,10 +1321,22 @@ class AgenticRAGNodes:
                 "tool_calls": list(state.get("tool_calls") or [])[max(0, before_tool_calls):],
                 "result_summary": format_tool_result(tool_name, result, context=str(task.get("objective") or state.get("question") or "")) if result else "",
                 "error_message": state.get("final_answer") if status == "error" else "",
-            }
+                },
+                tool_name=tool_name,
+                result=result,
+            )
         )
         if status == "ok" and task_id not in set(state.get("completed_tasks") or []):
             state.setdefault("completed_tasks", []).append(task_id)
+
+    @staticmethod
+    def _enrich_tool_task_result(item: dict[str, Any], *, tool_name: str, result: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "skill":
+            item["skill_name"] = result.get("skill_name")
+            item["skill_result"] = {key: value for key, value in result.items() if key in {"ok", "skill_name", "result", "error"}}
+            if isinstance(result.get("trace"), dict):
+                item["skill_trace"] = result.get("trace")
+        return item
 
     @staticmethod
     def _latest_task_result(state: AgentState, before: int) -> dict[str, Any]:
@@ -812,38 +1353,58 @@ class AgenticRAGNodes:
         refresh_state_views(state)
         return state
 
-    def _calendar_write_requires_explicit_target_clarification(self, state: AgentState, tasks: list[dict[str, Any]]) -> bool:
-        text = str(state.get("question") or state.get("standalone_query") or "")
-        asks_for_read_answer = any(token in text for token in ("查询", "查一下", "查看", "告诉我", "安排"))
-        asks_about_ability = any(token in text for token in ("能不能", "能否", "是否可以", "可不可以", "可以吗"))
-        if asks_for_read_answer and asks_about_ability:
-            return False
-        if not any(token in text for token in ("那个", "这个", "它", "该会议", "该日程", "那场", "这场")):
-            return False
-        previous = state.get("previous_tool_context") if isinstance(state.get("previous_tool_context"), dict) else {}
-        has_dependency_query = any(
-            isinstance(task, dict)
-            and str(task.get("kind") or "") == "tool"
-            and str(task.get("tool") or task.get("tool_name") or "") == "manage_company_calendar"
-            and str(task.get("action") or (task.get("tool_input") or {}).get("action") or "").lower() == "query"
-            for task in tasks
-        )
-        if (previous.get("events") or previous.get("event")) and not has_dependency_query:
-            return False
-        if any(token in text for token in ("第一个", "第一条", "第二个", "第二条", "所有", "全部")):
-            return False
-        for task in tasks:
-            if not isinstance(task, dict) or str(task.get("kind") or "") != "tool":
-                continue
-            if str(task.get("tool") or task.get("tool_name") or "") != "manage_company_calendar":
-                continue
-            action = str(task.get("action") or (task.get("tool_input") or {}).get("action") or "").lower()
-            if action not in {"update", "delete"}:
-                continue
-            tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
-            if is_unresolved_calendar_event_id(tool_input.get("event_id")):
-                return True
-        return False
+    def _validate_skill_task(self, state: AgentState, task: dict[str, Any], role: str) -> dict[str, Any] | None:
+        tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
+        skill_name = str(tool_input.get("skill_name") or "").strip()
+        if not skill_name:
+            return {
+                "task_id": task.get("task_id"),
+                "layer": "validator",
+                "code": "missing_skill_name",
+                "message": "skill.run requires skill_name",
+                "field": "skill_name",
+            }
+        manifest = self.skill_registry.get_skill(skill_name)
+        if manifest is None:
+            return {
+                "task_id": task.get("task_id"),
+                "layer": "validator",
+                "code": "unknown_skill",
+                "message": f"unknown skill {skill_name}",
+                "field": "skill_name",
+            }
+        arguments = tool_input.get("arguments")
+        if not isinstance(arguments, dict):
+            return {
+                "task_id": task.get("task_id"),
+                "layer": "validator",
+                "code": "invalid_skill_arguments",
+                "message": "skill.run arguments must be a JSON object",
+                "field": "arguments",
+            }
+        runtime_context = dict(state.get("runtime_context") or {})
+        runtime_context.setdefault("role", role)
+        runtime_context.setdefault("permissions", state.get("permissions") or {})
+        tokens = permission_tokens_from_runtime_context(runtime_context)
+        missing_permissions = [token for token in manifest.required_permissions if token not in tokens]
+        if missing_permissions:
+            return {
+                "task_id": task.get("task_id"),
+                "layer": "validator",
+                "code": "permission_denied",
+                "message": f"missing skill permissions: {', '.join(missing_permissions)}",
+                "field": "permissions",
+            }
+        schema_errors = validate_json_schema(manifest.input_schema, arguments)
+        if schema_errors:
+            return {
+                "task_id": task.get("task_id"),
+                "layer": "validator",
+                "code": "invalid_skill_arguments",
+                "message": "; ".join(schema_errors),
+                "field": "arguments",
+            }
+        return None
 
     def _preserve_read_tasks_for_denied_write(
         self,

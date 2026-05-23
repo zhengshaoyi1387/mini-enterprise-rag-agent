@@ -1,0 +1,62 @@
+{
+  "name": "policy_gap_checker",
+  "version": "0.2.0",
+  "description": "检查 RAG 证据是否覆盖用户问题的关键槽位，输出 full/partial/missing 覆盖等级，辅助发现 supporting evidence 的缺口。",
+  "capability_type": "evidence_analysis",
+  "risk_level": "read_only",
+  "owner": "demo",
+  "entrypoint": "run.py",
+  "timeout_seconds": 5,
+  "intent_tags": ["rag", "evidence", "policy_gap"],
+  "trigger_examples": [
+    "检查这些证据是否覆盖报销流程问题",
+    "判断会议室规则证据还缺哪些要点",
+    "分析制度证据是否足够回答用户问题"
+  ],
+  "not_for": [
+    "不直接回答制度问题",
+    "不替代 RAG Evidence Judge",
+    "不把 related_sources 升级成 supporting_sources"
+  ],
+  "required_permissions": ["rag:read"],
+  "required_tools": ["search_knowledge_base"],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "question": {"type": "string"},
+      "evidence_items": {
+        "type": "array",
+        "items": {"type": "object"}
+      },
+      "required_slots": {
+        "type": "array",
+        "items": {"type": "string"}
+      }
+    },
+    "required": ["question", "evidence_items", "required_slots"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "covered_slots": {"type": "array"},
+      "partial_slots": {"type": "array"},
+      "missing_slots": {"type": "array"},
+      "overall": {"type": "string", "enum": ["full", "partial", "none"]},
+      "limitations": {"type": "array"}
+    },
+    "required": ["covered_slots", "partial_slots", "missing_slots", "overall", "limitations"]
+  },
+  "eval_cases": [
+    {
+      "name": "reimbursement_materials_gap",
+      "input": {
+        "question": "出差酒店费用可以报销吗？流程是什么？",
+        "evidence_items": [
+          {"source_id": "finance_001", "title": "差旅报销制度", "content": "报销材料包括行程单、发票、支付凭证。"}
+        ],
+        "required_slots": ["是否可报销", "所需材料", "审批流程"]
+      },
+      "expected_contains": ["partial_slots", "missing_slots", "overall"]
+    }
+  ]
+}

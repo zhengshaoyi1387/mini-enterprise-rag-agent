@@ -25,10 +25,12 @@ def test_role_kb_permissions_are_kb_level() -> None:
         raise AssertionError("employee should not access finance kb")
 
 
-def test_daily_tool_registry_contains_real_business_tools_only() -> None:
+def test_daily_tool_registry_contains_real_business_tools_and_skill_adapter() -> None:
     registry = build_default_tool_registry()
     names = {tool["name"] for tool in registry.list_tools()}
-    assert names == {"search_knowledge_base", "get_current_datetime", "query_attendance_summary", "manage_company_calendar"}
+    assert {"search_knowledge_base", "get_current_datetime", "query_attendance_summary", "manage_company_calendar"} <= names
+    assert "skill" in names
+    assert not {"generate_weekly_report", "draft_email", "create_it_ticket"} & names
 
 
 def test_no_rule_based_daily_tool_selector_is_exported() -> None:

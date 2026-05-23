@@ -1,0 +1,11 @@
+[
+  {
+    "name": "weekly_abnormal_insight_by_employee",
+    "input": {
+      "start_date": "2026-05-11",
+      "end_date": "2026-05-17",
+      "group_by": "employee"
+    },
+    "expected_contains": ["overview", "rankings", "patterns", "risk_flags", "suggested_followups", "items"]
+  }
+]

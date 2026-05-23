@@ -42,6 +42,7 @@ from mini_rag.api.schemas import (
     UserUpdateRequest,
 )
 from mini_rag.config import Settings, get_settings
+from mini_rag.api.internal_tools_api import router as internal_tools_router
 from mini_rag.ingestion.kb_admin import delete_kb_document, import_kb_document, list_kbs_with_documents
 from mini_rag.observability.trace import save_trace
 from mini_rag.observability.mainline_log import append_mainline_step
@@ -72,6 +73,8 @@ app.add_middleware(RequestLoggerMiddleware, settings=settings)
 FRONTEND_DIR = Path("frontend")
 if FRONTEND_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="ui")
+
+app.include_router(internal_tools_router)
 
 
 @app.get("/", include_in_schema=False)

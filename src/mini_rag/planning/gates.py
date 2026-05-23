@@ -64,7 +64,7 @@ def first_disallowed_tool_task(
     for task in tasks:
         if not isinstance(task, dict) or str(task.get("kind") or "").lower() != "tool":
             continue
-        tool = str(task.get("tool") or "").strip()
+        tool = str(task.get("tool") or task.get("tool_name") or "").strip()
         if not tool or not tool_registry.has_tool(tool):
             return task
         tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
@@ -176,7 +176,7 @@ def evaluate_capability_gates(
         role_policies=role_policies,
     )
     if disallowed_task is not None:
-        tool = str(disallowed_task.get("tool") or "")
+        tool = str(disallowed_task.get("tool") or disallowed_task.get("tool_name") or "")
         action = str(disallowed_task.get("action") or (disallowed_task.get("tool_input") or {}).get("action") or "*")
         return CapabilityGateDecision(
             route="direct",

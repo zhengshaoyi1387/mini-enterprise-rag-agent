@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     rag_judge_model: str | None = Field(default=None, alias="RAG_JUDGE_MODEL")
     rag_reflect_model: str | None = Field(default=None, alias="RAG_REFLECT_MODEL")
     answer_model: str | None = Field(default=None, alias="ANSWER_MODEL")
+    planner_max_tokens: int = Field(default=512, alias="PLANNER_MAX_TOKENS")
 
     # 向量模型。text-embedding-v4 属于 Qwen3-Embedding 系列。
     qwen_embedding_model: str = Field(default="text-embedding-v4", alias="QWEN_EMBEDDING_MODEL")
@@ -81,6 +82,7 @@ class Settings(BaseSettings):
     session_max_turns: int = Field(default=6, alias="SESSION_MAX_TURNS")
     context_db_path: Path = Field(default=Path("storage/context.sqlite3"), alias="CONTEXT_DB_PATH")
     auth_db_path: Path = Field(default=Path("storage/auth.sqlite3"), alias="AUTH_DB_PATH")
+    enterprise_db_path: Path = Field(default=Path("data/enterprise_demo.db"), alias="ENTERPRISE_DB_PATH")
     langgraph_checkpoint_db_path: Path = Field(
         default=Path("storage/langgraph_checkpoints.sqlite3"),
         alias="LANGGRAPH_CHECKPOINT_DB_PATH",

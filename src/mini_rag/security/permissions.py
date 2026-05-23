@@ -49,6 +49,9 @@ TOOL_ACTION_PERMISSIONS: Final[dict[str, dict[str, set[str]]]] = {
         "update": {"admin"},
         "delete": {"admin"},
     },
+    "skill": {
+        "run": {"guest", "public", "user", "employee", "finance", "hr", "it", "admin"},
+    },
 }
 
 # Backward-compatible tool-level table used by existing admin/auth surfaces.

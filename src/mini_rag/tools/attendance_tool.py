@@ -6,6 +6,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from mini_rag.infrastructure.db.seed import initialize_enterprise_demo_db
+from mini_rag.infrastructure.db.sqlite import DEFAULT_ENTERPRISE_DB_PATH
+from mini_rag.tools.repositories.attendance_repository import AttendanceRepository
+
 ATTENDANCE_FILE = Path("data/business/attendance.csv")
 STATUSES = ("present", "late", "leave", "absent")
 
@@ -77,10 +81,6 @@ def _normalize_status_filters(payload: dict[str, Any]) -> tuple[str | None, list
 
 def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
-    file_path = Path(str(payload.get("file_path") or ATTENDANCE_FILE))
-    if not file_path.exists():
-        return {"error": "attendance data file not found", "file_path": str(file_path)}
-
     start = _parse_date(payload.get("start_date"), "start_date")
     if isinstance(start, dict):
         return start
@@ -102,44 +102,60 @@ def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str,
     status_filter = status_filters[0] if len(status_filters) == 1 else None
     include_records = _as_bool(payload.get("include_records", False))
 
+    if payload.get("file_path"):
+        file_path = Path(str(payload.get("file_path") or ATTENDANCE_FILE))
+        if not file_path.exists():
+            return {"error": "attendance data file not found", "file_path": str(file_path)}
+        rows = _read_csv_rows(file_path)
+        data_backend = "file"
+    else:
+        db_path = Path(str(payload.get("db_path") or DEFAULT_ENTERPRISE_DB_PATH))
+        if not db_path.exists():
+            initialize_enterprise_demo_db(db_path, reset=False)
+        rows = AttendanceRepository(db_path).query_records(
+            start.isoformat(),
+            end.isoformat(),
+            department=department,
+            employee_name=employee_name,
+        )
+        data_backend = "sqlite"
+
     total = _empty_counter()
     by_department: dict[str, dict[str, int]] = defaultdict(_empty_counter)
     by_employee: dict[tuple[str, str, str], dict[str, int]] = defaultdict(_empty_counter)
     filtered_records: list[dict[str, Any]] = []
 
-    with file_path.open("r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            row_date = _parse_date(row.get("date"), "date")
-            if isinstance(row_date, dict):
-                continue
-            if row_date < start or row_date > end:
-                continue
-            row_department = str(row.get("department") or "").strip()
-            row_name = str(row.get("name") or "").strip()
-            if department != "all" and row_department != department:
-                continue
-            if employee_name and row_name != employee_name:
-                continue
-            status = str(row.get("status") or "").strip().lower()
-            _add(total, status)
-            _add(by_department[row_department or "-"], status)
-            employee_key = (str(row.get("employee_id") or "").strip(), row_name or "-", row_department or "-")
-            _add(by_employee[employee_key], status)
-            if status_filters and status not in status_filters:
-                continue
-            if include_records and (status_filters or employee_name):
-                filtered_records.append(
-                    {
-                        "date": str(row.get("date") or ""),
-                        "employee_id": str(row.get("employee_id") or ""),
-                        "name": row_name,
-                        "department": row_department,
-                        "status": status,
-                        "check_in": str(row.get("check_in") or ""),
-                        "check_out": str(row.get("check_out") or ""),
-                    }
-                )
+    for row in rows:
+        row_date = _parse_date(row.get("date"), "date")
+        if isinstance(row_date, dict):
+            continue
+        if row_date < start or row_date > end:
+            continue
+        row_department = str(row.get("department") or "").strip()
+        row_name = str(row.get("name") or "").strip()
+        if department != "all" and row_department != department:
+            continue
+        if employee_name and row_name != employee_name:
+            continue
+        status = str(row.get("status") or "").strip().lower()
+        _add(total, status)
+        _add(by_department[row_department or "-"], status)
+        employee_key = (str(row.get("employee_id") or "").strip(), row_name or "-", row_department or "-")
+        _add(by_employee[employee_key], status)
+        if status_filters and status not in status_filters:
+            continue
+        if include_records and (status_filters or employee_name):
+            filtered_records.append(
+                {
+                    "date": str(row.get("date") or ""),
+                    "employee_id": str(row.get("employee_id") or ""),
+                    "name": row_name,
+                    "department": row_department,
+                    "status": status,
+                    "check_in": str(row.get("check_in") or ""),
+                    "check_out": str(row.get("check_out") or ""),
+                }
+            )
 
     result: dict[str, Any] = {
         "start_date": start.isoformat(),
@@ -153,6 +169,7 @@ def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str,
             "include_records": include_records,
         },
         "summary": _format_summary(total),
+        "data_backend": data_backend,
     }
     if status_filters:
         result["status_filters"] = status_filters
@@ -173,3 +190,8 @@ def query_attendance_summary(payload: dict[str, Any] | None = None) -> dict[str,
             for (employee_id, name, dept), counter in sorted(by_employee.items(), key=lambda item: (item[0][2], item[0][1]))
         ]
     return result
+
+
+def _read_csv_rows(file_path: Path) -> list[dict[str, Any]]:
+    with file_path.open("r", encoding="utf-8", newline="") as f:
+        return [dict(row) for row in csv.DictReader(f)]

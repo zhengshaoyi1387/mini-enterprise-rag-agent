@@ -13,10 +13,12 @@ from mini_rag.capabilities.rag.formatter import (
     public_search_task,
     sources_to_evidence_text,
 )
+from mini_rag.capabilities.rag.policy_gap import run_policy_gap_checker_for_task, should_run_policy_gap_checker
 from mini_rag.capabilities.rag.self_correct import maybe_rewrite_rag_query
 from mini_rag.config import Settings
 from mini_rag.graph.utils import compact_evidence_text, dedupe_keep_order, document_key, document_to_source
 from mini_rag.security.permissions import assert_tool_permission, normalize_role
+from mini_rag.skills.registry import SkillRegistry
 
 
 class RAGRetrievalService:
@@ -45,6 +47,7 @@ class RAGRetrievalService:
         self.llm = llm
         self.judge_llm = judge_llm or llm
         self.reflect_llm = reflect_llm or llm
+        self.skill_registry = SkillRegistry()
 
     def _model_name(self, purpose: str) -> str:
         if purpose == "judge":
@@ -195,6 +198,7 @@ class RAGRetrievalService:
             evidence_judgments: list[dict[str, Any]] = []
             retry_decision: dict[str, Any] | None = None
             related_sources: list[dict[str, Any]] = []
+            all_related_sources: list[dict[str, Any]] = []
 
             latency_trace: dict[str, Any] = {
                 "next_action_ms": round(float(task.get("next_action_ms") or 0), 2),
@@ -240,6 +244,8 @@ class RAGRetrievalService:
             local_observations.append({"type": "rag_evidence_judge", "task_id": task_id, "attempt": 1, **judge.to_dict()})
             supporting = select_sources_by_ids(all_run_sources, judge.supporting_source_ids) if judge.answerable else []
             related_sources = select_sources_by_ids(all_run_sources, judge.related_source_ids) if not judge.answerable else []
+            if related_sources:
+                all_related_sources = dedupe_sources(all_related_sources + related_sources)
 
             if not judge.answerable or judge.sufficiency == "low":
                 reflect_started = time.perf_counter()
@@ -292,7 +298,14 @@ class RAGRetrievalService:
                     evidence_judgments.append({"attempt": 2, **retry_judge.to_dict()})
                     local_observations.append({"type": "rag_evidence_judge", "task_id": task_id, "attempt": 2, **retry_judge.to_dict()})
                     supporting = select_sources_by_ids(all_run_sources, retry_judge.supporting_source_ids) if retry_judge.answerable else []
-                    related_sources = select_sources_by_ids(all_run_sources, retry_judge.related_source_ids) if not retry_judge.answerable else []
+                    retry_related_sources = select_sources_by_ids(all_run_sources, retry_judge.related_source_ids) if not retry_judge.answerable else []
+                    if retry_judge.answerable:
+                        related_sources = []
+                    else:
+                        if retry_related_sources:
+                            all_related_sources = dedupe_sources(all_related_sources + retry_related_sources)
+                        # Do not let an empty retry judgment erase related evidence found in attempt 1.
+                        related_sources = dedupe_sources(all_related_sources)
 
                 elif decision.should_retry and retry_query and retry_key == key:
                     latency_trace["skip_retry_reason"] = "duplicate_query"
@@ -312,6 +325,10 @@ class RAGRetrievalService:
                     }
                 )
 
+            if supporting:
+                related_sources = []
+            elif all_related_sources:
+                related_sources = dedupe_sources(all_related_sources)
             latency_trace["selected_sources_count"] = len(supporting)
             latency_trace["candidate_sources_count"] = len(all_run_sources)
             latency_trace["supporting_sources_count"] = len(supporting)
@@ -359,6 +376,37 @@ class RAGRetrievalService:
                 ),
                 "latency_trace": latency_trace,
             }
+            runtime_context = self._policy_gap_runtime_context(state)
+            should_gap, gap_reason = should_run_policy_gap_checker(task_result, task, runtime_context)
+            if should_gap:
+                gap = run_policy_gap_checker_for_task(
+                    task_result=task_result,
+                    task=task,
+                    runtime_context=runtime_context,
+                    registry=self.skill_registry,
+                )
+                gap.setdefault("trace", {})
+                if isinstance(gap.get("trace"), dict):
+                    gap["trace"].setdefault("trigger_reason", gap_reason)
+                task_result["policy_gap_check"] = gap
+                latency_trace["policy_gap_checker_ms"] = float((gap.get("trace") or {}).get("latency_ms") or 0)
+                latency_trace["policy_gap_triggered"] = True
+                latency_trace["policy_gap_ok"] = bool(gap.get("ok"))
+                local_observations.append(
+                    {
+                        "type": "policy_gap_checker",
+                        "task_id": task_id,
+                        "trigger_reason": gap_reason,
+                        "skill_name": "policy_gap_checker",
+                        "ok": bool(gap.get("ok")),
+                        "evidence_items_count": (gap.get("trace") or {}).get("evidence_items_count"),
+                        "covered_slots_count": (gap.get("trace") or {}).get("covered_slots_count"),
+                        "missing_slots_count": (gap.get("trace") or {}).get("missing_slots_count"),
+                    }
+                )
+            else:
+                latency_trace["policy_gap_triggered"] = False
+                latency_trace["policy_gap_skip_reason"] = gap_reason
             if retry_decision:
                 task_result["retry_decision"] = retry_decision
             return {
@@ -465,3 +513,13 @@ class RAGRetrievalService:
                 "retry_executed_count": sum(1 for item in rag_latencies if item.get("retry_executed")),
             }
         return state
+
+    @staticmethod
+    def _policy_gap_runtime_context(state: dict[str, Any]) -> dict[str, Any]:
+        runtime_context = dict(state.get("runtime_context") or {})
+        runtime_context.setdefault("user_id", state.get("user_id"))
+        runtime_context.setdefault("role", normalize_role(state.get("role")))
+        runtime_context.setdefault("permissions", state.get("permissions") or {})
+        runtime_context.setdefault("allowed_kbs", state.get("used_kbs") or state.get("allowed_kbs") or [])
+        runtime_context.setdefault("time_context_result", state.get("time_context_result") or {})
+        return runtime_context

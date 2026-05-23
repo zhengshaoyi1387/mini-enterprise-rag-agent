@@ -5,6 +5,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from mini_rag.infrastructure.db.seed import initialize_enterprise_demo_db
+from mini_rag.infrastructure.db.sqlite import DEFAULT_ENTERPRISE_DB_PATH
+from mini_rag.tools.repositories.calendar_repository import CalendarRepository
+
 CALENDAR_FILE = Path("data/business/company_calendar.json")
 WRITE_ACTIONS = {"create", "update", "delete"}
 QUERY_ROLES = {"user", "employee", "finance", "hr", "it", "admin"}
@@ -80,6 +84,17 @@ def _role(payload: dict[str, Any]) -> str:
     return str(payload.get("role") or "guest").strip().lower() or "guest"
 
 
+def _should_use_file_backend(payload: dict[str, Any]) -> bool:
+    return bool(payload.get("file_path"))
+
+
+def _repository(payload: dict[str, Any]) -> CalendarRepository:
+    db_path = Path(str(payload.get("db_path") or DEFAULT_ENTERPRISE_DB_PATH))
+    if not db_path.exists():
+        initialize_enterprise_demo_db(db_path, reset=False)
+    return CalendarRepository(db_path)
+
+
 def manage_company_calendar(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     action = str(payload.get("action") or "query").strip().lower()
@@ -91,6 +106,16 @@ def manage_company_calendar(payload: dict[str, Any] | None = None) -> dict[str, 
         return _permission_error(action, role)
     if action in WRITE_ACTIONS and role != "admin":
         return _permission_error(action, role)
+
+    if not _should_use_file_backend(payload):
+        repo = _repository(payload)
+        if action == "query":
+            return _query_sqlite(payload, repo)
+        if action == "create":
+            return _create_sqlite(payload, repo)
+        if action == "update":
+            return _update_sqlite(payload, repo)
+        return _delete_sqlite(payload, repo)
 
     file_path = Path(str(payload.get("file_path") or CALENDAR_FILE))
     events = _read_events(file_path)
@@ -139,6 +164,29 @@ def _query(payload: dict[str, Any], events: list[dict[str, Any]]) -> dict[str, A
     }
 
 
+def _query_sqlite(payload: dict[str, Any], repo: CalendarRepository) -> dict[str, Any]:
+    start = _parse_date(payload.get("start_date"), "start_date")
+    if isinstance(start, dict):
+        return start
+    end = _parse_date(payload.get("end_date"), "end_date")
+    if isinstance(end, dict):
+        return end
+    if start > end:
+        return {"error": "invalid date range", "message": "start_date must be <= end_date"}
+    event_type = str(payload.get("event_type") or "all").strip() or "all"
+    department = str(payload.get("department") or "all").strip() or "all"
+    return {
+        "action": "query",
+        "risk_level": "low",
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "event_type": event_type,
+        "department": department,
+        "events": repo.query_events(start.isoformat(), end.isoformat(), event_type=event_type, department=department),
+        "data_backend": "sqlite",
+    }
+
+
 def _create(payload: dict[str, Any], events: list[dict[str, Any]], file_path: Path) -> dict[str, Any]:
     event_date = _parse_date(payload.get("date"), "date")
     if isinstance(event_date, dict):
@@ -165,6 +213,33 @@ def _create(payload: dict[str, Any], events: list[dict[str, Any]], file_path: Pa
         "status": "created",
         "message": "公司日程已创建",
         "event": _with_weekday(event),
+    }
+
+
+def _create_sqlite(payload: dict[str, Any], repo: CalendarRepository) -> dict[str, Any]:
+    event_date = _parse_date(payload.get("date"), "date")
+    if isinstance(event_date, dict):
+        return event_date
+    event = {
+        "date": event_date.isoformat(),
+        "title": str(payload.get("title") or "").strip(),
+        "type": str(payload.get("type") or "meeting").strip() or "meeting",
+        "department": str(payload.get("department") or "all").strip() or "all",
+        "time": str(payload.get("time") or "全天").strip() or "全天",
+        "location": str(payload.get("location") or "").strip(),
+        "description": str(payload.get("description") or "").strip(),
+    }
+    if not event["title"]:
+        return {"action": "create", "error": "title is required"}
+    created = repo.create_event(event)
+    return {
+        "action": "create",
+        "risk_level": "medium",
+        "event_id": created["event_id"],
+        "status": "created",
+        "message": "公司日程已创建",
+        "event": created,
+        "data_backend": "sqlite",
     }
 
 
@@ -196,6 +271,23 @@ def _update(payload: dict[str, Any], events: list[dict[str, Any]], file_path: Pa
     return {"action": "update", "event_id": event_id, "error": "event not found"}
 
 
+def _update_sqlite(payload: dict[str, Any], repo: CalendarRepository) -> dict[str, Any]:
+    event_id = str(payload.get("event_id") or "").strip()
+    fields = {field: payload[field] for field in UPDATE_FIELDS if field in payload}
+    updated = repo.update_event(event_id, fields)
+    if updated is None:
+        return {"action": "update", "event_id": event_id, "error": "event not found"}
+    return {
+        "action": "update",
+        "risk_level": "medium",
+        "event_id": event_id,
+        "status": "updated",
+        "message": "公司日程已更新",
+        "event": updated,
+        "data_backend": "sqlite",
+    }
+
+
 def _delete(payload: dict[str, Any], events: list[dict[str, Any]], file_path: Path) -> dict[str, Any]:
     event_id = str(payload.get("event_id") or "").strip()
     remaining = [event for event in events if str(event.get("event_id") or "") != event_id]
@@ -203,3 +295,17 @@ def _delete(payload: dict[str, Any], events: list[dict[str, Any]], file_path: Pa
         return {"action": "delete", "event_id": event_id, "error": "event not found"}
     _write_events(file_path, remaining)
     return {"action": "delete", "risk_level": "medium", "event_id": event_id, "status": "deleted", "message": "公司日程已删除"}
+
+
+def _delete_sqlite(payload: dict[str, Any], repo: CalendarRepository) -> dict[str, Any]:
+    event_id = str(payload.get("event_id") or "").strip()
+    if not repo.delete_event(event_id):
+        return {"action": "delete", "event_id": event_id, "error": "event not found"}
+    return {
+        "action": "delete",
+        "risk_level": "medium",
+        "event_id": event_id,
+        "status": "deleted",
+        "message": "公司日程已删除",
+        "data_backend": "sqlite",
+    }

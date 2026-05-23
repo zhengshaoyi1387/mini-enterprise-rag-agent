@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from mini_rag.capabilities.calendar.resolver import compact_calendar_events
 from mini_rag.graph.utils import strip_citations_and_metadata, truncate
 
-SENSITIVE_TOOL_INPUT_KEYS = {"file_path", "query", "user_id", "role"}
+SENSITIVE_TOOL_INPUT_KEYS = {"file_path", "db_path", "query", "user_id", "role"}
+CONTEXT_REFERENCE_RE = re.compile(
+    r"(第[一二三四五六七八九十0-9]+个|这个|那个|刚才|上面|上述|前面|它|该会议|该日程|这些|它们|全部|所有)"
+)
 
 
 def clean_tool_input_for_context(tool_input: dict[str, Any]) -> dict[str, Any]:
@@ -61,6 +65,7 @@ def build_context_packet(
     *,
     history: list[dict[str, Any]],
     previous_tool_context: dict[str, Any],
+    question: str | None = None,
 ) -> dict[str, Any]:
     """Build the compact context packet passed to the planning LLM."""
 
@@ -79,7 +84,7 @@ def build_context_packet(
         }
 
     previous_tool_context = previous_tool_context if isinstance(previous_tool_context, dict) else {}
-    if previous_tool_context:
+    if previous_tool_context and should_include_previous_tool_context(question):
         tool_input = previous_tool_context.get("tool_input") if isinstance(previous_tool_context.get("tool_input"), dict) else {}
         planning_context["previous_tool_context"] = {
             "domain": previous_tool_context.get("domain"),
@@ -92,3 +97,10 @@ def build_context_packet(
             planning_context["previous_tool_context"]["events"] = events
 
     return {key: value for key, value in planning_context.items() if value}
+
+
+def should_include_previous_tool_context(question: str | None) -> bool:
+    text = str(question or "").strip()
+    if not text:
+        return True
+    return bool(CONTEXT_REFERENCE_RE.search(text))

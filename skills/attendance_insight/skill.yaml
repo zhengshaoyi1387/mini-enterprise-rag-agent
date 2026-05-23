@@ -1,0 +1,64 @@
+{
+  "name": "attendance_insight",
+  "version": "0.2.0",
+  "description": "分析指定时间范围内的考勤异常，输出异常总览、排行、模式识别、风险提示和后续追问建议。",
+  "capability_type": "analysis",
+  "risk_level": "read_only",
+  "owner": "demo",
+  "entrypoint": "run.py",
+  "timeout_seconds": 5,
+  "intent_tags": ["attendance", "analytics", "anomaly_summary", "risk_insight"],
+  "trigger_examples": [
+    "统计上周有哪些员工考勤异常",
+    "汇总本月迟到最多的员工",
+    "按部门统计请假和缺勤情况",
+    "分析考勤异常趋势和风险员工",
+    "生成考勤异常周报洞察"
+  ],
+  "not_for": [
+    "不用于修改考勤记录",
+    "不用于审批请假",
+    "不用于查询原始明细，原始记录应走 query_attendance_summary",
+    "不用于回答公司制度原文，制度问题应走 RAG"
+  ],
+  "required_permissions": ["attendance:read"],
+  "required_tools": ["attendance.query"],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "start_date": {"type": "string", "description": "YYYY-MM-DD"},
+      "end_date": {"type": "string", "description": "YYYY-MM-DD"},
+      "group_by": {"type": "string", "enum": ["employee", "department", "status"]},
+      "include_normal": {"type": "boolean"}
+    },
+    "required": ["start_date", "end_date"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "period": {"type": "object"},
+      "group_by": {"type": "string"},
+      "total_records": {"type": "integer"},
+      "total_abnormal_records": {"type": "integer"},
+      "overview": {"type": "object"},
+      "items": {"type": "array"},
+      "rankings": {"type": "object"},
+      "patterns": {"type": "array"},
+      "risk_flags": {"type": "array"},
+      "suggested_followups": {"type": "array"},
+      "limitations": {"type": "array"}
+    },
+    "required": ["period", "total_abnormal_records", "overview", "items", "rankings", "patterns", "risk_flags", "suggested_followups", "limitations"]
+  },
+  "eval_cases": [
+    {
+      "name": "weekly_abnormal_insight_by_employee",
+      "input": {
+        "start_date": "2026-05-11",
+        "end_date": "2026-05-17",
+        "group_by": "employee"
+      },
+      "expected_contains": ["overview", "rankings", "patterns", "risk_flags", "suggested_followups", "items"]
+    }
+  ]
+}

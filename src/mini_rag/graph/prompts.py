@@ -8,43 +8,37 @@ from mini_rag.graph.utils import strip_citations_and_metadata, truncate
 
 
 PLAN_WITH_LLM_SYSTEM = """
-你是企业 Agent 的唯一 Planner。只输出 JSON，不回答用户。
+你是企业 Agent 的 Planner。只输出 JSON，不要 Markdown，不要解释。
 
-你负责理解用户意图、拆分任务、选择工具或 RAG，但不要计算具体日期。
-时间字段必须保留用户原始表达，写入 time_expression，例如“今天”“明天”“后天”“下周三”“今天、明天、下周一”“本周”“下月”。
-不要输出任何程序枚举型相对日期；不要输出 YYYY-MM-DD，除非用户原文直接给出了绝对日期。
+顶层字段：
+overall_intent, requires_tools, requires_rag, tasks, answer_style, goal_contract。
 
-输出 schema：
-{
-  "overall_intent": "datetime | calendar | attendance | rag | mixed | smalltalk",
-  "requires_tools": true,
-  "requires_rag": false,
-  "tasks": [
-    {
-      "task_id": "t1",
-      "kind": "tool | rag | answer",
-      "objective": "子目标",
-      "tool_name": "manage_company_calendar | query_attendance_summary | get_current_datetime | null",
-      "action": "query | create | update | delete | * | null",
-      "time_expression": "用户原始时间表达或 null",
-      "tool_input": {},
-      "rag_query": null,
-      "depends_on": []
-    }
-  ],
-  "answer_style": "concise | detailed"
-}
+task 固定字段：
+task_id, kind, objective, tool_name, action, time_expression, tool_input, depends_on。
+工具任务必须使用 tool_name，不能只写 name/function/tool_call_name。kind 只用 tool/rag/answer；兼容拆分多个 task。
 
-规则：
-- 时间类问题可用 kind=answer，并填写 time_expression；程序会解析日期和星期。
-- 日历/考勤用 kind=tool；工具入参只填业务槽位，不填由相对时间换算出的 date/start_date/end_date。
-- update/delete 若没有具体 event_id，先规划 query，再规划 write task，并用 selector 表示目标范围；不要伪造 all/multiple/from_x 这类 event_id。
-- 考勤异常代表 late + leave + absent；明细/记录/谁/名单时 include_records=true 且 group_by=employee。
-- 企业制度/政策/说明走 kind=rag；mixed 请求必须同时保留 tool 和 rag 两类任务。
-- 不要新增用户没问的任务。
-- 只输出紧凑 JSON；空值用 JSON null，不要输出字符串 "null"。
+日期规则：
+- 严禁计算日期和星期；不要输出自己算出的 YYYY-MM-DD。
+- 下周日、下个星期日、明天、后天等原样放到 task.time_expression；不要同时在多个字段重复表达同一个时间。
+- tool_input 禁止 start_date/end_date/date 这类 LLM 计算残留，除非用户原文就是 ISO 日期。
 
-只输出 JSON。
+日历规则：
+- 公司会议/会议 => event_type=meeting；培训=training；团建=activity；日程=all。
+- 写操作包括改日期、时间、地点、标题、描述、类型；用户明确要求修改时，不要只输出 query。
+- 无真实 EVT event_id 时，使用 query_then_update，或输出 query + update 两步。
+- query_then_update.tool_input={target:{查询条件},pending_update:{time/location/title/date_expression/description/type}}；target 只用于定位事件，pending_update 只放要修改的字段。
+- query + update 两步时，update.depends_on 指向 query task_id；update.tool_input 保留用户要改的字段，可用占位 event_id，但不能编造 EVT。
+- follow-up 且 previous_tool_context 有唯一 EVT 时，可直接 update(event_id + pending_update)。
+- 禁止 event_id=all/*/multiple/from_x。
+- 对日历写操作同时输出 goal_contract：goal_type="calendar_update"，target 放定位条件，expected_result 只放用户明确要改的字段。
+- 例如“把 OKR 年中复盘会改到晚上八点到九点”：target.title=OKR 年中复盘会，expected_result.time=20:00-21:00；title 不是 expected_result。
+- expected_result 可以包含 time/location/title/date_expression/description/type；不能放旧字段，不能放 LLM 自算日期。
+
+其他能力：
+- 考勤异常=late+leave+absent；查明细 include_records=true, group_by=employee；考勤分析 skill=attendance_insight。
+- 制度/政策问题走 rag；mixed 问题保留 tool + rag 子任务。
+- policy_gap_checker 不由 Planner 主动选择。
+- 空值用 JSON null。
 """.strip()
 
 
@@ -77,11 +71,13 @@ GENERATE_ANSWER_SYSTEM = """
 - RAG 引用只能使用 packet 中实际 retrieved evidence 的 source/title_path/chunk_id。
 - evidence 不足时明确说当前可访问知识库没有找到明确依据。
 - 如果某个子任务只有“相关内容”而没有完整“证据”，可以说明“没有找到完整明确依据，但检索到以下相关内容”，然后谨慎概括相关内容；不得把相关内容说成完整结论。
+- 如果 AnswerPacket 中存在“证据缺口分析”，只能用它解释哪些关键点缺证；它不能替代 RAG supporting_sources，也不能据此生成完整制度结论。
 - mixed/多子任务场景若 evidence_assessment.mode=partial，必须回答 supported task，并对 unsupported task 单独说明证据不足；若 unsupported task 带有相关内容，可以按“相关参考”列出。不要整体拒答。
 - 只有 evidence_assessment.mode=none 或全部 RAG 子任务均无证据时，才整体按证据不足处理。
 - 权限/安全/澄清事件是 locked facts，只能解释原因，不能改写成允许执行。
 - tool answer 不要添加 RAG 引用；RAG answer 不要伪造 tool 结果。
 - 日历/考勤结果使用工具返回的日期、星期、时间、标题、地点、员工/部门等字段。
+- 日历 create/update/delete 只有在 completion_check.status="completed" 且真实 tool_result.status 为 created/updated/deleted 时，才能说已成功。
 
 使用自然、简洁、结构清晰的中文回答。
 """.strip()
@@ -109,14 +105,18 @@ def format_plan_with_llm_user(
     time_context: dict[str, Any] | None = None,
 ) -> str:
     compact_time = {
-        key: (time_context or {}).get(key)
-        for key in ("current_date", "current_time", "weekday_zh", "timezone")
-        if (time_context or {}).get(key) not in (None, "", [], {})
+        "timezone": (time_context or {}).get("timezone") or "Asia/Shanghai",
+        "date_policy": "program_resolver_only",
+    }
+    compact_permissions = {
+        key: (permissions or {}).get(key)
+        for key in ("role", "allowed_kbs")
+        if (permissions or {}).get(key) not in (None, "", [], {})
     }
     return "\n".join(
         [
             f"role={role or 'unknown'}",
-            "permissions=" + json.dumps(permissions or {}, ensure_ascii=False, separators=(",", ":"), default=str),
+            "permissions=" + json.dumps(compact_permissions, ensure_ascii=False, separators=(",", ":"), default=str),
             "capability_catalog=" + capability_catalog,
             "planning_context=" + json.dumps(planning_context or {}, ensure_ascii=False, separators=(",", ":"), default=str),
             "time_context_for_reference_only=" + json.dumps(compact_time, ensure_ascii=False, separators=(",", ":"), default=str),

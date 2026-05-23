@@ -92,6 +92,9 @@ class TraceBuilder:
             "context_usage": state.get("context_usage"),
             "goals": state.get("goals", []),
             "goal_coverage": state.get("goal_coverage", {}),
+            "goal_contract": state.get("goal_contract", {}),
+            "completion_check": state.get("completion_check", {}),
+            "completion_checks": state.get("completion_checks", []),
             "time_requirement": state.get("time_requirement", {}),
             "knowledge_requirement": state.get("knowledge_requirement", {}),
             "execution_plan": state.get("execution_plan", {}),
@@ -145,5 +148,7 @@ class TraceBuilder:
                 "next_action": assessment.get("next_action"),
                 "followup_count": len(assessment.get("followup_tasks") or []),
                 "missing_count": len(assessment.get("missing_objectives") or []),
+                "status": assessment.get("status"),
+                "goal_type": assessment.get("goal_type"),
             }
         return trace

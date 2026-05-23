@@ -96,6 +96,14 @@ class SQLiteAuthStore:
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS metadata (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+                """
+            )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username)")
 
     def _seed_defaults(self) -> None:
@@ -137,6 +145,7 @@ class SQLiteAuthStore:
                                 role,
                             ),
                         )
+            self._migrate_skill_runtime_policy(conn, now)
             for username, password, role in DEMO_USERS:
                 salt, password_hash = hash_password(password)
                 conn.execute(
@@ -146,6 +155,39 @@ class SQLiteAuthStore:
                     """,
                     (username, password_hash, salt, normalize_role(role), now, now),
                 )
+
+    @staticmethod
+    def _migrate_skill_runtime_policy(conn: sqlite3.Connection, now: float) -> None:
+        marker = conn.execute("SELECT value FROM metadata WHERE key = 'skill_runtime_policy_v1'").fetchone()
+        if marker and str(marker["value"]) == "1":
+            return
+        for role in sorted(VALID_ROLES):
+            policy = default_role_policy(role)
+            if "skill" not in policy.allowed_tools:
+                continue
+            row = conn.execute(
+                "SELECT allowed_tools_json FROM role_policies WHERE role = ?",
+                (role,),
+            ).fetchone()
+            if not row:
+                continue
+            stored_tools = [str(item) for item in json.loads(row["allowed_tools_json"] or "[]")]
+            if "skill" in stored_tools:
+                continue
+            conn.execute(
+                """
+                UPDATE role_policies
+                SET allowed_tools_json = ?, updated_at = ?
+                WHERE role = ?
+                """,
+                (json.dumps(sorted(set(stored_tools) | {"skill"}), ensure_ascii=False), now, role),
+            )
+        conn.execute(
+            """
+            INSERT INTO metadata(key, value) VALUES ('skill_runtime_policy_v1', '1')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """
+        )
 
     def authenticate_password(self, username: str, password: str) -> AuthUser | None:
         username = normalize_username(username)

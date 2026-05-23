@@ -57,6 +57,8 @@ def _tool_template_answer(state: dict[str, Any]) -> str:
 def _must_preserve_locked_fact(state: dict[str, Any], locked_fact: str) -> bool:
     if not locked_fact:
         return False
+    if "未执行任何成功的日历写操作" in locked_fact:
+        return not _completion_needs_clarification(state)
     route = str(state.get("route") or "")
     intent = str(state.get("intent") or "")
     if route == "reject" or intent in {"permission_required", "need_clarification", "clarification_required"}:
@@ -84,6 +86,7 @@ def _answer_preserves_locked_fact(answer: str, locked_fact: str) -> bool:
         "知识库子问题缺少明确依据",
         "证据不足",
         "没有匹配",
+        "未执行",
     ]
     return any(anchor in answer for anchor in anchors if anchor in locked_fact)
 
@@ -95,6 +98,59 @@ def _has_permission_block(state: dict[str, Any]) -> bool:
         if "permission" in str(event.get("event") or event.get("type") or "") and str(event.get("status") or event.get("decision") or "") == "blocked":
             return True
     return False
+
+
+def _write_not_executed_locked_fact(state: dict[str, Any]) -> str:
+    packet = state.get("answer_packet") if isinstance(state.get("answer_packet"), dict) else {}
+    for item in packet.get("task_results") or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("类型") == "write_not_executed":
+            return str(item.get("说明") or "未执行任何成功的日历写操作，不能声称已完成创建、更新或删除。")
+    return ""
+
+
+def _contains_false_success(text: str) -> bool:
+    return any(token in str(text or "") for token in ("已成功", "已更新", "已删除", "已创建", "已更改", "已将", "已完成", "更新成功", "删除成功", "创建成功"))
+
+
+def _specific_calendar_write_failure_answer(state: dict[str, Any]) -> str:
+    check = state.get("completion_check") if isinstance(state.get("completion_check"), dict) else {}
+    observed = check.get("observed_result") if isinstance(check.get("observed_result"), dict) else {}
+    reason = str(check.get("reason") or observed.get("message") or "").strip()
+    candidates = observed.get("candidate_events") if isinstance(observed.get("candidate_events"), list) else []
+    if str(check.get("status") or "").lower() in {"needs_clarification", "need_clarification"} or str(observed.get("status") or "").lower() in {"needs_clarification", "need_clarification"}:
+        lines = ["匹配到多个公司日程，当前无法确定要修改哪一场，因此没有执行更新。"]
+        for idx, event in enumerate([item for item in candidates if isinstance(item, dict)][:10], start=1):
+            parts = [str(event.get("date") or ""), str(event.get("weekday_zh") or ""), str(event.get("time") or ""), str(event.get("title") or "")]
+            location = str(event.get("location") or "").strip()
+            event_id = str(event.get("event_id") or "").strip()
+            line = f"{idx}. " + " ".join(part for part in parts if part)
+            if location:
+                line += f"（{location}）"
+            if event_id:
+                line += f"，event_id={event_id}"
+            lines.append(line)
+        lines.append("请指定要修改的会议后，我再继续更新。")
+        return "\n".join(lines)
+    if "没有匹配" in reason or str(observed.get("status") or "").lower() == "skipped":
+        return reason or "没有找到对应的公司日程，因此未执行更新。"
+    if reason:
+        return f"日历写操作未完成：{reason}"
+    return "日历写操作未完成，未执行任何成功的创建、更新或删除。"
+
+
+def _completion_needs_clarification(state: dict[str, Any]) -> bool:
+    check = state.get("completion_check") if isinstance(state.get("completion_check"), dict) else {}
+    status = str(check.get("status") or "").lower()
+    if status in {"needs_clarification", "need_clarification"}:
+        return True
+    observed = check.get("observed_result") if isinstance(check.get("observed_result"), dict) else {}
+    observed_status = str(observed.get("status") or "").lower()
+    if observed_status in {"needs_clarification", "need_clarification"}:
+        return True
+    completion = state.get("completion_assessment") if isinstance(state.get("completion_assessment"), dict) else {}
+    return str(completion.get("execution_status") or "").lower() in {"needs_clarification", "need_clarification"}
 
 
 class AnswerService:
@@ -203,6 +259,7 @@ class AnswerService:
             locked_fact = gated_answer
 
         user_prompt = self._build_user_prompt(state)
+        write_guard = _write_not_executed_locked_fact(state)
         answer = self.invoke_text(
             state=state,
             node="generate_answer",
@@ -212,6 +269,8 @@ class AnswerService:
             model_name=self.settings.answer_model or self.settings.qwen_chat_model,
         )
         answer = answer.strip()
+        if write_guard and _contains_false_success(answer):
+            answer = _specific_calendar_write_failure_answer(state)
         if _must_preserve_locked_fact(state, locked_fact) and not _answer_preserves_locked_fact(answer, locked_fact):
             answer = locked_fact
         permission_wording_needed = (
@@ -235,6 +294,7 @@ class AnswerService:
             locked_fact = gated_answer
 
         user_prompt = self._build_user_prompt(state)
+        write_guard = _write_not_executed_locked_fact(state)
         start = time.perf_counter()
         chunks: list[str] = []
         llm = self.answer_llm
@@ -268,6 +328,8 @@ class AnswerService:
             ).strip()
             if answer:
                 yield answer
+        if write_guard and _contains_false_success(answer):
+            answer = _specific_calendar_write_failure_answer(state)
         if _must_preserve_locked_fact(state, locked_fact) and not _answer_preserves_locked_fact(answer, locked_fact):
             answer = locked_fact
         state["final_answer"] = answer or locked_fact or "抱歉，我暂时无法生成回答。"

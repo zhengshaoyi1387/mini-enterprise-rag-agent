@@ -261,6 +261,44 @@ def test_react_executor_batches_independent_validated_rag_tasks() -> None:
     assert state["completed_tasks"] == ["t1", "t2", "t3"]
 
 
+def test_react_executor_returns_partial_when_validated_rag_task_has_no_evidence() -> None:
+    executor = ReActExecutor(max_steps=3)
+    tasks = [
+        {
+            "task_id": "t1",
+            "kind": "rag",
+            "query": "出差酒店费用是否可以报销",
+            "rag_query": "出差酒店费用是否可以报销",
+            "tool_input": {},
+        }
+    ]
+    state = {
+        "question": "出差酒店费用是否可以报销？",
+        "execution_plan": {"tasks": tasks},
+        "plan_validation": {"validation_status": "valid", "executable_tasks": tasks},
+        "completed_tasks": [],
+        "observations": [],
+    }
+
+    def fail_next_action(*_args):
+        raise AssertionError("validated simple rag task should execute deterministically")
+
+    result = executor.run(
+        state,
+        next_action=fail_next_action,
+        call_tool=lambda *_args: {"status": "success"},
+        search_rag=lambda *_args: {
+            "status": "empty",
+            "summary": "no supporting evidence",
+            "raw_result": {"sources": [], "related_sources": [{"source_id": "finance-1"}]},
+        },
+    )
+
+    assert result.status == "partial"
+    assert result.steps[0]["status"] == "empty"
+    assert state["completed_tasks"] == ["t1"]
+
+
 def test_react_executor_does_not_batch_dependent_rag_tasks() -> None:
     executor = ReActExecutor(max_steps=5)
     tasks = [

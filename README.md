@@ -76,8 +76,55 @@ src/mini_rag/
   answer/                # AnswerPacket 与 Answer LLM
   memory/                # 会话记忆更新
   observability/         # trace builder/report
+  skills/                # Enterprise Skill Runtime：manifest/card/loader/executor
   tools/                 # 真实结构化工具
+  infrastructure/db/     # SQLite schema/seed，本地模拟企业系统
 ```
+
+## Enterprise Skill Runtime
+
+项目新增轻量 Skill Runtime，但不改变 Agent 主链路。Skill 是可发现、可按需加载、可校验、可执行、可观测的企业能力包：
+
+```text
+skills/<skill_name>/
+  skill.yaml      # manifest: 元数据、schema、权限、entrypoint、eval cases
+  SKILL.md        # 只有选中 skill 后才加载的详细说明
+  run.py          # JSON stdin/stdout 执行入口
+  eval_cases.json # skill smoke/eval 样例
+```
+
+当前示例：
+
+- `attendance_insight`：基于 SQLite 考勤数据统计迟到、请假、缺勤等异常分布。
+- `policy_gap_checker`：检查 RAG evidence 是否覆盖用户问题关键槽位，不替代 Evidence Judge。
+
+最小 Agent 接入是固定工具 `skill.run`。`build_runtime_context` 会把压缩后的 Skill Cards 放入 `capability_catalog.skill_cards`，真正执行时才加载完整 `SKILL.md` 和 `run.py`，避免把所有 Skill 文档常驻 Planner prompt。
+
+Skill smoke test：
+
+```bash
+TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python scripts/smoke_test_skills.py
+```
+
+更多设计、Skill vs Tool、Skill vs MCP、面试讲法见 [docs/skill_system.md](docs/skill_system.md)。
+
+## SQLite 企业工具数据源
+
+`manage_company_calendar` 和 `query_attendance_summary` 默认读取 `data/enterprise_demo.db`，不再依赖硬编码内存数据。SQLite 使用标准库 `sqlite3`，通过 repository 层隔离数据访问，工具返回字段保持兼容。
+
+初始化 demo 数据：
+
+```bash
+TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python scripts/init_enterprise_db.py --reset
+```
+
+工具 smoke test：
+
+```bash
+TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python scripts/smoke_test_sqlite_tools.py
+```
+
+内部 adapter 预留了轻量 FastAPI 接口：`GET /internal/calendar/events`、`PATCH /internal/calendar/events/{event_id}`、`GET /internal/attendance/records`。Agent 默认仍直接调用 SQLite repository；真实部署时可把 repository 换成 FastAPI/HTTP/MCP，而不改主链路。更多说明见 [docs/sqlite_tools.md](docs/sqlite_tools.md)。
 
 ## 安全边界
 

@@ -39,7 +39,7 @@ class CalendarInput(BaseModel):
     # create/update/delete
     event_id: str | None = None
     title: str | None = None
-    type: Literal["meeting", "training", "payday", "holiday", "activity", "maintenance", "other"] = "other"
+    type: Literal["meeting", "training", "payday", "holiday", "activity", "maintenance", "other"] = "meeting"
     date: str | None = None
     time: str | None = None
     department: str = "all"
@@ -64,10 +64,20 @@ class CalendarInput(BaseModel):
         return self
 
 
+class SkillRunInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    action: Literal["run"] = "run"
+    skill_name: str
+    arguments: dict[str, Any] = {}
+    runtime_context: dict[str, Any] = {}
+
+
 TOOL_INPUT_MODELS: dict[str, type[BaseModel]] = {
     "get_current_datetime": DateTimeInput,
     "query_attendance_summary": AttendanceInput,
     "manage_company_calendar": CalendarInput,
+    "skill": SkillRunInput,
 }
 
 

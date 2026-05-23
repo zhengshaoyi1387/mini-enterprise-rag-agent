@@ -7,6 +7,7 @@ from mini_rag.tools.calendar_tool import manage_company_calendar
 from mini_rag.tools.contracts import get_tool_input_schema
 from mini_rag.tools.datetime_tool import get_current_datetime
 from mini_rag.tools.registry import ToolRegistry
+from mini_rag.skills.tool import run_skill_tool
 
 
 def _search_knowledge_base_registry_placeholder(_payload: dict) -> dict:
@@ -64,7 +65,7 @@ def build_default_tool_registry() -> ToolRegistry:
     registry.register(
         "manage_company_calendar",
         manage_company_calendar,
-        "Structured company calendar. Query events or admin-only write events.",
+        "Structured company calendar. Query events or admin-only write events. Use event_type filters: 公司会议/会议=meeting, 培训=training, 团建=activity, 发薪=payday, 假期=holiday, 维护=maintenance, 泛问日程=all.",
         "medium",
         input_schema=get_tool_input_schema("manage_company_calendar"),
         action_contracts={
@@ -117,5 +118,22 @@ def build_default_tool_registry() -> ToolRegistry:
         },
     )
 
-    return registry
+    registry.register(
+        "skill",
+        run_skill_tool,
+        "Run an Enterprise Skill by skill_name and arguments. Use only when a matching SkillCard exists. Skill is for analysis/coverage helpers, not for normal raw data queries.",
+        "medium",
+        input_schema=get_tool_input_schema("skill"),
+        action_contracts={
+            "run": {
+                "in": {
+                    "action": "run",
+                    "skill_name": "registered skill name",
+                    "arguments": "JSON object matching the selected skill input schema",
+                },
+                "semantics": "Use attendance_insight for attendance aggregation/analytics. Use policy_gap_checker only as RAG evidence coverage helper, not as final policy answer.",
+            }
+        },
+    )
 
+    return registry

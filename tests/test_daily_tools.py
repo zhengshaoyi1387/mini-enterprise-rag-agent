@@ -294,11 +294,12 @@ def test_manage_company_calendar_non_admin_cannot_write(tmp_path: Path) -> None:
         assert result["required_role"] == "admin"
 
 
-def test_tool_registry_only_contains_real_daily_tools() -> None:
+def test_tool_registry_contains_real_daily_tools_and_skill_adapter() -> None:
     registry = build_default_tool_registry()
     names = {tool["name"] for tool in registry.list_tools()}
 
-    assert names == {"search_knowledge_base", "get_current_datetime", "query_attendance_summary", "manage_company_calendar"}
+    assert {"search_knowledge_base", "get_current_datetime", "query_attendance_summary", "manage_company_calendar"} <= names
+    assert "skill" in names
     assert not {
         "generate_weekly_report",
         "draft_email",

@@ -73,6 +73,24 @@ def _action_signature(action: dict[str, Any], task: dict[str, Any]) -> str:
     return kind
 
 
+def _is_duplicate_read_action(action: dict[str, Any], task: dict[str, Any]) -> bool:
+    if str(action.get("next_action") or "") != "call_tool":
+        return False
+    tool = str(action.get("tool_name") or task.get("tool") or task.get("tool_name") or "").strip()
+    tool_input = action.get("tool_input") if isinstance(action.get("tool_input"), dict) else task.get("tool_input")
+    action_name = str((tool_input or {}).get("action") or task.get("action") or "").strip().lower()
+    return tool == "manage_company_calendar" and action_name == "query"
+
+
+def _merge_execution_status(current: str, observed: str) -> str:
+    normalized = str(observed or "").lower()
+    if normalized in {"blocked", "need_clarification", "failed", "error"}:
+        return normalized
+    if normalized in {"empty", "no_evidence", "insufficient_evidence"} and current == "success":
+        return "partial"
+    return current
+
+
 class ReActExecutor:
     """Single bounded executor for tool, RAG, mixed, and query-first plans.
 
@@ -131,7 +149,8 @@ class ReActExecutor:
         task_id = _task_id(task)
         if not task_id or task_id not in ReActExecutor._validated_executable_ids(state):
             return False
-        if any(str(dep).strip() for dep in (task.get("depends_on") or [])):
+        dependencies = [str(dep).strip() for dep in (task.get("depends_on") or []) if str(dep).strip()]
+        if any(dep not in completed_ids for dep in dependencies):
             return False
         kind = str(task.get("kind") or "").lower()
         if kind == "tool":
@@ -139,6 +158,8 @@ class ReActExecutor:
             action = str(task.get("action") or (task.get("tool_input") or {}).get("action") or "").strip()
             return bool(tool and action and isinstance(task.get("tool_input") or {}, dict)) and task_id not in completed_ids
         if kind == "rag":
+            if dependencies:
+                return False
             query = str(task.get("rag_query") or task.get("query") or task.get("objective") or "").strip()
             return bool(query) and task_id not in completed_ids
         return False
@@ -261,6 +282,7 @@ class ReActExecutor:
     ) -> ReActExecutionResult:
         steps: list[dict[str, Any]] = []
         seen_signatures: set[str] = set()
+        overall_status = "success"
         observations = state.setdefault("observations", [])
 
         for step_number in range(1, self.max_steps + 1):
@@ -276,7 +298,7 @@ class ReActExecutor:
                 }
                 steps.append(finish)
                 observations.append({"type": "react_observation", **finish})
-                return ReActExecutionResult(status="success", steps=tuple(steps), finish_reason="all tasks completed")
+                return ReActExecutionResult(status=overall_status, steps=tuple(steps), finish_reason="all tasks completed")
 
             completed_ids = {str(item) for item in (state.get("completed_tasks") or [])}
             completed_ids.update({_task_id(task) for task in tasks if _task_id(task) not in {_task_id(item) for item in remaining}})
@@ -327,6 +349,24 @@ class ReActExecutor:
 
             signature = _action_signature(action, task)
             if signature in seen_signatures:
+                if _is_duplicate_read_action(action, task):
+                    task_id = _task_id(task)
+                    if task_id and task_id not in set(state.get("completed_tasks") or []):
+                        state.setdefault("completed_tasks", []).append(task_id)
+                    step = {
+                        "step": step_number,
+                        "task_id": task_id,
+                        "action": name,
+                        "status": "success",
+                        "summary": "duplicate query reused previous observation",
+                        "raw_result": {"status": "reused"},
+                        "facts": [],
+                        "next_action_source": next_action_source,
+                        "next_action_ms": next_action_ms,
+                    }
+                    steps.append(step)
+                    observations.append({"type": "react_observation", **step})
+                    continue
                 raise ReActGuardrailViolation(f"duplicate action blocked: {signature}")
             seen_signatures.add(signature)
 
@@ -342,6 +382,7 @@ class ReActExecutor:
                     item_task_id = str(item.get("task_id") or "").strip()
                     if item_status in {"success", "ok", "empty", "no_evidence"} and item_task_id and item_task_id not in set(state.get("completed_tasks") or []):
                         state.setdefault("completed_tasks", []).append(item_task_id)
+                    overall_status = _merge_execution_status(overall_status, item_status)
                     step = {
                         "step": len(steps) + 1,
                         "task_id": item_task_id,
@@ -355,16 +396,19 @@ class ReActExecutor:
                     }
                     steps.append(step)
                     observations.append({"type": "react_observation", **step})
-                    if item_status in {"blocked", "need_clarification", "failed", "error"} and terminal_status == "success":
-                        terminal_status = item_status
+                    merged_terminal = _merge_execution_status(terminal_status, item_status)
+                    if merged_terminal != terminal_status:
+                        terminal_status = merged_terminal
                         terminal_summary = step["summary"]
                 if terminal_status != "success":
-                    return ReActExecutionResult(status=terminal_status, steps=tuple(steps), finish_reason=terminal_summary)
+                    if terminal_status != "partial":
+                        return ReActExecutionResult(status=terminal_status, steps=tuple(steps), finish_reason=terminal_summary)
             else:
                 status = str(raw_observation.get("status") or "success")
                 task_id = _task_id(task)
                 if status in {"success", "ok", "empty", "no_evidence"} and task_id and task_id not in set(state.get("completed_tasks") or []):
                     state.setdefault("completed_tasks", []).append(task_id)
+                overall_status = _merge_execution_status(overall_status, status)
                 step = {
                     "step": step_number,
                     "task_id": task_id,
@@ -385,7 +429,7 @@ class ReActExecutor:
                 item for item in next_remaining if str(item.get("kind") or "").lower() in {"tool", "rag"}
             ]
             if not next_remaining or not executable_remaining:
-                return ReActExecutionResult(status="success", steps=tuple(steps), finish_reason="all tasks completed")
+                return ReActExecutionResult(status=overall_status, steps=tuple(steps), finish_reason="all tasks completed")
 
         return ReActExecutionResult(status="partial", steps=tuple(steps), finish_reason="max steps reached")
 

@@ -12,7 +12,7 @@ def _clean_input(payload: dict[str, Any]) -> dict[str, Any]:
     return {
         key: value
         for key, value in payload.items()
-        if key not in {"file_path", "query", "user_id", "role"} and not str(key).startswith("_")
+        if key not in {"file_path", "db_path", "query", "user_id", "role"} and not str(key).startswith("_")
     }
 
 
