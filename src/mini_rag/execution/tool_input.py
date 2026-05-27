@@ -23,6 +23,15 @@ def normalize_tool_payload_for_action_contract(tool_name: str, payload: dict[str
     action = str(payload.get("action") or selected_action or "query").strip().lower() or "query"
     payload["action"] = action
     flatten_calendar_update_fields(payload)
+    if action == "create":
+        # Planner may emit JSON null for optional calendar text fields such as
+        # description. CalendarInput intentionally treats description as a
+        # string with default "", so explicit None should be normalized away
+        # before Pydantic validation. Required fields (title/date/time) are not
+        # silently fixed here; they should still fail validation when missing.
+        for field in ("description", "location", "department", "type"):
+            if field in payload and payload.get(field) is None:
+                payload.pop(field, None)
     if action == "update":
         for field in CALENDAR_UPDATE_FIELDS:
             if field in payload and payload.get(field) in (None, ""):

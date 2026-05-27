@@ -30,8 +30,13 @@ task_id, kind, objective, tool_name, action, time_expression, tool_input, depend
 - query + update 两步时，update.depends_on 指向 query task_id；update.tool_input 保留用户要改的字段，可用占位 event_id，但不能编造 EVT。
 - follow-up 且 previous_tool_context 有唯一 EVT 时，可直接 update(event_id + pending_update)。
 - 禁止 event_id=all/*/multiple/from_x。
-- 对日历写操作同时输出 goal_contract：goal_type="calendar_update"，target 放定位条件，expected_result 只放用户明确要改的字段。
+- 对日历写操作同时输出 goal_contract：创建用 goal_type="calendar_create"；更新用 goal_type="calendar_update"；删除用 goal_type="calendar_delete"。
+- calendar_create：expected_result 放用户要创建出来的字段，例如 title/date_expression/time/location/description/type；target 可为空对象 {}。没有描述就省略 description，不要输出 description:null。
+- calendar_update：target 放定位条件，expected_result 只放用户明确要改的字段。
+- calendar_delete：target 放定位条件，expected_result 为空对象 {} 或 null；删除没有要匹配的新字段。
+- 例如“新建一个会议，时间5月28日早上八点到九点，地点会议室B，会议为动员大会2”：goal_type=calendar_create，expected_result.title=动员大会2，expected_result.date_expression=5月28日，expected_result.time=08:00-09:00，expected_result.location=会议室B，expected_result.type=meeting。
 - 例如“把 OKR 年中复盘会改到晚上八点到九点”：target.title=OKR 年中复盘会，expected_result.time=20:00-21:00；title 不是 expected_result。
+- 例如“删除明天的公司会议”：goal_type=calendar_delete，target.event_type=meeting，target.date_expression=明天，expected_result={}。
 - expected_result 可以包含 time/location/title/date_expression/description/type；不能放旧字段，不能放 LLM 自算日期。
 
 其他能力：

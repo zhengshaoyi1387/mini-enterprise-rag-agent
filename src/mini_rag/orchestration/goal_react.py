@@ -109,14 +109,22 @@ def apply_goal_aware_completion(
 def completion_user_message(completion_check: dict[str, Any]) -> str:
     status = str(completion_check.get("status") or "")
     reason = str(completion_check.get("reason") or "")
+    goal_type = str(completion_check.get("goal_type") or "")
+    operation = "创建" if goal_type == "calendar_create" else ("删除" if goal_type == "calendar_delete" else "更新")
     if status == "needs_clarification":
         if reason == "multiple_candidates":
-            return "匹配到多个日程，请指定要更新的具体会议 event_id 或标题后再修改。"
+            return f"匹配到多个日程，请指定要{operation}的具体会议 event_id 或标题后再继续。"
         return "目标还不够明确，需要补充信息后才能执行。"
     if reason == "not_found":
-        return "没有找到匹配的目标会议，因此没有执行更新。"
+        return f"没有找到匹配的目标会议，因此没有执行{operation}。"
     if reason == "updated_field_mismatch":
         return "日程写操作返回结果与目标字段不一致，不能声称更新已完成。"
+    if reason == "created_field_mismatch":
+        return "日程创建结果与目标字段不一致，不能声称创建已完成。"
+    if reason == "create_failed":
+        return "日程创建工具没有返回成功创建结果，因此不能声称创建已完成。"
+    if reason == "delete_failed":
+        return "日程删除工具没有返回成功删除结果，因此不能声称删除已完成。"
     if reason == "missing_expected_result":
         return "已找到目标会议，但没有明确要修改的字段，因此不会自动执行更新。"
     return "用户目标尚未确认完成，因此不能声称操作已成功。"
@@ -157,18 +165,19 @@ def validate_safe_react_task(nodes: Any, state: AgentState, task: dict[str, Any]
     role_policies = nodes._get_role_policies(state)
     tool = str(task.get("tool") or task.get("tool_name") or "").strip()
     action = str(task.get("action") or (task.get("tool_input") or {}).get("action") or "").strip().lower()
-    if tool != "manage_company_calendar" or action != "update":
-        return {"code": "unsupported_safe_next_action", "message": "safe next action only supports calendar update"}
+    if tool != "manage_company_calendar" or action not in {"update", "delete"}:
+        return {"code": "unsupported_safe_next_action", "message": "safe next action only supports calendar update/delete"}
     allowed = nodes.tool_registry.allowed_actions(tool, role, role_policies=role_policies)
     if "*" not in allowed and action not in allowed:
         return {"code": "permission_denied", "message": friendly_permission_answer(role, tool, action)}
     tool_input = task.get("tool_input") if isinstance(task.get("tool_input"), dict) else {}
     if is_unresolved_calendar_event_id(tool_input.get("event_id")):
-        return {"code": "unresolved_event_id", "message": "safe update requires a concrete event_id"}
-    for field in ("date", "start_date", "end_date"):
-        value = str(tool_input.get(field) or "").strip()
-        if value and not nodes._is_iso_date(value):
-            return {"code": "unresolved_date", "field": field, "message": "safe update date must be resolver-produced ISO date"}
+        return {"code": "unresolved_event_id", "message": "safe calendar write requires a concrete event_id"}
+    if action == "update":
+        for field in ("date", "start_date", "end_date"):
+            value = str(tool_input.get(field) or "").strip()
+            if value and not nodes._is_iso_date(value):
+                return {"code": "unresolved_date", "field": field, "message": "safe update date must be resolver-produced ISO date"}
     candidate_tasks = [dict(item) for item in (state.get("plan_validation") or {}).get("executable_tasks") or [] if isinstance(item, dict)]
     gated = apply_capability_gates(
         {

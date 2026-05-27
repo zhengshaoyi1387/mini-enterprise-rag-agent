@@ -118,9 +118,11 @@ def _specific_calendar_write_failure_answer(state: dict[str, Any]) -> str:
     check = state.get("completion_check") if isinstance(state.get("completion_check"), dict) else {}
     observed = check.get("observed_result") if isinstance(check.get("observed_result"), dict) else {}
     reason = str(check.get("reason") or observed.get("message") or "").strip()
+    goal_type = str(check.get("goal_type") or "")
+    operation = "创建" if goal_type == "calendar_create" else ("删除" if goal_type == "calendar_delete" else "更新")
     candidates = observed.get("candidate_events") if isinstance(observed.get("candidate_events"), list) else []
     if str(check.get("status") or "").lower() in {"needs_clarification", "need_clarification"} or str(observed.get("status") or "").lower() in {"needs_clarification", "need_clarification"}:
-        lines = ["匹配到多个公司日程，当前无法确定要修改哪一场，因此没有执行更新。"]
+        lines = [f"匹配到多个公司日程，当前无法确定要{operation}哪一场，因此没有执行{operation}。"]
         for idx, event in enumerate([item for item in candidates if isinstance(item, dict)][:10], start=1):
             parts = [str(event.get("date") or ""), str(event.get("weekday_zh") or ""), str(event.get("time") or ""), str(event.get("title") or "")]
             location = str(event.get("location") or "").strip()
@@ -131,10 +133,10 @@ def _specific_calendar_write_failure_answer(state: dict[str, Any]) -> str:
             if event_id:
                 line += f"，event_id={event_id}"
             lines.append(line)
-        lines.append("请指定要修改的会议后，我再继续更新。")
+        lines.append(f"请指定要{operation}的会议后，我再继续处理。")
         return "\n".join(lines)
-    if "没有匹配" in reason or str(observed.get("status") or "").lower() == "skipped":
-        return reason or "没有找到对应的公司日程，因此未执行更新。"
+    if reason == "not_found" or "没有匹配" in reason or str(observed.get("status") or "").lower() == "skipped":
+        return f"没有找到对应的公司日程，因此未执行{operation}。"
     if reason:
         return f"日历写操作未完成：{reason}"
     return "日历写操作未完成，未执行任何成功的创建、更新或删除。"
