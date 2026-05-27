@@ -106,7 +106,6 @@ Skill smoke test：
 TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python scripts/smoke_test_skills.py
 ```
 
-更多设计、Skill vs Tool、Skill vs MCP、面试讲法见 [docs/skill_system.md](docs/skill_system.md)。
 
 ## SQLite 企业工具数据源
 
@@ -136,7 +135,7 @@ TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python scripts/smo
 
 ## 测试与评测
 
-推荐在 Ubuntu `ollama` 环境运行：
+
 
 ```bash
 TMPDIR=/tmp PYTHONPATH=src /home/zz/anaconda3/envs/ollama/bin/python -m compileall -q src tests
